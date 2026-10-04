@@ -1,0 +1,108 @@
+# Capture and integration-event contract
+
+CloudEvents 1.0 is accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md). The initial UrbanPulse wire profile is specified below for review; capture storage/recovery and handler design remain A-03 proposals. It prepares CONTRACT-01 and the parallel capture track. [Area semantics](area-contract.md) define the consuming view; [delivery status](../delivery-plan.md) owns implementation progress.
+
+## Separate three identities
+
+| Identity | Meaning | Retry/replay rule |
+| --- | --- | --- |
+| Capture ID | One upstream fetch attempt, allocated before the request | A new request gets a new ID, even for identical bytes; retrying storage for that attempt reuses its ID |
+| Payload SHA-256 | Integrity of the exact retained bytes | Equal bytes have equal hashes; this does not make two observations or attempts identical |
+| Domain/event identity | One accepted record change within its producer and aggregate | Redelivery/replay of that change preserves its event ID and aggregate revision |
+
+The existing worker's file hash is a smoke-path content identity. Do not extend it into the production capture ID: identical feeds fetched at different times still need separate evidence of capture success and source age.
+
+## Capture-only record and recovery
+
+Propose one durable intent record before each provider request. It identifies the capture ID, fixture/live mode, provider/product, endpoint alias, request start and collector version. Store no key, authorization header or credential-bearing URL. Each attempt terminates with an immutable manifest: captured, fetch-failed, raw-write-failed or abandoned after reconciliation.
+
+A captured manifest contains its schema version, request/completion times, HTTP status, source timestamp when present, content type, byte count, payload hash and immutable object locator/generation. Missing source time is null with an explicit reason. Format/parser/static-schedule versions and processing outcomes belong to a separate processing record; collection need not wait for schema interpretation or a running API/database.
+
+Use a capture-specific raw prefix containing mode, provider, product, UTC date and capture ID. Write intent, payload and terminal manifest with create-only semantics. [GCS generation preconditions](https://docs.cloud.google.com/storage/docs/request-preconditions) support conditional creation; adapters must verify an existing object's identity/hash after a conflict rather than accepting arbitrary bytes. Keep raw objects private. Lifecycle and accepted retention duration must account for incomplete intents and replay evidence.
+
+| Interruption | Reconciliation outcome |
+| --- | --- |
+| Before provider request | Intent records an abandoned attempt; no success is inferred |
+| Provider response received but raw write fails | Mark failure; do not advance source freshness or a domain projection |
+| Payload stored but manifest missing | Reconstruct a manifest only from validated retained intent/object metadata; otherwise quarantine the orphan |
+| Manifest exists but normalization has not run | Queue/replay processing from the retained capture; capture itself remains successful |
+| Same capture storage operation retried | Verify existing content; one terminal capture outcome |
+| Same bytes fetched again | New capture ID, same content hash; no duplicate domain change or refreshed observation timestamp |
+
+Persist recovery metadata needed to reconstruct the manifest with the payload at write time. A failed request is never replayed as if it produced a payload. A single active collector plus a durable lease/fencing and shared quota design must handle restart/rollout overlap before CLOUD-01 acceptance; an instance count of one alone is insufficient. Exact lease/storage implementation is reviewed with A-06.
+
+## CloudEvents envelope and UrbanPulse profile
+
+Use the [CloudEvents 1.0 specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md) and its [structured JSON format](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md). CloudEvents standardizes the outer context, not our delivery guarantee or business schema. Wire `specversion` is `1.0`; `source` plus `id` identifies an event. Use application-owned payload types and ports without a mandatory CloudEvents SDK or a broker dependency.
+
+| Field | UrbanPulse meaning |
+| --- | --- |
+| specversion, id, source, type | CloudEvents context; type includes the payload major version |
+| subject | Stable domain aggregate identity, namespaced by provider/product where needed |
+| time | UTC time the application accepted the meaningful change; provider/effective times stay explicit in data |
+| datacontenttype | application/json |
+| upmode | fixture or live; also isolated in the producer namespace |
+| data.revision | Positive monotonic application revision within source + subject; not a provider timestamp |
+| data.schema_version | Payload contract version; independent of the envelope specification |
+| data.provenance | Provider/product/record, capture references and source-time evidence |
+| data.effective_from / effective_until | Explicit validity, nullable only where the event-specific contract permits |
+| data.correlation_id / causation_id | Processing relationships; never an assertion of real-world weather causation |
+| data.state | Full published aggregate state for this event type; no ORM, cloud SDK or broker objects |
+
+Synthetic v1 position envelope, shared with the executable fixture:
+
+```json
+{
+  "specversion": "1.0",
+  "id": "synthetic-position-change-2",
+  "source": "urn:urbanpulse:fixture:transport",
+  "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+  "subject": "yarra-trams/synthetic-vehicle-1",
+  "time": "2026-10-04T00:00:30Z",
+  "datacontenttype": "application/json",
+  "upmode": "fixture",
+  "data": {
+    "schema_version": "1.0",
+    "revision": 2,
+    "provenance": {
+      "provider": "synthetic",
+      "product": "tram-positions",
+      "record_id": "synthetic-vehicle-1",
+      "capture_ids": ["synthetic-capture-2"],
+      "source_observed_at": "2026-10-04T00:00:25Z"
+    },
+    "effective_from": "2026-10-04T00:00:25Z",
+    "effective_until": null,
+    "correlation_id": "synthetic-scenario-1",
+    "causation_id": null,
+    "state": {
+      "vehicle_id": "synthetic-vehicle-1",
+      "route_id": "synthetic-route-1",
+      "position": {"longitude": 144.96, "latitude": -37.824},
+      "observed_at": "2026-10-04T00:00:25Z"
+    }
+  }
+}
+```
+
+Persist a new event ID with its accepted revision; retry dispatch with those exact values. Rebuilding a projection uses the preserved accepted history and its ordering rules, not newly generated revisions for old inputs. Source ordering is resolved before incrementing the application revision: older observations do not replace newer ones; equal source revision/time with conflicting content is quarantined unless the source supplies an explicit correction rule. Missing or ambiguous ordering evidence cannot become a newer current record merely because it arrived later.
+
+## Payload and handler boundaries
+
+Transport publishes position and service-status changes separately. A position includes a source-scoped vehicle identity, nullable route/trip references, validated coordinates and optional observed time. Never substitute a GTFS entity ID for a stable vehicle ID without source evidence. Unknown identities stay isolated from canonical vehicle history. Service status retains affected stops/routes, declared coverage and provider validity; delay values preserve negative, zero and missing meanings.
+
+Weather publishes validity/cancellation and declared spatial precision. Planning publishes complete current record state plus snapshot identity/as-of time; missing records become removals only after a complete successful snapshot under the approved policy. AreaStatusChanged publishes condition reasons **and coverage** with boundary/rule versions, input projection revisions and evaluation time. Timer-driven changes can cite earlier inputs without inventing a new provider capture.
+
+The publisher port accepts a serialized-compatible event; each handler returns applied, duplicate, superseded, retryable-failure or rejected with a reason. Deduplication keys include handler identity and event source/ID. Apply the effect and record the outcome consistently. Equal aggregate revision with different content is a conflict, not a successful duplicate. Full-state events permit a newer revision to supersede an older one, while preserving audit evidence.
+
+Location Intelligence consumes published domain snapshots through ports; it does not query another context's private tables. Reconcile both old and new spatial memberships when a record moves. If prior membership is unavailable, rebuild the pilot view from the published snapshots. Use input revision checks so a slow old recomputation cannot overwrite a newer area snapshot.
+
+Phase 2 uses the same envelope in process with bounded retries and explicit failed-handler evidence. Restart/failure triggers recomputation from persisted domain state. Phase 3 adds durable publication intent, consumer state and acknowledgements behind adapters. Neither the envelope nor an in-memory handler proves crash-safe delivery.
+
+## Compatibility and test cases
+
+Within payload major v1, optional additions must not change existing meanings. Consumers tolerate unknown optional fields, preserve them when forwarding and reject unsupported major versions. Producers must not introduce required semantics under a minor version: a receiver cannot detect an undocumented semantic change from its version number alone. Required-field or semantic changes need a new event type major and a migration/replay plan. Keep the envelope version separate from payload and projection versions.
+
+The initial executable profile lives in `urbanpulse/contracts/events.py`: UTC-normalized timestamps, explicit nulls, typed positions, capture provenance and fixture/live producer isolation. Its latest-revision guard distinguishes apply, duplicate, superseded and conflict; it compares a SHA-256 of sorted-key JSON from the validated model. This is an internal normalized fingerprint, not a cross-language canonical JSON standard or persistent event ledger. The guard cannot detect reuse of an older event ID after its receipt has left the current cursor; a consumer ledger must enforce that rule.
+
+CONTRACT-01 acceptance also requires shared publisher/handler contracts and source-specific payloads. Cover roundtrip with nulls and UTC timestamps; missing/invalid fields and future versions; repeated captures versus storage retry; duplicate events; older revisions; equal-revision conflicts; failure then retry; same observations with newer fetch times; fixture/live isolation; warning expiry without incoming events; and stale recomputation losing to a newer projection. Real storage/transaction/crash tests accompany the adapters that introduce those boundaries.

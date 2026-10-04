@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "UrbanPulse AU development baseline"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "fastapi", "uvicorn[standard]", "pydantic-settings", "sqlalchemy",
+  "fastapi", "uvicorn[standard]", "pydantic", "pydantic-settings", "sqlalchemy",
   "psycopg[binary]", "alembic", "redis", "httpx", "polars",
   "google-cloud-storage", "google-cloud-bigquery", "opentelemetry-api",
   "opentelemetry-sdk", "opentelemetry-instrumentation-fastapi", "prometheus-client",
@@ -27,7 +27,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["apps/api", "workers/ingestion"]
+files = ["apps/api", "workers/ingestion", "urbanpulse"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

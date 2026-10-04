@@ -165,7 +165,7 @@ This path serves recent conditions. It does not run a full historical aggregatio
 
 ### Cross-domain events
 
-Agree the shared event envelope in CONTRACT-01 during phase 1: identity, event/schema version, producer/source identity, aggregate revision, event/effective time, capture reference, correlation and typed payload. Specify duplicate, late/corrected and missing-time semantics using source samples. Exact field names and payload schemas are reviewed with A-03.
+Use CloudEvents 1.0 structured JSON, accepted in [ADR 0003](docs/adr/0003-cloudevents-and-area-conditions.md). Define the UrbanPulse profile in CONTRACT-01 during phase 1: identity, event/schema version, producer/source identity, aggregate revision, event/effective time, capture reference, correlation and typed payload. Specify duplicate, late/corrected and missing-time semantics using source samples. Exact field names and payload schemas are reviewed with A-03.
 
 In phase 2, publish meaningful domain changes through application ports using an in-process delivery adapter. TransportStatusChanged, WeatherWarningChanged and PlanningRecordChanged are illustrative event types; Location Intelligence consumes them and produces AreaStatusChanged. Use the same serializable envelope and handler contract that durable delivery will use. Avoid passing live ORM objects or broker-specific values into domain rules.
 
@@ -224,7 +224,7 @@ Initial marts can include route delay distributions by service date and time ban
 
 Location Intelligence owns area aggregation, not the underlying transport, warning or development records. Approve the area boundary source/version, spatial join rules and temporal overlap before building its schema or public API. Retain source IDs and reasons so a user can inspect the evidence behind a summary.
 
-Initial status categories and transition rules require approved examples for normal, degraded, stale and incomplete coverage. Recompute on time-driven warning expiry as well as new events. A failed source cannot silently improve a status. Keep current conditions separate from the slower area profile, and version any future score formula, weights and uncertainty handling. Numeric scoring requires its own evidence and approval.
+Keep current conditions (Normal, Degraded or Unknown) separate from source coverage, as accepted in [ADR 0003](docs/adr/0003-cloudevents-and-area-conditions.md). A known adverse fact remains Degraded with missing inputs; Normal requires all required inputs to be current and complete. Source-specific freshness, severity and spatial rules still require approved examples. Recompute on time-driven warning expiry as well as new events. A failed source cannot silently improve a status. Keep current conditions separate from the slower area profile, and version any future score formula, weights and uncertainty handling. Numeric scoring requires its own evidence and approval.
 
 ## 8 Redis and graceful degradation
 

@@ -33,7 +33,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 | Phase | Outcome                                                                  | Status                                                                                                                        |
 | ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Reproducible local foundation                                            | Complete: [phase-0 release](https://github.com/maxtsec/urban-pulse-au/releases/tag/phase-0), demo and verified clean checkout |
-| 1     | Area/map foundation and transport fixture slice                          | SRC-01 complete; Southbank/Tram scope accepted; area/contracts next                                                           |
+| 1     | Area/map foundation and transport fixture slice                          | SRC-01 complete; area/event contracts in review; fixture map next                                                           |
 | 2     | Weather + planning + integrated area view using shared in-process events | Planned; phases 1-2 form the city MVP                                                                                         |
 | 3     | Durable event delivery and recovery                                      | Planned                                                                                                                       |
 | 4     | Full application cloud deployment and operations                         | Planned                                                                                                                       |
@@ -42,7 +42,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
-The runnable baseline is the synthetic fixture demo; city map/layers, live capture and cloud services are next work. Hosted demo and recording: pending. Detailed acceptance, dependencies and decisions live in the [delivery plan](docs/delivery-plan.md).
+The runnable baseline is the synthetic fixture demo, with tested CloudEvents validation/revision comparison and a pure area-condition evaluator. These rules are not yet connected to the UI; city map/layers, live capture and cloud services follow. Hosted demo and recording: pending. Detailed acceptance, dependencies and decisions live in the [delivery plan](docs/delivery-plan.md).
 
 [Run the fixture demo](docs/demos/phase-0.md) | [Local evidence](docs/evidence/phase-0-local.md)
 
