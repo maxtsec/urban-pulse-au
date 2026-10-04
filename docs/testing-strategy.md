@@ -68,6 +68,8 @@ Before closing a phase, demonstrate its exit criteria, create its Git tag, and a
 
 Implement these cases with CITY-02/CITY-04 under [ADR 0005](adr/0005-weather-source-policy.md); this list specifies required evidence, not tests already implemented.
 
+- For each candidate product (severe weather, severe thunderstorm, riverine flood and flash flood), verify its mapping, lifecycle, geography and complete-snapshot scope independently. Unverified or absent products cannot be inferred warning-free from another product's coverage.
+- Every VicEmergency warning display credits State of Victoria, links to the EMV emergency-data notice and shows the last feed-update-received date/time with timezone. Verify the link target and capture-derived timestamp in normal, stale/error and replay views. Rendering, failed retries and offline replay preserve that time; issue/update and evaluation times remain distinct. Synthetic receipt times are labelled as fixtures.
 - Modelled weather changes, disappears or recovers without changing area conditions or weather-warning coverage.
 - Effective, applicable Watch and Act/Emergency Warning records degrade conditions; Advice remains in the information list and contributes no degradation reason.
 - Future, expired, cancelled, superseded or spatially inapplicable warnings contribute no active reason. Preserve unknown source categories and geometry without claiming complete coverage.
