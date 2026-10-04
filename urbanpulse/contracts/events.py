@@ -20,8 +20,6 @@ from pydantic import (
     model_validator,
 )
 
-Identifier = Annotated[str, StringConstraints(min_length=1, pattern=r"^\S+$")]
-
 
 def require_timestamp(value: object) -> object:
     if isinstance(value, datetime):
@@ -53,11 +51,15 @@ def require_finite_numbers(value: object) -> None:
             require_finite_numbers(item)
 
 
-def normalize_context_string(value: str) -> str:
+def normalize_unicode_string(value: str) -> str:
     try:
-        normalized = value.encode("utf-16-le", errors="surrogatepass").decode("utf-16-le")
+        return value.encode("utf-16-le", errors="surrogatepass").decode("utf-16-le")
     except UnicodeError as error:
-        raise ValueError("CloudEvents strings cannot contain unpaired surrogates") from error
+        raise ValueError("CloudEvents wire strings cannot contain unpaired surrogates") from error
+
+
+def normalize_context_string(value: str) -> str:
+    normalized = normalize_unicode_string(value)
     for char in normalized:
         code = ord(char)
         if code <= 0x1F or 0x7F <= code <= 0x9F or 0xFDD0 <= code <= 0xFDEF:
@@ -65,6 +67,32 @@ def normalize_context_string(value: str) -> str:
         if code & 0xFFFF in (0xFFFE, 0xFFFF):
             raise ValueError("CloudEvents strings cannot contain noncharacters")
     return normalized
+
+
+Identifier = Annotated[
+    str,
+    StringConstraints(min_length=1, pattern=r"^\S+$"),
+    AfterValidator(normalize_context_string),
+]
+
+
+def normalize_wire_strings(value: object) -> object:
+    """Reject malformed Unicode before a Python-created payload can be accepted."""
+    if isinstance(value, str):
+        return normalize_unicode_string(value)
+    if isinstance(value, dict):
+        normalized: dict[object, object] = {}
+        for key, item in value.items():
+            normalized_key = normalize_unicode_string(key) if isinstance(key, str) else key
+            if normalized_key in normalized:
+                raise ValueError("wire keys must be unique after Unicode normalization")
+            normalized[normalized_key] = normalize_wire_strings(item)
+        return normalized
+    if isinstance(value, list):
+        return [normalize_wire_strings(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(normalize_wire_strings(item) for item in value)
+    return value
 
 
 def normalize_numbers(value: object) -> object:
@@ -82,6 +110,11 @@ class WireModel(BaseModel):
     """Preserve optional additions when reading and forwarding a v1 payload."""
 
     model_config = ConfigDict(extra="allow", frozen=True, allow_inf_nan=False)
+
+    @model_validator(mode="before")
+    @classmethod
+    def valid_wire_strings(cls, value: object) -> object:
+        return normalize_wire_strings(value)
 
     @model_validator(mode="after")
     def finite_extras(self) -> Self:
@@ -189,6 +222,8 @@ class VehiclePositionChanged(CloudEvent[VehiclePosition]):
             raise ValueError("a position event requires capture provenance")
         if self.data.state.observed_at != self.data.provenance.source_observed_at:
             raise ValueError("position and provenance observation times must agree")
+        if self.data.effective_until is not None:
+            raise ValueError("position effective_until must be null; freshness is consumer policy")
         if self.data.effective_from != self.data.state.observed_at:
             raise ValueError("position effective_from must equal observed_at, including null")
         return self
