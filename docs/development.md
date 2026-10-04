@@ -109,6 +109,10 @@ uv run --locked dbt debug --project-dir pipelines/dbt --profiles-dir pipelines/d
 
 A later `dbt build` with the same project/profile arguments creates the synthetic view and runs warehouse tests. It requires real permissions and may incur charges.
 
+## Clean-checkout verification
+
+Use the [isolated rehearsal](demos/clean-checkout.md) to restore a new checkout and test fresh PostGIS/Redis services alongside an existing development environment. The [BASE-01 record](evidence/base-01-clean-checkout.md) gives the tested revision, timings and cache conditions.
+
 ## Stop, restart and troubleshoot
 
 Stop foreground API, Vite and Dagster processes with Ctrl+C in their terminals. `docker compose down` stops services while retaining the named PostgreSQL volume. Avoid deleting volumes to resolve routine startup problems.

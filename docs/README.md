@@ -10,6 +10,8 @@ For development: [development guide](development.md) → [architecture](architec
 
 For local setup demonstration: [Phase 0 walkthrough](demos/phase-0.md) and [local evidence](evidence/phase-0-local.md).
 
+For reproducibility: [clean-checkout walkthrough](demos/clean-checkout.md) and [BASE-01 evidence](evidence/base-01-clean-checkout.md).
+
 ## Document responsibilities
 
 | Document                                        | Owns                                                        | Update when                                        |
