@@ -27,6 +27,7 @@ def test_serialization_preserves_unknown_time_and_optional_additions():
     data = payload()
     data["data"]["schema_version"] = "1.1"
     data["data"]["state"]["observed_at"] = None
+    data["data"]["effective_from"] = None
     data["data"]["provenance"]["source_observed_at"] = None
     data["data"]["state"]["optional_label"] = "Synthetic tram"
     data["traceparent"] = "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
@@ -188,3 +189,146 @@ def test_finite_nested_extras_preserve_numbers_and_explicit_null():
     data["data"]["state"]["optional_metrics"] = {"samples": [0, -1.5, None, {"valid": True}]}
     event = VehiclePositionChanged.model_validate(data)
     assert json.loads(event.model_dump_json()) == data
+
+
+@pytest.mark.parametrize("field", ["subject", "vehicle_id"])
+def test_position_cannot_target_a_different_vehicle(field):
+    data = payload()
+    target = data if field == "subject" else data["data"]["state"]
+    target[field] = "yarra-trams/another-vehicle"
+    with pytest.raises(ValidationError, match="subject must match"):
+        VehiclePositionChanged.model_validate(data)
+
+
+def test_source_scoped_vehicle_identity_is_shared_by_payload_and_subject():
+    data = payload()
+    data["subject"] = data["data"]["state"]["vehicle_id"] = "another-provider/vehicle-1"
+    event = VehiclePositionChanged.model_validate(data)
+    assert event.subject == event.data.state.vehicle_id
+    assert EventReceipt.from_event(event).subject == "another-provider/vehicle-1"
+
+
+@pytest.mark.parametrize(("original", "retried"), [(1, 1.0), (0, -0.0), (10**20, 1e20)])
+def test_equal_nested_json_numbers_have_duplicate_identity(original, retried):
+    events = []
+    for value in (original, retried):
+        data = payload()
+        data["data"]["state"]["metrics"] = {"nested": [value, {"value": value}]}
+        events.append(
+            EventReceipt.from_event(VehiclePositionChanged.model_validate_json(json.dumps(data)))
+        )
+    assert compare_revision(events[1], events[0]) == RevisionOutcome.DUPLICATE
+
+
+@pytest.mark.parametrize(
+    ("original", "changed"), [(1, True), (1, "1"), (1, 1.01), (2**53, 2**53 + 1)]
+)
+def test_numeric_normalization_does_not_hide_changed_values_or_types(original, changed):
+    events = []
+    for value in (original, changed):
+        data = payload()
+        data["data"]["state"]["metric"] = value
+        events.append(EventReceipt.from_event(VehiclePositionChanged.model_validate(data)))
+    assert compare_revision(events[1], events[0]) == RevisionOutcome.CONFLICT
+
+
+def test_old_event_id_lookup_detects_changed_content_before_revision_ordering():
+    original = receipt()
+    latest = replace(original, event_id="new-event", revision=3, fingerprint="new-state")
+    assert compare_revision(original, latest, prior_receipt=original) == RevisionOutcome.DUPLICATE
+    for changed in (
+        replace(original, fingerprint="tampered"),
+        replace(original, revision=4),
+        replace(original, subject="other-vehicle"),
+    ):
+        assert compare_revision(changed, latest, prior_receipt=original) == RevisionOutcome.CONFLICT
+        assert compare_revision(changed, None, prior_receipt=original) == RevisionOutcome.CONFLICT
+    # Without retained history, only ordering (not old event identity) is knowable.
+    assert compare_revision(original, latest) == RevisionOutcome.SUPERSEDED
+
+
+@pytest.mark.parametrize("field", ["source", "event_id"])
+def test_prior_receipt_from_wrong_lookup_key_is_rejected(field):
+    original = receipt()
+    unrelated = replace(original, **{field: "unrelated"})
+    with pytest.raises(ValueError, match="source/event ID"):
+        compare_revision(original, None, prior_receipt=unrelated)
+
+
+@pytest.mark.parametrize(
+    "value", [-(2**31), 2**31 - 1, True, False, "", "https://example.org", "YmluYXJ5"]
+)
+def test_extension_primary_json_types_roundtrip(value):
+    data = payload()
+    data["extension"] = value
+    event = VehiclePositionChanged.model_validate_json(json.dumps(data))
+    assert json.loads(event.model_dump_json())["extension"] == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        -(2**31) - 1,
+        2**31,
+        1.0,
+        1.5,
+        [],
+        {},
+        "line\nfeed",
+        "\x7f",
+        "\x9f",
+        "\ufdd0",
+        "\uffff",
+        "\U0001fffe",
+        "\ud800",
+    ],
+)
+def test_invalid_extension_context_values_are_rejected(value):
+    data = {**payload(), "extension": value}
+    with pytest.raises(ValidationError, match="CloudEvents"):
+        VehiclePositionChanged.model_validate(data)
+    with pytest.raises(ValidationError):
+        VehiclePositionChanged.model_validate_json(json.dumps(data))
+
+
+def test_null_extension_is_unset_but_payload_null_is_preserved():
+    event = VehiclePositionChanged.model_validate({**payload(), "extension": None})
+    assert "extension" not in json.loads(event.model_dump_json())
+    assert compare_revision(EventReceipt.from_event(event), receipt()) == RevisionOutcome.DUPLICATE
+    assert event.data.causation_id is None
+
+
+@pytest.mark.parametrize("value", ["Tram \U0001f68b", "\ud83d\ude8b"])
+def test_extension_allows_unicode_and_valid_surrogate_pairs(value):
+    event = VehiclePositionChanged.model_validate({**payload(), "extension": value})
+    assert json.loads(event.model_dump_json())["extension"].endswith("\U0001f68b")
+
+
+@pytest.mark.parametrize("effective_from", [None, "2026-10-04T00:00:24Z", "2026-10-04T00:00:26Z"])
+def test_position_validity_cannot_invent_an_observation_time(effective_from):
+    data = payload()
+    data["data"]["effective_from"] = effective_from
+    with pytest.raises(ValidationError, match="effective_from must equal observed_at"):
+        VehiclePositionChanged.model_validate(data)
+
+
+def test_unknown_position_observation_requires_unknown_effective_start():
+    data = payload()
+    data["data"]["state"]["observed_at"] = None
+    data["data"]["provenance"]["source_observed_at"] = None
+    with pytest.raises(ValidationError, match="effective_from must equal observed_at"):
+        VehiclePositionChanged.model_validate(data)
+    data["data"]["effective_from"] = None
+    assert VehiclePositionChanged.model_validate(data).data.effective_from is None
+
+
+def test_repeated_capture_references_are_rejected():
+    data = payload()
+    data["data"]["provenance"]["capture_ids"] *= 2
+    with pytest.raises(ValidationError, match="capture_ids must be unique"):
+        VehiclePositionChanged.model_validate(data)
+    data["data"]["provenance"]["capture_ids"] = ["capture-1", "capture-2"]
+    assert VehiclePositionChanged.model_validate(data).data.provenance.capture_ids == (
+        "capture-1",
+        "capture-2",
+    )

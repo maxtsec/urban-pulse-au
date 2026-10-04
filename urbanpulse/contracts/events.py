@@ -53,6 +53,31 @@ def require_finite_numbers(value: object) -> None:
             require_finite_numbers(item)
 
 
+def normalize_context_string(value: str) -> str:
+    try:
+        normalized = value.encode("utf-16-le", errors="surrogatepass").decode("utf-16-le")
+    except UnicodeError as error:
+        raise ValueError("CloudEvents strings cannot contain unpaired surrogates") from error
+    for char in normalized:
+        code = ord(char)
+        if code <= 0x1F or 0x7F <= code <= 0x9F or 0xFDD0 <= code <= 0xFDEF:
+            raise ValueError("CloudEvents strings cannot contain controls or noncharacters")
+        if code & 0xFFFF in (0xFFFE, 0xFFFF):
+            raise ValueError("CloudEvents strings cannot contain noncharacters")
+    return normalized
+
+
+def normalize_numbers(value: object) -> object:
+    """Give equal JSON numbers one fingerprint without converting integers to floats."""
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, dict):
+        return {key: normalize_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [normalize_numbers(item) for item in value]
+    return value
+
+
 class WireModel(BaseModel):
     """Preserve optional additions when reading and forwarding a v1 payload."""
 
@@ -70,6 +95,12 @@ class Provenance(WireModel):
     record_id: Identifier
     capture_ids: tuple[Identifier, ...]
     source_observed_at: Timestamp | None
+
+    @model_validator(mode="after")
+    def unique_captures(self) -> Self:
+        if len(set(self.capture_ids)) != len(self.capture_ids):
+            raise ValueError("capture_ids must be unique")
+        return self
 
 
 class Position(WireModel):
@@ -116,6 +147,21 @@ class CloudEvent[Payload: WireModel](WireModel):
     upmode: Literal["fixture", "live"]
     data: EventData[Payload]
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_extensions(cls, value: object) -> object:
+        if isinstance(value, dict):
+            return {
+                name: (
+                    normalize_context_string(item)
+                    if name not in cls.model_fields and isinstance(item, str)
+                    else item
+                )
+                for name, item in value.items()
+                if name in cls.model_fields or item is not None
+            }
+        return value
+
     @model_validator(mode="after")
     def consistent_mode(self) -> "CloudEvent[Payload]":
         if self.source.split(":")[2] != self.upmode:
@@ -124,7 +170,9 @@ class CloudEvent[Payload: WireModel](WireModel):
             if not name.isascii() or not name.isalnum() or name != name.lower():
                 raise ValueError("CloudEvents extension names use lowercase ASCII letters/digits")
             if type(value) not in (str, int, bool):
-                raise ValueError("CloudEvents extensions must be scalar context values")
+                raise ValueError("CloudEvents extensions must be JSON string, integer or boolean")
+            if type(value) is int and not -(2**31) <= value < 2**31:
+                raise ValueError("CloudEvents extension integers must fit signed 32 bits")
         return self
 
 
@@ -132,13 +180,17 @@ class VehiclePositionChanged(CloudEvent[VehiclePosition]):
     type: Literal["au.urbanpulse.transport.vehicle-position-changed.v1"]
 
     @model_validator(mode="after")
-    def consistent_observation_time(self) -> "VehiclePositionChanged":
+    def consistent_position(self) -> "VehiclePositionChanged":
         if not self.source.endswith(":transport"):
             raise ValueError("position events must be owned by transport")
+        if self.subject != self.data.state.vehicle_id:
+            raise ValueError("subject must match the source-scoped vehicle_id")
         if not self.data.provenance.capture_ids:
             raise ValueError("a position event requires capture provenance")
         if self.data.state.observed_at != self.data.provenance.source_observed_at:
             raise ValueError("position and provenance observation times must agree")
+        if self.data.effective_from != self.data.state.observed_at:
+            raise ValueError("position effective_from must equal observed_at, including null")
         return self
 
 
@@ -156,7 +208,7 @@ class EventReceipt:
     def from_event[Payload: WireModel](cls, event: CloudEvent[Payload]) -> "EventReceipt":
         serialized = json.dumps(
             # Delivery tracing can change without changing the published event.
-            event.model_dump(mode="json", exclude={"traceparent", "tracestate"}),
+            normalize_numbers(event.model_dump(mode="json", exclude={"traceparent", "tracestate"})),
             sort_keys=True,
             separators=(",", ":"),
             allow_nan=False,
@@ -177,8 +229,19 @@ class RevisionOutcome(StrEnum):
     CONFLICT = "conflict"
 
 
-def compare_revision(incoming: EventReceipt, current: EventReceipt | None) -> RevisionOutcome:
-    """Compare with the latest accepted state, not a durable deduplication ledger."""
+def compare_revision(
+    incoming: EventReceipt,
+    current: EventReceipt | None,
+    *,
+    prior_receipt: EventReceipt | None = None,
+) -> RevisionOutcome:
+    """Check a source/event-ID receipt lookup before the aggregate ordering cursor."""
+    if prior_receipt is not None:
+        if (incoming.source, incoming.event_id) != (prior_receipt.source, prior_receipt.event_id):
+            raise ValueError("prior receipt must match the incoming source/event ID")
+        if incoming == prior_receipt:
+            return RevisionOutcome.DUPLICATE
+        return RevisionOutcome.CONFLICT
     if current is None:
         return RevisionOutcome.APPLY
     if (incoming.source, incoming.subject) != (current.source, current.subject):
