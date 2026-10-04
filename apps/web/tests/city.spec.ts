@@ -259,3 +259,49 @@ test('playback and moment jumps respect the API clock limit', async ({
   await expect(page.getByTestId('clock')).toHaveText('11:01:15');
   expect(Math.max(...requested)).toBe(75);
 });
+
+for (const state of ['current', 'stale', 'error', 'unsupported']) {
+  test(`weather coverage renders the API state: ${state}`, async ({ page }) => {
+    await page.route('**/api/v1/areas/*?*', async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      data.assessment.coverage.find(
+        (entry: { input_id: string }) => entry.input_id === 'weather_warnings',
+      ).state = state;
+      data.assessment.incomplete_inputs =
+        state === 'current' ? [] : ['weather_warnings'];
+      data.assessment.condition = state === 'current' ? 'normal' : 'unknown';
+      await route.fulfill({ response, json: data });
+    });
+    await page.goto('/');
+    const weather = page
+      .locator('.domain-row')
+      .filter({
+        has: page.getByRole('heading', { name: 'Weather & hazards' }),
+      });
+    await expect(weather.locator('.coverage-pill')).toHaveText(state);
+    await expect(weather).not.toContainText('Warning data not connected');
+  });
+}
+
+test('slider keyboard movement requests 15-second increments', async ({
+  page,
+}) => {
+  const requested: number[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (
+      url.pathname.startsWith('/api/v1/areas/') &&
+      url.searchParams.has('seconds')
+    )
+      requested.push(Number(url.searchParams.get('seconds')));
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('clock')).toHaveText('11:00:00');
+  const slider = page.getByLabel('Scenario time', { exact: true });
+  await expect(slider).toHaveAttribute('step', '15');
+  await slider.focus();
+  await slider.press('ArrowRight');
+  await expect(page.getByTestId('clock')).toHaveText('11:00:15');
+  expect(requested.filter((seconds) => seconds > 0)).toEqual([15]);
+});

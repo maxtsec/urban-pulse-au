@@ -277,3 +277,50 @@ def test_service_pins_verified_bundle_and_geometry_without_repeated_reads(captur
     service.evidence(captured.capture_id, 60, "journey")
     assert service.snapshot(60) == initial
     assert capture.calls == 1
+
+
+def test_disrupted_update_preserves_episode_identity_and_start_but_updates_evidence(captured):
+    scenario = copy.deepcopy(captured.scenario)
+    update = {
+        **scenario["service_frames"][1],
+        "id": "service-update-120",
+        "at_seconds": 120,
+        "reason": "Updated interruption detail",
+        "capture_ids": ["capture-update-120"],
+    }
+    scenario["service_frames"].append(update)
+    service = CityService(
+        MemoryCapture(CapturedCity(captured.capture_id, captured.boundary, scenario)),
+        FixedMembership(),
+    )
+    first = service.snapshot(60)["assessment"]["reasons"][0]
+    updated = service.snapshot(150)
+    fact = updated["assessment"]["reasons"][0]
+    assert fact["id"] == first["id"]
+    assert fact["effective_from"] == first["effective_from"]
+    assert fact["reason"] == "Updated interruption detail"
+    assert updated["service_evidence"]["event_id"] == "service-update-120"
+    assert updated["service_evidence"]["capture_ids"] == ("capture-update-120",)
+    assert service.snapshot(150, "outage")["assessment"]["reasons"][0] == first
+    assert service.snapshot(180)["assessment"]["reasons"] == ()
+    assert service.snapshot(60)["assessment"]["reasons"][0] == first
+
+
+def test_disruption_after_received_clear_starts_a_new_episode(captured):
+    scenario = copy.deepcopy(captured.scenario)
+    scenario["service_frames"].append(
+        {
+            **scenario["service_frames"][1],
+            "id": "new-episode-240",
+            "at_seconds": 240,
+            "capture_ids": ["capture-new-240"],
+        }
+    )
+    service = CityService(
+        MemoryCapture(CapturedCity(captured.capture_id, captured.boundary, scenario)),
+        FixedMembership(),
+    )
+    assert service.snapshot(200)["assessment"]["reasons"] == ()
+    fact = service.snapshot(240)["assessment"]["reasons"][0]
+    assert fact["id"] == "new-episode-240"
+    assert fact["effective_from"] == datetime(2026, 10, 4, 0, 4, tzinfo=UTC)

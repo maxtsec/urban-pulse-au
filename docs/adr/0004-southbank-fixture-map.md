@@ -26,3 +26,12 @@ A buffered catchment would change the area's meaning. A public basemap would int
 The API pins a verified fixture bundle for the service lifetime and reconstructs time-dependent projections per request. Service changes are captured frames; only records received by the selected clock contribute. The outage fixture loses transport access at 90 seconds, after the 60-second interruption but before its 180-second resolution. Real PostGIS results are memoized only for identical boundary/point inputs. Replay can demonstrate duplicate, old, conflicting and invalid events without a persistent consumer ledger. No database schema or migration is introduced. The content-addressed bundle is a fixture storage adapter, not the proposed production capture ledger.
 
 Live freshness, warning geometry, basemap delivery and capture retention require their own evidence and decisions. See the [area contract](../architecture/area-contract.md), [walkthrough](../demos/city-01.md) and [delivery plan](../delivery-plan.md).
+
+
+## Service freshness limitation
+
+CITY-01 does not implement a service-status TTL. At 360 seconds the clear frame received at 180 seconds is still labelled `current`. In this authored fixture, that label denotes the latest complete service snapshot, not a verified freshness guarantee for a live feed. Position age thresholds do not apply to service coverage. Outage still produces `error`, and an unresolved interruption remains Degraded regardless of coverage.
+
+Before live transport enablement, the architect must select and version service freshness thresholds using measured alert/update cadence. Test the exact stale transition, missing timestamps, repeated fetches and unresolved facts before treating `current` as fresh provider coverage. The independent source-observation time is retained in `service_evidence.observed_at` so this limitation is inspectable.
+
+Within the single-stop fixture, consecutive disrupted frames update one episode: its ID and effective start come from the first disrupted frame, while reason text and provenance follow the latest received frame. A received clear frame ends it; a subsequent interruption starts a new episode. This is not a contract for correlating multiple live disruptions.
