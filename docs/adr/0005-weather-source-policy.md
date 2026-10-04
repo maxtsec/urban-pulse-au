@@ -1,8 +1,12 @@
 # ADR 0005: Weather sources and warning assessment policy
 
-Status: accepted by the project architect on 5 October 2026. Extends [ADR 0003](0003-cloudevents-and-area-conditions.md). Implementation and source enablement are tracked in the [delivery plan](../delivery-plan.md).
+Date: 2026-10-05
+
+Decision: use the approved weather-source roles and warning assessment policy. Live-source enablement remains separate.
 
 ## Context
+
+This decision extends [ADR 0003](0003-cloudevents-and-area-conditions.md). Implementation and source enablement are tracked in the [delivery plan](../delivery-plan.md).
 
 UrbanPulse needs everyday weather information and applicable warnings while preserving source meaning. Open-Meteo model output, VicEmergency warnings and BOM station observations or warnings are different products. Adding a provider should preserve domain boundaries and provenance without requiring a speculative universal weather schema.
 
@@ -14,7 +18,7 @@ Keep one **Weather & Hazards** bounded context. Separate reading and warning res
 
 Use Open-Meteo for labelled modelled weather information. It does not produce adverse facts, change Normal/Degraded/Unknown, or satisfy weather-warning coverage. Show it in a weather information section, separate from the slower planning profile. Forecast features remain a later option requiring scope approval.
 
-Select VicEmergency as the candidate initial warning source, limited to verified weather-related warning products. Its `Met` category is a provider mapping to validate, not the domain definition or proof of exhaustive coverage. Fire, hazmat, road incidents and automatic emergency advice are outside this slice.
+Select VicEmergency as the candidate initial warning source, limited to verified weather-related warning products. The candidate products are severe weather, severe thunderstorm, riverine flood and flash flood warnings. Flood warnings are within the candidate scope; each product needs its own access, mapping, lifecycle, geography and completeness verification before enablement. Its `Met` category is a provider mapping to validate, not the domain definition or proof of exhaustive coverage. Fire, hazmat, road incidents and automatic emergency advice are outside this slice.
 
 Keep BOM as a possible later addition after product access and use conditions are verified. A successful permission request does not approve a new product, severity mapping or source-selection policy automatically.
 
@@ -43,6 +47,10 @@ Keep provider/product, provider record identity, source/effective/capture times,
 Add providers through adapters and meaningful shared contract tests. Use additive, compatible migrations when a new product introduces a real concept. Do not relabel historical model output as station observations or promise that every provider change needs no migration.
 
 Do not merge warnings across providers in the pilot. Keep each warning's provenance and lifecycle; two warnings may explain the same Degraded condition without numerical weighting. Same-provider duplicate, older-revision, update, cancellation and expiry handling remain mandatory. Combining provider coverage or choosing precedence requires a reviewed policy; two partial feeds do not imply complete coverage.
+
+### Attribution
+
+For VicEmergency warning displays, credit **State of Victoria**, link to the [EMV emergency-data notice](https://www.emv.vic.gov.au/responsibilities/victorias-warning-system/emergency-data), and show the date and time of the last update received from the feed. Preserve this receipt time through caching and replay; rendering, failed retries and replay execution must not advance it. Keep warning issue/update times separate. These are CITY-02 acceptance requirements; embedded third-party content rights remain an enablement gate in the source register.
 
 ## Consequences and validation
 
