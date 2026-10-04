@@ -28,7 +28,7 @@ Transport collection metadata and Tram OpenAPI definitions disagree on authentic
 
 ## Weather enablement evidence
 
-A maintainer browser review of the original [EMV emergency-data notice](https://www.emv.vic.gov.au/responsibilities/victorias-warning-system/emergency-data) on 5 October 2026 confirmed State of Victoria copyright and **Creative Commons Attribution 3.0 Australia** licensing for the notice's feed data. The notice requires attribution to State of Victoria, a link to the notice, and display of the date and time of the last update received from the feed. This evidence comes from the browser review; automated retrieval still returned HTTP 403 on the same date.
+A maintainer browser review of the original [EMV emergency-data notice](https://www.emv.vic.gov.au/responsibilities/victorias-warning-system/emergency-data) on 5 October 2026 confirmed State of Victoria copyright and **Creative Commons Attribution 3.0 Australia** licensing for the notice's feed data. The [attribution acceptance](#attribution-acceptance) below owns the display requirements and application receipt-time definition. This evidence comes from the browser review; automated retrieval still returned HTTP 403 on the same date.
 
 The official support article still says the feed is not publicly available and invites requests. Confirm the supported endpoint and whether the notice covers embedded third-party content, including BOM material. The notice review does not resolve those questions, permitted retention or product completeness. A successful JSON fetch or a sample containing polygons does not establish exhaustive coverage or geometry meaning.
 
@@ -47,7 +47,13 @@ For every candidate, verify access and use rights individually and retain the en
 
 ### Attribution acceptance
 
-Every VicEmergency warning presentation must include **State of Victoria**, a working link to the EMV notice, and a labelled last-feed-update-received date/time with timezone. Preserve that receipt time from the accepted capture/manifest through projection, cache and replay. Show it separately from warning issue/update time and area evaluation time. Cache renders, failed fetches and offline replay must not manufacture a newer receipt time. Synthetic demonstrations label the value as a fixture receipt time. Verify all three requirements in CITY-02, including stale/error and replay views that still display warnings.
+Every VicEmergency warning presentation must include **State of Victoria**, a working link to the [EMV emergency-data notice](https://www.emv.vic.gov.au/responsibilities/victorias-warning-system/emergency-data), and a labelled last-feed-update-received date/time with timezone. Verify all three requirements in CITY-02, including stale/error and replay views that still display warnings. Synthetic demonstrations label the value as a fixture receipt time.
+
+For this application, the last-feed-update-received time is the completion time of the latest successful capture (response received, stored and validated), including captures whose bytes are unchanged. It is distinct from warning issue/update times and does not create a new domain revision or warning-change event. This defines receipt-time handling; it does not reinterpret the provider's warning timestamps.
+
+Preserve this completion time in the accepted capture/manifest and carry it through projection and cache. A new successful capture of identical bytes advances receipt time with a new capture ID and the same payload hash; failed fetches, storage/validation failures, cache rendering and offline replay do not. Replay uses the original capture completion time, never its execution time. Keep area evaluation time separate.
+
+Track receipt evidence independently of warning-domain changes so an unchanged but successfully refreshed feed can update its receipt display and coverage evaluation. Receipt success alone does not establish source freshness or completeness: provider time, warning validity and the verified snapshot contract still apply. Coverage changes remain observable under the [area contract](architecture/area-contract.md#conditions-and-coverage), even when no warning-change event is emitted.
 
 ### Modelled weather access
 
