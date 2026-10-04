@@ -28,7 +28,7 @@ For the runnable city view: [CITY-01 walkthrough](demos/city-01.md), [fixture ma
 | [ADR 0001](adr/0001-city-intelligence-scope.md)          | Accepted integrated product scope and consequences                 | A later decision supersedes it                          |
 | [ADR 0002](adr/0002-southbank-tram-pilot.md)             | Accepted Southbank CLUE pilot and initial tram scope               | The architect changes the pilot or transport scope      |
 | [ADR 0003](adr/0003-cloudevents-and-area-conditions.md) | Accepted CloudEvents format and separate condition/coverage principle | A later decision supersedes either principle |
-| [ADR 0004](adr/0004-southbank-fixture-map.md) | Accepted fixture identity, point membership, local map and age policy | A later decision supersedes the fixture policy |
+| [ADR 0004](adr/0004-southbank-fixture-map.md) | Proposed fixture identity, point membership, local map and age policy | The architect accepts or revises the proposal |
 | [CITY-01 walkthrough](demos/city-01.md) | Feature scope, acceptance cases, local replay and query details | Fixture behavior or reproduction steps change |
 | [CITY-01 evidence](evidence/city-01-fixture-map.md) | Dated spatial/browser results and verification limits | A new checkpoint is verified |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |

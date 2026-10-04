@@ -57,26 +57,14 @@ def area_boundary(area_id: str, revision: str) -> dict[str, Any]:
 
 
 @router.get("/api/v1/fixture/captures/{capture_id}")
-def fixture_evidence(capture_id: str) -> dict[str, Any]:
+def fixture_evidence(
+    capture_id: str,
+    seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
+    scenario: str = Query(default="journey", pattern="^(journey|empty|outage)$"),
+) -> dict[str, Any]:
     try:
-        captured = city_service().capture.read()
+        return city_service().evidence(capture_id, seconds, scenario)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail="Unknown fixture capture") from error
     except (OSError, ValueError) as error:
         raise HTTPException(status_code=503, detail="Fixture evidence unavailable") from error
-    if captured.capture_id != capture_id:
-        raise HTTPException(status_code=404, detail="Unknown fixture capture")
-    return {
-        "mode": "fixture",
-        "capture_id": captured.capture_id,
-        "description": "Retained synthetic scenario with an official open-data boundary",
-        "scenario_start": captured.scenario["started_at"],
-        "synthetic_capture_references": True,
-        "events": [
-            {
-                "id": frame["event"]["id"],
-                "at_seconds": frame["at_seconds"],
-                "capture_ids": frame["event"]["data"]["provenance"]["capture_ids"],
-            }
-            for frame in captured.scenario["frames"]
-        ],
-        "boundary_attribution": captured.boundary["properties"],
-    }

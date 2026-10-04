@@ -2,15 +2,18 @@
 
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
+from functools import cached_property
 from typing import Any, Protocol
 
 from pydantic import ValidationError
 
+from urbanpulse.application.city_replay import ServiceFrame, received, service_at
 from urbanpulse.contracts.events import VehiclePositionChanged
 from urbanpulse.location.city import Freshness, PositionProjection, position_freshness
-from urbanpulse.location.status import AdverseFact, Coverage, CoverageState, assess_area
+from urbanpulse.location.status import Coverage, CoverageState, assess_area
 
 AREA_ID = "au-vic-melbourne-clue-southbank"
 POLICY_VERSION = "southbank-fixture-v1"
@@ -44,28 +47,55 @@ class CityService:
         self.capture = capture
         self.spatial = spatial
 
+    @cached_property
+    def captured(self) -> CapturedCity:
+        # Pin verified fixture bytes for this service lifetime; restart to adopt a new bundle.
+        return self.capture.read()
+
+    @cached_property
+    def boundary_revision(self) -> str:
+        return geometry_revision(self.captured.boundary["geometry"])
+
+    @cached_property
+    def service_frames(self) -> tuple[ServiceFrame, ...]:
+        frames = tuple(
+            sorted(
+                (
+                    ServiceFrame.model_validate(raw)
+                    for raw in self.captured.scenario["service_frames"]
+                ),
+                key=lambda frame: frame.at_seconds,
+            )
+        )
+        if len({frame.at_seconds for frame in frames}) != len(frames):
+            raise ValueError("service frames require distinct observation times")
+        if any(frame.stop_id != self.captured.scenario["service_stop"]["id"] for frame in frames):
+            raise ValueError("service frame references an unknown stop")
+        return frames
+
     def geometry(self) -> dict[str, Any]:
-        captured = self.capture.read()
+        captured = self.captured
         feature = captured.boundary
         return {
             "area_id": AREA_ID,
-            "revision": geometry_revision(feature["geometry"]),
+            "revision": self.boundary_revision,
             "canonicalization": "sorted-keys-json-v1",
-            "feature": feature,
+            "feature": deepcopy(feature),
         }
 
     def snapshot(self, seconds: int, scenario: str = "journey") -> dict[str, Any]:
         if seconds < 0 or seconds > MAX_SECONDS or scenario not in {"journey", "empty", "outage"}:
             raise ValueError("invalid fixture scenario or clock")
-        captured = self.capture.read()
+        captured = self.captured
         boundary = captured.boundary
-        revision = geometry_revision(boundary["geometry"])
+        revision = self.boundary_revision
         started_at = datetime.fromisoformat(captured.scenario["started_at"])
         at = started_at + timedelta(seconds=seconds)
+        outage_at = captured.scenario["outage_at_seconds"]
         projection = PositionProjection()
         rejected = 0
         for frame in captured.scenario["frames"] if scenario != "empty" else []:
-            if frame["at_seconds"] > seconds:
+            if not received(frame["at_seconds"], seconds, scenario, outage_at):
                 continue
             try:
                 event = VehiclePositionChanged.model_validate(frame["event"])
@@ -109,18 +139,17 @@ class CityService:
                     "capture_ids": entry.event.data.provenance.capture_ids,
                 }
             )
-        facts: tuple[AdverseFact, ...] = ()
-        if scenario != "empty" and membership[-1]:
-            facts = (
-                AdverseFact(
-                    id="synthetic-stop-disruption",
-                    input_id="transport_service",
-                    reason="Synthetic service interruption at Southbank stop A",
-                    effective_from=started_at + timedelta(seconds=60),
-                    resolved_at=started_at + timedelta(seconds=180),
-                ),
-            )
-        transport_coverage = CoverageState.ERROR if scenario == "outage" else CoverageState.CURRENT
+        fact, service_evidence = service_at(
+            self.service_frames, started_at, seconds, scenario, outage_at
+        )
+        facts = (fact,) if fact is not None and membership[-1] else ()
+        transport_coverage = (
+            CoverageState.ERROR
+            if scenario == "outage" and seconds >= outage_at
+            else CoverageState.CURRENT
+            if service_evidence is not None or scenario == "empty"
+            else CoverageState.UNKNOWN
+        )
         assessment = assess_area(
             facts=facts,
             coverage=(
@@ -131,18 +160,21 @@ class CityService:
             required_inputs=REQUIRED,
             at=at,
         )
-        evidence = f"/api/v1/fixture/captures/{captured.capture_id}"
+        evidence = (
+            f"/api/v1/fixture/captures/{captured.capture_id}?seconds={seconds}&scenario={scenario}"
+        )
         return {
             "mode": "fixture",
             "area": {"id": AREA_ID, "name": "Southbank", "boundary_revision": revision},
             "geometry_url": f"/api/v1/areas/{AREA_ID}/boundaries/{revision}",
             "policy_version": POLICY_VERSION,
             "projection_version": hashlib.sha256(
-                f"city-projection-v1:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
+                f"city-projection-v2:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},
             "assessment": asdict(assessment),
+            "service_evidence": service_evidence,
             "planning": {
                 "state": "unknown",
                 "as_of": None,
@@ -154,5 +186,39 @@ class CityService:
             "positions_truncated": len(vehicles) > MAX_VEHICLES,
             "projection": {**projection.outcomes, "rejected": rejected},
             "evidence_url": evidence,
-            "attribution": boundary["properties"],
+            "attribution": deepcopy(boundary["properties"]),
+        }
+
+    def evidence(self, capture_id: str, seconds: int, scenario: str) -> dict[str, Any]:
+        captured = self.captured
+        if capture_id != captured.capture_id:
+            raise LookupError("Unknown fixture capture")
+        if seconds < 0 or seconds > MAX_SECONDS or scenario not in {"journey", "empty", "outage"}:
+            raise ValueError("invalid fixture scenario or clock")
+        outage_at = captured.scenario["outage_at_seconds"]
+        events = [
+            {
+                "id": frame["event"]["id"],
+                "kind": "position-attempt",
+                "at_seconds": frame["at_seconds"],
+                "capture_ids": frame["event"]["data"]["provenance"]["capture_ids"],
+            }
+            for frame in captured.scenario["frames"]
+            if received(frame["at_seconds"], seconds, scenario, outage_at)
+        ]
+        events.extend(
+            {**frame.model_dump(mode="json"), "kind": "service-status"}
+            for frame in self.service_frames
+            if received(frame.at_seconds, seconds, scenario, outage_at)
+        )
+        return {
+            "mode": "fixture",
+            "capture_id": capture_id,
+            "description": "Received fixture records at this clock; attempts may be rejected",
+            "scenario_start": captured.scenario["started_at"],
+            "seconds": seconds,
+            "scenario": scenario,
+            "synthetic_capture_references": True,
+            "events": sorted(events, key=lambda event: (event["at_seconds"], event["id"])),
+            "boundary_attribution": deepcopy(captured.boundary["properties"]),
         }

@@ -97,7 +97,7 @@ Failure rules from the brief: raw capture failure leaves the previous projection
 
 Illustrative contracts are TransportStatusChanged, WeatherWarningChanged and PlanningRecordChanged. Location Intelligence reads the published contracts, combines spatially and temporally relevant facts, and publishes AreaStatusChanged when the result changes. It does not read another domain's internal tables.
 
-Use the CloudEvents 1.0 structured JSON envelope accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md). The [capture/event contract](capture-event-contract.md) defines the initial wire profile and distinguishes it from the proposed capture/recovery design. The [area contract](area-contract.md) defines condition/coverage semantics, accepted fixture point rules and proposed warning policies. CONTRACT-01 prepares these boundaries before phase 2 publisher/handler implementation. The following table summarises their responsibilities:
+Use the CloudEvents 1.0 structured JSON envelope accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md). The [capture/event contract](capture-event-contract.md) defines the initial wire profile and distinguishes it from the proposed capture/recovery design. The [area contract](area-contract.md) defines condition/coverage semantics, proposed fixture point rules and proposed warning policies. CONTRACT-01 prepares these boundaries before phase 2 publisher/handler implementation. The following table summarises their responsibilities:
 
 | Envelope concern            | Required meaning                                                                 |
 | --------------------------- | -------------------------------------------------------------------------------- |

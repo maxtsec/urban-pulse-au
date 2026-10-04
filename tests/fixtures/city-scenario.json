@@ -365,5 +365,38 @@
         }
       }
     }
+  ],
+  "outage_at_seconds": 90,
+  "service_frames": [
+    {
+      "id": "city-service-0",
+      "at_seconds": 0,
+      "capture_ids": [
+        "synthetic-service-capture-0"
+      ],
+      "stop_id": "synthetic-stop-A",
+      "status": "clear",
+      "reason": "No active service interruption"
+    },
+    {
+      "id": "city-service-60",
+      "at_seconds": 60,
+      "capture_ids": [
+        "synthetic-service-capture-60"
+      ],
+      "stop_id": "synthetic-stop-A",
+      "status": "disrupted",
+      "reason": "Synthetic service interruption at Southbank stop A"
+    },
+    {
+      "id": "city-service-180",
+      "at_seconds": 180,
+      "capture_ids": [
+        "synthetic-service-capture-180"
+      ],
+      "stop_id": "synthetic-stop-A",
+      "status": "clear",
+      "reason": "Synthetic service interruption resolved"
+    }
   ]
 }
