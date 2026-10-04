@@ -12,6 +12,8 @@ For local setup demonstration: [Phase 0 walkthrough](demos/phase-0.md) and [loca
 
 For reproducibility: [clean-checkout walkthrough](demos/clean-checkout.md) and [BASE-01 evidence](evidence/base-01-clean-checkout.md).
 
+For pilot/source review: [SRC-01 comparison](evidence/src-01-source-feasibility.md), [accepted Southbank/Tram decision](adr/0002-southbank-tram-pilot.md) and [source enablement gates](source-register.md).
+
 ## Document responsibilities
 
 | Document                                        | Owns                                                        | Update when                                        |

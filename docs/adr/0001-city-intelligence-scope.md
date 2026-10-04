@@ -24,6 +24,6 @@ Source feasibility can constrain the first area. Warehouse depth, numerical scor
 
 ## Open implementation decisions
 
-Provider terms, pilot boundaries, field-level contracts, status thresholds, durable transport and cloud host/region/budget remain in the [decision queue](../delivery-plan.md#decisions-needed-before-dependent-work). Resolve A-06 at the start of phase 1 for early capture.
+[ADR 0002](0002-southbank-tram-pilot.md) selects the pilot boundary source and initial transport scope. Provider terms, boundary-edge rules, map tiles, field-level contracts, status thresholds, durable transport and cloud host/region/budget remain in the [decision queue](../delivery-plan.md#decisions-needed-before-dependent-work). Resolve A-06 at the start of phase 1 for early capture.
 
 Revisit scope if official source coverage cannot support a useful common area, or demonstrations show the combined view does not meet the stated user need.
