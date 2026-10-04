@@ -30,15 +30,15 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 ## Progress
 
-| Phase | Outcome                                                                  | Status                                                                                                     |
-| ----- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| 0     | Reproducible local foundation                                            | Synthetic transport API/table and local smoke paths verified; independent clean-checkout rehearsal pending |
-| 1     | Area/map foundation and transport fixture slice                          | Planned; fixture-to-area UI path with provenance, freshness and replay                                     |
-| 2     | Weather + planning + integrated area view using shared in-process events | Planned; phases 1-2 form the city MVP                                                                      |
-| 3     | Durable event delivery and recovery                                      | Planned                                                                                                    |
-| 4     | Full application cloud deployment and operations                         | Planned                                                                                                    |
-| 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                  |
-| 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                            |
+| Phase | Outcome                                                                  | Status                                                                                                    |
+| ----- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| 0     | Reproducible local foundation                                            | [Clean-checkout verification passed](docs/evidence/base-01-clean-checkout.md); release review/tag pending |
+| 1     | Area/map foundation and transport fixture slice                          | Planned; fixture-to-area UI path with provenance, freshness and replay                                    |
+| 2     | Weather + planning + integrated area view using shared in-process events | Planned; phases 1-2 form the city MVP                                                                     |
+| 3     | Durable event delivery and recovery                                      | Planned                                                                                                   |
+| 4     | Full application cloud deployment and operations                         | Planned                                                                                                   |
+| 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                 |
+| 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                           |
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 

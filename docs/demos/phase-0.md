@@ -6,7 +6,7 @@ See the [delivery plan](../delivery-plan.md#milestones-and-exit-evidence) for ph
 
 ## Preparation
 
-Follow the [development guide](../development.md). Use Windows PowerShell from the repository root with installed dependencies and Docker Desktop running. Ports 8000, 5173, 5432 and 6379 must be available to this project; port 3000 is needed only for the optional Dagster UI.
+Follow the [development guide](../development.md). For a new environment with isolated services, use the [clean-checkout rehearsal](clean-checkout.md). Use Windows PowerShell from the repository root with installed dependencies and Docker Desktop running. Ports 8000, 5173, 5432 and 6379 must be available to this project; port 3000 is needed only for the optional Dagster UI.
 
 Record `git rev-parse HEAD` and `git status --short` before collecting evidence. Use a clean checkout/commit for a release recording, and identify any working-tree changes for a development walkthrough. Label all displayed data as synthetic.
 
