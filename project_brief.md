@@ -27,14 +27,14 @@ The area panel separates:
 
 High development activity is not inherently good or bad, and is not automatically a current disruption. No warning received is not proof of low risk when coverage is missing. A storm and a train disruption occurring together establish overlap, not causation.
 
-Use Southbank for the illustrative area panel. Compare Southbank, CBD and Carlton as City of Melbourne pilot candidates, then select the boundary using evidence from all three source domains. Numeric examples such as Transport 82/100 or Area Health 78/100 are aspirations, not approved metrics. Start with an explainable categorical status and supporting facts; the exact rules and thresholds require an architectural decision. Missing inputs remain unknown.
+Use the Southbank CLUE small area for the first pilot and area panel, as accepted in [ADR 0002](docs/adr/0002-southbank-tram-pilot.md) after comparison with CBD and Carlton. Preserve the distinction between CLUE and gazetted suburb boundaries; live weather applicability remains subject to source verification. Numeric examples such as Transport 82/100 or Area Health 78/100 are aspirations, not approved metrics. Start with an explainable categorical status and supporting facts; the exact rules and thresholds require an architectural decision. Missing inputs remain unknown.
 
 ### City MVP
 
 Phases 1 and 2 deliver a small integrated city experience:
 
 - A Melbourne map with a selected, supported area scope.
-- One transport mode/feed slice with status, freshness and attribution. Evaluate vehicle positions explicitly for a visibly active map, including timestamp, identity, cadence and rate-budget requirements.
+- Yarra Trams positions, trip updates and service alerts, with compatible static GTFS, as the first transport slice. Include position freshness, identity, attribution and rate-budget requirements; use synthetic playback before live-source enablement.
 - One verified weather warning product with issue time, affected area and expiry/update handling.
 - One verified planning/infrastructure dataset, shown at its actual update cadence.
 - A combined area panel with per-domain facts, coverage and a basic explained status under agreed rules.

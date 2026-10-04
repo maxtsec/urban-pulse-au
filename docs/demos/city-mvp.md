@@ -6,7 +6,7 @@ This acceptance scenario follows the [delivery milestones](../delivery-plan.md#m
 
 Open the Melbourne map and ask: **What is happening around my city right now, and how healthy is an area?**
 
-Use Southbank as the demonstration example. A-01 compares its verified boundary and coverage with CBD and Carlton before choosing the live pilot. The panel distinguishes current conditions from the area profile and shows timestamps, validity, source links and missing inputs.
+Use the selected Southbank CLUE small area and Yarra Trams slice from [ADR 0002](../adr/0002-southbank-tram-pilot.md). The panel distinguishes current conditions from the area profile and shows timestamps, validity, source links and missing inputs.
 
 ## Scenario and expected outcomes
 
@@ -15,9 +15,9 @@ Use a deterministic synthetic scenario first, clearly labelled throughout. Fix t
 | Step | Input/action                                                   | Expected visible result                                                                        | Engineering evidence                                                                         |
 | ---- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | 1    | Load baseline transport, warning coverage and planning records | Map layers and area facts with each source's coverage/as-of time                               | Capture references, spatial match and fixture label                                          |
-| 1a   | Refresh successive vehicle positions for the selected feed     | Vehicle markers move using source timestamps; stale positions are marked or withheld by policy | Stable IDs, coordinate validation, cadence/rate-budget evidence; synthetic playback labelled |
+| 1a   | Refresh successive tram positions for the Southbank view       | Vehicle markers move using source timestamps; stale positions are marked or withheld by policy | Stable IDs, coordinate validation, cadence/rate-budget evidence; synthetic playback labelled |
 | 2    | Introduce a transport disruption                               | Transport facts and the agreed area explanation update                                         | Meaningful domain change and area projection trace                                           |
-| 3    | Add an applicable severe-weather warning                       | Warning geometry/validity and combined reasons appear                                          | Spatial and temporal overlap, event identity                                                 |
+| 3    | Add an applicable severe-weather warning                       | Warning validity, available geography/precision and combined reasons appear                    | Spatial and temporal overlap, event identity                                                 |
 | 4    | Inspect development records                                    | Planning activity is visible as longer-term context                                            | Source status and snapshot date; no invented positive/negative score                         |
 | 5    | Replay the same update, then an older one                      | No duplicate effect or replacement by older state                                              | Consumer identity/ordering and replay tests                                                  |
 | 6    | Make weather data stale or unavailable                         | Unknown/stale coverage is explicit; no false low-risk state                                    | Freshness clock and outage behavior                                                          |

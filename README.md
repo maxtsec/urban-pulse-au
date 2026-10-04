@@ -4,7 +4,7 @@
 
 UrbanPulse brings **Transport**, **Weather & Hazards**, and **Planning & Infrastructure** onto a Melbourne map. Watch the map update, inspect disruptions and warnings, and select an area to understand both today's conditions and its longer-term profile.
 
-The first pilot targets the City of Melbourne. Southbank is the demonstration example; CBD and Carlton are alternatives to compare against source coverage.
+The first pilot is the City of Melbourne's **Southbank CLUE small area**, with tram positions and service status as the first transport slice. [Pilot decision](docs/adr/0002-southbank-tram-pilot.md).
 
 ## Architecture
 
@@ -30,15 +30,15 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 ## Progress
 
-| Phase | Outcome                                                                  | Status                                                                                                    |
-| ----- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| 0     | Reproducible local foundation                                            | [Clean-checkout verification passed](docs/evidence/base-01-clean-checkout.md); release review/tag pending |
-| 1     | Area/map foundation and transport fixture slice                          | Planned; fixture-to-area UI path with provenance, freshness and replay                                    |
-| 2     | Weather + planning + integrated area view using shared in-process events | Planned; phases 1-2 form the city MVP                                                                     |
-| 3     | Durable event delivery and recovery                                      | Planned                                                                                                   |
-| 4     | Full application cloud deployment and operations                         | Planned                                                                                                   |
-| 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                 |
-| 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                           |
+| Phase | Outcome                                                                  | Status                                                                                                                        |
+| ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Reproducible local foundation                                            | Complete: [phase-0 release](https://github.com/maxtsec/urban-pulse-au/releases/tag/phase-0), demo and verified clean checkout |
+| 1     | Area/map foundation and transport fixture slice                          | Source research ready for review; Southbank/Tram scope accepted; area/contracts next                                          |
+| 2     | Weather + planning + integrated area view using shared in-process events | Planned; phases 1-2 form the city MVP                                                                                         |
+| 3     | Durable event delivery and recovery                                      | Planned                                                                                                                       |
+| 4     | Full application cloud deployment and operations                         | Planned                                                                                                                       |
+| 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
+| 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                                               |
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
