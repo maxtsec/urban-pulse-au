@@ -169,7 +169,7 @@ class CityService:
             "geometry_url": f"/api/v1/areas/{AREA_ID}/boundaries/{revision}",
             "policy_version": POLICY_VERSION,
             "projection_version": hashlib.sha256(
-                f"city-projection-v2:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
+                f"city-projection-v3:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},

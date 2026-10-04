@@ -1,5 +1,6 @@
 """Internal fixture timeline; not a live TransportStatusChanged wire contract."""
 
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
@@ -34,32 +35,29 @@ def service_at(
     scenario: str,
     outage_at: int,
 ) -> tuple[AdverseFact | None, dict[str, Any] | None]:
-    latest = next(
-        (
-            frame
-            for frame in reversed(frames)
-            if received(frame.at_seconds, seconds, scenario, outage_at)
-        ),
-        None,
-    )
-    if latest is None:
-        return None, None
-    observed_at = started_at + timedelta(seconds=latest.at_seconds)
-    evidence = {
-        "event_id": latest.id,
-        "capture_ids": latest.capture_ids,
-        "observed_at": observed_at,
-        "stop_id": latest.stop_id,
-        "status": latest.status,
-    }
-    fact = (
-        AdverseFact(
-            id=latest.id,
-            input_id="transport_service",
-            reason=latest.reason,
-            effective_from=observed_at,
-        )
-        if latest.status == "disrupted"
-        else None
-    )
+    fact: AdverseFact | None = None
+    evidence: dict[str, Any] | None = None
+    for frame in frames:
+        if not received(frame.at_seconds, seconds, scenario, outage_at):
+            continue
+        observed_at = started_at + timedelta(seconds=frame.at_seconds)
+        evidence = {
+            "event_id": frame.id,
+            "capture_ids": frame.capture_ids,
+            "observed_at": observed_at,
+            "stop_id": frame.stop_id,
+            "status": frame.status,
+        }
+        if frame.status == "clear":
+            fact = None
+        elif fact is None:
+            # One episode starts at its first observed interruption; frame IDs are revisions.
+            fact = AdverseFact(
+                id=frame.id,
+                input_id="transport_service",
+                reason=frame.reason,
+                effective_from=observed_at,
+            )
+        else:
+            fact = replace(fact, reason=frame.reason)
     return fact, evidence

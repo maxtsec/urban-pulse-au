@@ -72,3 +72,6 @@ The retained bundle contains separate internal service-status frames, not a newl
 The snapshot evidence link carries its clock and scenario; evidence lists only received records. Raw fixtures still contain the whole authored scenario for deterministic replay. Position outcome counts cover position attempts, while service provenance is exposed separately.
 
 The service pins hash-verified bytes and the derived geometry revision on first access. Restart it to adopt a different bundle; corruption on initial read is an error. The PostGIS adapter keeps up to 32 successful boundary/point results per adapter; changed inputs query PostGIS again, and failures are not cached. Each miss uses a scoped connection and parses/validates geometry once. Time-dependent assessment and coverage are recomputed on every request. A DB outage affects an uncached spatial query; cached spatial facts remain valid for the exact immutable inputs.
+
+
+Consecutive disrupted service frames preserve the initial episode ID and effective start until a received clear frame; the latest frame owns reason text and observation provenance. Service coverage has no TTL in this fixture: see the [ADR 0004 limitation](../adr/0004-southbank-fixture-map.md#service-freshness-limitation). The position-age policy must not be interpreted as a service freshness rule.

@@ -61,7 +61,11 @@ export function App() {
             : id;
       return (
         label +
-        (coverage(id) === 'error' ? ' unavailable' : ' coverage missing')
+        (coverage(id) === 'error'
+          ? ' unavailable'
+          : coverage(id) === 'stale'
+            ? ' coverage stale'
+            : ' coverage missing')
       );
     })
     .join('; ');
@@ -124,7 +128,7 @@ export function App() {
                 type="range"
                 min="0"
                 max={endSeconds}
-                step="1"
+                step="15"
                 value={seconds}
                 onChange={(event) => jump(Number(event.target.value))}
               />
@@ -285,9 +289,23 @@ export function App() {
               <div className="domain-row">
                 <div>
                   <h3>Weather & hazards</h3>
-                  <p>Warning data not connected</p>
+                  <p>
+                    {coverage('weather_warnings') === 'unknown'
+                      ? 'Warning data not connected'
+                      : coverage('weather_warnings') === 'error'
+                        ? 'Warning source unavailable'
+                        : coverage('weather_warnings') === 'stale'
+                          ? 'Warning coverage is stale'
+                          : coverage('weather_warnings') === 'unsupported'
+                            ? 'Warning coverage unsupported'
+                            : 'Warning coverage current'}
+                  </p>
                 </div>
-                <span className="coverage-pill">unknown</span>
+                <span
+                  className={`coverage-pill ${coverage('weather_warnings')}`}
+                >
+                  {coverage('weather_warnings')}
+                </span>
               </div>
               <div className="profile-heading">Area profile</div>
               <div className="domain-row">
