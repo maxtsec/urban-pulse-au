@@ -31,7 +31,7 @@ Use a capture-specific raw prefix containing mode, provider, product, UTC date a
 | Payload stored but manifest missing | Reconstruct a manifest only from validated retained intent/object metadata; otherwise quarantine the orphan |
 | Manifest exists but normalization has not run | Queue/replay processing from the retained capture; capture itself remains successful |
 | Same capture storage operation retried | Verify existing content; one terminal capture outcome |
-| Same bytes fetched again | New capture ID, same content hash; no duplicate domain change or refreshed observation timestamp |
+| Same bytes fetched again | New capture ID, same content hash; no duplicate domain change or refreshed observation timestamp. Successful receipt follows the [source receipt-time policy](../source-register.md#attribution-acceptance), independently of domain revision |
 
 Persist recovery metadata needed to reconstruct the manifest with the payload at write time. A failed request is never replayed as if it produced a payload. A single active collector plus a durable lease/fencing and shared quota design must handle restart/rollout overlap before CLOUD-01 acceptance; an instance count of one alone is insufficient. Exact lease/storage implementation is reviewed with A-06.
 

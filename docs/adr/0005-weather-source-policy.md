@@ -50,7 +50,7 @@ Do not merge warnings across providers in the pilot. Keep each warning's provena
 
 ### Attribution
 
-For VicEmergency warning displays, credit **State of Victoria**, link to the [EMV emergency-data notice](https://www.emv.vic.gov.au/responsibilities/victorias-warning-system/emergency-data), and show the date and time of the last update received from the feed. Preserve this receipt time through caching and replay; rendering, failed retries and replay execution must not advance it. Keep warning issue/update times separate. These are CITY-02 acceptance requirements; embedded third-party content rights remain an enablement gate in the source register.
+Apply the source register's [attribution acceptance and receipt-time definition](../source-register.md#attribution-acceptance) as CITY-02 requirements; embedded third-party content rights remain a source enablement gate.
 
 ## Consequences and validation
 
