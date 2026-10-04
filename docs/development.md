@@ -67,7 +67,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1
 uv run --locked python scripts/smoke.py
 ```
 
-For real spatial and browser checks, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-city.ps1` with PostGIS running; keep ports 8011/5174 free. Chromium installation needs internet access.
+For real spatial and browser checks, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-city.ps1` with PostGIS running; keep ports 8011/5174 free. Chromium installation needs internet access. When running npm browser tests directly, first run `npm.cmd --prefix apps/web run test:e2e:install`; the locked Playwright version needs its own matching browser binaries ([official instructions](https://playwright.dev/docs/browsers)).
 
 Stop host API/UI servers before the HTTP smoke command. It uses ports 8000 and 5173, verifies HTTP connectivity and stops its temporary servers. Logs are under `.local/smoke/`. It does not exercise a real browser or the database path. See [testing strategy](testing-strategy.md) for scope.
 

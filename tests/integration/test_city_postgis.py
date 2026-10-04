@@ -97,3 +97,40 @@ def test_changed_boundary_recomputes_membership(spatial, capture):
     assert new["vehicles"] == []
     assert old["area"]["boundary_revision"] != new["area"]["boundary_revision"]
     assert new["area"]["boundary_revision"] == geometry_revision(changed["geometry"])
+
+
+def test_spatial_cache_reuses_identical_input_but_rechecks_new_geometry(
+    monkeypatch, spatial, capture
+):
+    import psycopg
+
+    connect = psycopg.connect
+    calls = []
+
+    def counted_connect(*args, **kwargs):
+        calls.append(True)
+        return connect(*args, **kwargs)
+
+    monkeypatch.setattr("urbanpulse.adapters.postgis.psycopg.connect", counted_connect)
+    geometry = capture.read().boundary["geometry"]
+    point = (144.9617, -37.82529)
+    assert spatial.covers(geometry, [point]) == [True]
+    assert spatial.covers(copy.deepcopy(geometry), [point]) == [True]
+    assert len(calls) == 1
+    changed = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]}
+    assert spatial.covers(changed, [point]) == [False]
+    assert len(calls) == 2
+
+
+def test_real_api_outage_keeps_known_fact_past_unreceived_resolution(monkeypatch, capture, spatial):
+    service = CityService(capture, spatial)
+    monkeypatch.setattr("apps.api.city.city_service", lambda: service)
+    with TestClient(app) as client:
+        before = client.get(f"/api/v1/areas/{AREA_ID}?seconds=60").json()
+        outage = client.get(f"/api/v1/areas/{AREA_ID}?seconds=200&scenario=outage").json()
+        journey = client.get(f"/api/v1/areas/{AREA_ID}?seconds=200").json()
+        evidence = client.get(outage["evidence_url"]).json()
+    assert before["assessment"]["reasons"][0]["resolved_at"] is None
+    assert outage["assessment"]["condition"] == "degraded"
+    assert journey["assessment"]["condition"] == "unknown"
+    assert all(event["id"] != "city-service-180" for event in evidence["events"])

@@ -26,6 +26,7 @@ export function App() {
     refetchOnWindowFocus: false,
   });
   const snapshot = result.data;
+  const endSeconds = snapshot?.clock.end_seconds ?? 0;
   const geometry = useQuery({
     queryKey: ['boundary', snapshot?.geometry_url],
     queryFn: ({ signal }) => readJson<Boundary>(snapshot!.geometry_url, signal),
@@ -36,23 +37,38 @@ export function App() {
   const selectVehicle = useCallback((id: string) => setSelected(id), []);
 
   useEffect(() => {
-    if (!playing || !snapshot || result.isFetching || seconds >= 360) return;
+    if (!playing || !snapshot || result.isFetching || seconds >= endSeconds)
+      return;
     const timer = window.setTimeout(
-      () => setSeconds((value) => Math.min(value + 15, 360)),
+      () => setSeconds((value) => Math.min(value + 15, endSeconds)),
       2000,
     );
     return () => window.clearTimeout(timer);
-  }, [playing, seconds, snapshot, result.isFetching]);
+  }, [playing, seconds, snapshot, endSeconds, result.isFetching]);
 
   const active = snapshot?.vehicles.find((vehicle) => vehicle.id === selected);
   const coverage = (id: string) =>
     snapshot?.assessment.coverage.find((item) => item.input_id === id)?.state ??
     'unknown';
   const condition = snapshot?.assessment.condition ?? 'unknown';
+  const missingCoverage = (snapshot?.assessment.incomplete_inputs ?? [])
+    .map((id) => {
+      const label =
+        id === 'transport_service'
+          ? 'Transport service'
+          : id === 'weather_warnings'
+            ? 'Weather warnings'
+            : id;
+      return (
+        label +
+        (coverage(id) === 'error' ? ' unavailable' : ' coverage missing')
+      );
+    })
+    .join('; ');
 
   function jump(value: number) {
     setPlaying(false);
-    setSeconds(value);
+    setSeconds(Math.max(0, Math.min(value, endSeconds)));
   }
 
   return (
@@ -89,16 +105,16 @@ export function App() {
             <button
               className="primary-button"
               onClick={() => {
-                if (seconds >= 360) {
+                if (seconds >= endSeconds) {
                   setSeconds(0);
                   setPlaying(true);
                 } else {
                   setPlaying((value) => !value);
                 }
               }}
-              disabled={result.isError}
+              disabled={result.isError || !snapshot}
             >
-              {playing && seconds < 360 ? 'Pause' : 'Play scenario'}
+              {playing && seconds < endSeconds ? 'Pause' : 'Play scenario'}
             </button>
             <button onClick={() => jump(0)}>Reset</button>
             <label className="timeline-label">
@@ -107,8 +123,8 @@ export function App() {
                 aria-label="Scenario time"
                 type="range"
                 min="0"
-                max="360"
-                step="15"
+                max={endSeconds}
+                step="1"
                 value={seconds}
                 onChange={(event) => jump(Number(event.target.value))}
               />
@@ -234,14 +250,18 @@ export function App() {
               <p className="condition-explanation">
                 {snapshot.assessment.reasons.length
                   ? 'A confirmed transport disruption affects this area.'
-                  : 'Weather coverage is missing, so an overall normal condition cannot be confirmed.'}
+                  : condition === 'unknown'
+                    ? missingCoverage + '. Overall conditions remain unknown.'
+                    : 'Required current-condition inputs are complete.'}
               </p>
               {snapshot.assessment.reasons.map((reason) => (
                 <div className="reason" key={reason.id}>
                   <strong>{reason.reason}</strong>
                   <span>
-                    Effective {displayTime(reason.effective_from)} · resolves{' '}
-                    {displayTime(reason.resolved_at)}
+                    Effective {displayTime(reason.effective_from)} ·{' '}
+                    {reason.resolved_at
+                      ? 'Resolved ' + displayTime(reason.resolved_at)
+                      : 'Resolution not yet observed'}
                   </span>
                 </div>
               ))}

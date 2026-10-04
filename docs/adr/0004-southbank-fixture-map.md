@@ -2,13 +2,15 @@
 
 Date: 2026-10-05
 
-Decision: use the agreed CITY-01 fixture scope. Live-source policies remain separate.
+Status: **Proposed — awaiting explicit acceptance by the project architect.**
+
+The implementation is a reviewable fixture proposal. Authorisation to build CITY-01 does not by itself accept its point-edge/no-buffer rule, internal identity, no-basemap choice or 120/300-second freshness thresholds. Accepted pilot and condition/coverage decisions remain in ADR 0002 and ADR 0003.
 
 ## Context
 
 The first city view needs reproducible moving observations, an explainable area panel and genuine spatial membership. It must work without provider credentials or an external map account. [ADR 0002](0002-southbank-tram-pilot.md) chooses the Southbank CLUE pilot; [ADR 0003](0003-cloudevents-and-area-conditions.md) separates conditions from coverage.
 
-## Decision
+## Proposed decision
 
 - Use stable area ID `au-vic-melbourne-clue-southbank`, WGS84 longitude/latitude and PostGIS SRID 4326.
 - Use `ST_Covers`: points on the boundary are included; no walking buffer. Service impact belongs to the affected stop independently of vehicle movement.
@@ -17,10 +19,10 @@ The first city view needs reproducible moving observations, an explainable area 
 - Use a fixed, request-local fixture clock. Position age below 120 seconds is current; age 120–299 seconds is stale; age 300 seconds or more remains in the last-known list only. Missing/future observation time is unknown. These values apply only to `southbank-fixture-v1`.
 - Keep transport service coverage, weather warnings and planning profile separate. Absent weather prevents Normal; an applicable transport disruption gives Degraded. Positions themselves are not a health signal.
 
-A buffered catchment would change the area's meaning. A public basemap would introduce provider and attribution choices. Both can be added through later decisions; neither is needed for this fixture acceptance.
+A buffered catchment would change the area's meaning. A public basemap would introduce provider and attribution choices. Both can be added through later decisions; neither is needed to review this fixture proposal.
 
 ## Consequences
 
-The API reconstructs a bounded projection from a retained fixture bundle and queries real PostGIS. Replay can demonstrate duplicate, old, conflicting and invalid events without a persistent consumer ledger. No database schema or migration is introduced. The content-addressed bundle is a fixture storage adapter, not the proposed production capture ledger.
+The API pins a verified fixture bundle for the service lifetime and reconstructs time-dependent projections per request. Service changes are captured frames; only records received by the selected clock contribute. The outage fixture loses transport access at 90 seconds, after the 60-second interruption but before its 180-second resolution. Real PostGIS results are memoized only for identical boundary/point inputs. Replay can demonstrate duplicate, old, conflicting and invalid events without a persistent consumer ledger. No database schema or migration is introduced. The content-addressed bundle is a fixture storage adapter, not the proposed production capture ledger.
 
 Live freshness, warning geometry, basemap delivery and capture retention require their own evidence and decisions. See the [area contract](../architecture/area-contract.md), [walkthrough](../demos/city-01.md) and [delivery plan](../delivery-plan.md).

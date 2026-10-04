@@ -4,7 +4,7 @@ uv run --locked pytest -m integration -q
 if ($LASTEXITCODE -ne 0) { throw 'PostGIS integration tests failed; start local services first' }
 Push-Location apps/web
 try {
-    npx.cmd playwright install chromium
+    npm.cmd run test:e2e:install
     if ($LASTEXITCODE -ne 0) { throw 'Chromium installation failed' }
     npm.cmd run test:e2e
     if ($LASTEXITCODE -ne 0) { throw 'City browser tests failed' }

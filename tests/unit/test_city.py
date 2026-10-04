@@ -176,3 +176,104 @@ def test_fixture_boundary_withholds_live_or_foreign_events(captured, field, valu
     ).snapshot(0)
     assert result["projection"]["rejected"] == 1
     assert len(result["vehicles"]) == 2
+
+
+@pytest.mark.parametrize("seconds", [60, 120, 179])
+def test_disruption_never_exposes_resolution_before_its_frame(captured, seconds):
+    service = CityService(MemoryCapture(captured), FixedMembership())
+    snapshot = service.snapshot(seconds)
+    reason = snapshot["assessment"]["reasons"][0]
+    assert reason["resolved_at"] is None
+    assert reason["effective_until"] is None
+    assert snapshot["service_evidence"]["event_id"] == "city-service-60"
+    evidence = service.evidence(captured.capture_id, seconds, "journey")
+    assert all(event["at_seconds"] <= seconds for event in evidence["events"])
+    assert "city-service-180" not in {event["id"] for event in evidence["events"]}
+
+
+@pytest.mark.parametrize("seconds", [180, 200, 360])
+def test_outage_preserves_known_disruption_without_receiving_resolution(captured, seconds):
+    service = CityService(MemoryCapture(captured), FixedMembership())
+    snapshot = service.snapshot(seconds, "outage")
+    assert snapshot["assessment"]["condition"] == "degraded"
+    assert snapshot["assessment"]["reasons"][0]["resolved_at"] is None
+    assert snapshot["service_evidence"]["event_id"] == "city-service-60"
+    assert snapshot["assessment"]["incomplete_inputs"] == ("transport_service", "weather_warnings")
+    evidence = service.evidence(captured.capture_id, seconds, "outage")
+    assert all(event["at_seconds"] < 90 for event in evidence["events"])
+    assert snapshot["projection"]["rejected"] == 0  # invalid 90s frame was never received
+
+
+@pytest.mark.parametrize(
+    "outage_at,condition",
+    [(0, "unknown"), (60, "unknown"), (90, "degraded"), (180, "degraded"), (181, "unknown")],
+)
+def test_outage_cutoff_gates_all_service_knowledge(captured, outage_at, condition):
+    scenario = copy.deepcopy(captured.scenario)
+    scenario["outage_at_seconds"] = outage_at
+    service = CityService(
+        MemoryCapture(CapturedCity(captured.capture_id, captured.boundary, scenario)),
+        FixedMembership(),
+    )
+    snapshot = service.snapshot(200, "outage")
+    assert snapshot["assessment"]["condition"] == condition
+    if outage_at == 0:
+        assert snapshot["vehicles"] == []
+        assert snapshot["service_evidence"] is None
+        assert service.evidence(captured.capture_id, 200, "outage")["events"] == []
+
+
+def test_outage_starts_after_known_service_frame_and_rewind_is_isolated(captured):
+    service = CityService(MemoryCapture(captured), FixedMembership())
+    before = service.snapshot(89, "outage")
+    assert before["assessment"]["incomplete_inputs"] == ("weather_warnings",)
+    assert "transport_service" in service.snapshot(90, "outage")["assessment"]["incomplete_inputs"]
+    assert service.snapshot(200)["assessment"]["reasons"] == ()
+    assert service.snapshot(200, "outage")["assessment"]["reasons"]
+    assert service.snapshot(89, "outage") == before
+
+
+def test_service_behavior_comes_from_retained_frames(captured):
+    scenario = copy.deepcopy(captured.scenario)
+    scenario["service_frames"][1]["reason"] = "Different captured interruption"
+    scenario["service_frames"][2]["at_seconds"] = 240
+    service = CityService(
+        MemoryCapture(CapturedCity(captured.capture_id, captured.boundary, scenario)),
+        FixedMembership(),
+    )
+    assert (
+        service.snapshot(200)["assessment"]["reasons"][0]["reason"]
+        == "Different captured interruption"
+    )
+    assert service.snapshot(240)["assessment"]["reasons"] == ()
+
+
+def test_evidence_route_uses_snapshot_clock_and_service_provenance(client):
+    snapshot = client.get(f"/api/v1/areas/{AREA_ID}?seconds=60").json()
+    evidence = client.get(snapshot["evidence_url"]).json()
+    records = {event["id"]: event for event in evidence["events"]}
+    service = snapshot["service_evidence"]
+    assert records[service["event_id"]]["capture_ids"] == service["capture_ids"]
+    assert records[service["event_id"]]["kind"] == "service-status"
+    assert "city-service-180" not in records
+    for query in ("seconds=-1", "seconds=361", "scenario=live"):
+        path = snapshot["evidence_url"].split("?")[0]
+        assert client.get(f"{path}?{query}").status_code == 422
+
+
+def test_service_pins_verified_bundle_and_geometry_without_repeated_reads(captured):
+    class CountingCapture:
+        calls = 0
+
+        def read(self):
+            self.calls += 1
+            return captured
+
+    capture = CountingCapture()
+    service = CityService(capture, FixedMembership())
+    initial = service.snapshot(60)
+    geometry = service.geometry()
+    geometry["feature"]["geometry"]["coordinates"].clear()
+    service.evidence(captured.capture_id, 60, "journey")
+    assert service.snapshot(60) == initial
+    assert capture.calls == 1

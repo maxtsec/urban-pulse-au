@@ -128,9 +128,7 @@ test('empty, outage and error recovery are distinct', async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
   await page.getByLabel('Scenario', { exact: true }).selectOption('outage');
-  await page
-    .getByRole('button', { name: '60s · Service interruption' })
-    .click();
+  await page.getByRole('button', { name: '150s · Stale position' }).click();
   await expect(page.getByText('Source unavailable · fixture')).toBeVisible();
   await expect(page.getByText('Degraded', { exact: true })).toBeVisible();
   await page.route('**/api/v1/areas/*?*', (route) =>
@@ -142,7 +140,8 @@ test('empty, outage and error recovery are distinct', async ({ page }) => {
   );
   await page.unroute('**/api/v1/areas/*?*');
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByText('Source unavailable · fixture')).toBeVisible();
+  await expect(page.getByTestId('clock')).toHaveText('11:00:00');
+  await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
 });
 
 test('boundary failure preserves the accessible observations', async ({
@@ -176,4 +175,87 @@ test('mobile layout fits and keeps the area overview usable', async ({
     path: '../../.local/city01/mobile.png',
     fullPage: true,
   });
+});
+
+test('service replay reveals only received facts and outage cannot resolve them', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: '60s · Service interruption' })
+    .click();
+  await expect(page.getByText('Degraded', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Resolution not yet observed', { exact: false }),
+  ).toBeVisible();
+  await expect(page.locator('.reason')).not.toContainText('11:03');
+  await page.getByLabel('Scenario', { exact: true }).selectOption('outage');
+  await page.getByRole('button', { name: '330s · Last known only' }).click();
+  await expect(page.getByTestId('clock')).toHaveText('11:05:30');
+  await expect(page.getByText('Degraded', { exact: true })).toBeVisible();
+  await expect(page.getByText('Source unavailable · fixture')).toBeVisible();
+  await expect(
+    page.getByText('Resolution not yet observed', { exact: false }),
+  ).toBeVisible();
+  await page.getByLabel('Scenario', { exact: true }).selectOption('journey');
+  await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
+  await expect(page.locator('.reason')).toHaveCount(0);
+});
+
+test('unknown explanation identifies every missing required input', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/areas/*?*', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.assessment.coverage.find(
+      (entry: { input_id: string }) => entry.input_id === 'transport_service',
+    ).state = 'error';
+    data.assessment.incomplete_inputs = [
+      'transport_service',
+      'weather_warnings',
+    ];
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
+  await expect(page.locator('.condition-explanation')).toContainText(
+    'Transport service unavailable',
+  );
+  await expect(page.locator('.condition-explanation')).toContainText(
+    'Weather warnings coverage missing',
+  );
+});
+
+test('playback and moment jumps respect the API clock limit', async ({
+  page,
+}) => {
+  const requested: number[] = [];
+  await page.route('**/api/v1/areas/*?*', async (route) => {
+    requested.push(
+      Number(new URL(route.request().url()).searchParams.get('seconds')),
+    );
+    const response = await route.fetch();
+    const data = await response.json();
+    data.clock.end_seconds = 75;
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/');
+  await expect(
+    page.getByLabel('Scenario time', { exact: true }),
+  ).toHaveAttribute('max', '75');
+  await page
+    .getByRole('button', { name: '60s · Service interruption' })
+    .click();
+  await expect(page.getByTestId('clock')).toHaveText('11:01:00');
+  await page.getByRole('button', { name: 'Play scenario' }).click();
+  await expect(page.getByTestId('clock')).toHaveText('11:01:15');
+  await expect(
+    page.getByRole('button', { name: 'Play scenario' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(page.getByTestId('clock')).toHaveText('11:00:00');
+  await page.getByRole('button', { name: '330s · Last known only' }).click();
+  await expect(page.getByTestId('clock')).toHaveText('11:01:15');
+  expect(Math.max(...requested)).toBe(75);
 });
