@@ -14,6 +14,8 @@ For reproducibility: [clean-checkout walkthrough](demos/clean-checkout.md) and [
 
 For pilot/source review: [SRC-01 comparison](evidence/src-01-source-feasibility.md), [accepted Southbank/Tram decision](adr/0002-southbank-tram-pilot.md) and [source enablement gates](source-register.md).
 
+For contract review: [ADR 0003](adr/0003-cloudevents-and-area-conditions.md), [area/map contract](architecture/area-contract.md), [capture/event contract](architecture/capture-event-contract.md) and [early capture hosting comparison](architecture/early-capture-options.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -23,6 +25,10 @@ For pilot/source review: [SRC-01 comparison](evidence/src-01-source-feasibility.
 | [Architecture](architecture/overview.md)                 | Domain ownership, contracts and data flow                          | A boundary, runtime or data path changes                |
 | [ADR 0001](adr/0001-city-intelligence-scope.md)          | Accepted integrated product scope and consequences                 | A later decision supersedes it                          |
 | [ADR 0002](adr/0002-southbank-tram-pilot.md)             | Accepted Southbank CLUE pilot and initial tram scope               | The architect changes the pilot or transport scope      |
+| [ADR 0003](adr/0003-cloudevents-and-area-conditions.md) | Accepted CloudEvents format and separate condition/coverage principle | A later decision supersedes either principle |
+| [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
+| [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
+| [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |
 | [Source register](source-register.md)                    | Provider evidence, coverage, access and open questions             | A source is evaluated, enabled or changes terms         |
 | [Development guide](development.md)                      | Runnable setup, configuration and troubleshooting                  | Tooling or commands change                              |
 | [Testing strategy](testing-strategy.md)                  | Existing checks and required feature coverage                      | Behavior or a service boundary changes                  |

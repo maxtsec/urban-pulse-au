@@ -1,0 +1,31 @@
+{
+  "specversion": "1.0",
+  "id": "synthetic-position-change-2",
+  "source": "urn:urbanpulse:fixture:transport",
+  "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+  "subject": "yarra-trams/synthetic-vehicle-1",
+  "time": "2026-10-04T00:00:30Z",
+  "datacontenttype": "application/json",
+  "upmode": "fixture",
+  "data": {
+    "schema_version": "1.0",
+    "revision": 2,
+    "provenance": {
+      "provider": "synthetic",
+      "product": "tram-positions",
+      "record_id": "synthetic-vehicle-1",
+      "capture_ids": ["synthetic-capture-2"],
+      "source_observed_at": "2026-10-04T00:00:25Z"
+    },
+    "effective_from": "2026-10-04T00:00:25Z",
+    "effective_until": null,
+    "correlation_id": "synthetic-scenario-1",
+    "causation_id": null,
+    "state": {
+      "vehicle_id": "synthetic-vehicle-1",
+      "route_id": "synthetic-route-1",
+      "position": {"longitude": 144.96, "latitude": -37.824},
+      "observed_at": "2026-10-04T00:00:25Z"
+    }
+  }
+}
