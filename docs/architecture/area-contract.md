@@ -16,7 +16,7 @@ For polygon warnings, require a positive-area intersection under a documented pr
 
 ## Map and panel behavior
 
-Start CITY-01 with a local fixture map style: Southbank outline, synthetic tram markers and an equivalent keyboard-accessible list. Keep external tile requests disabled until the map provider, attribution and key/budget policy are chosen under A-02. This makes the fixture scenario reproducible without a tile account; it does not settle the public basemap choice.
+Start CITY-01 with a local fixture map style: Southbank outline, synthetic tram icons, independently toggleable illustrative tracks and an equivalent keyboard-accessible list. Track geometry is local demo artwork, not a surveyed or provider-derived rail network. Keep external tile requests disabled until the map provider, attribution and key/budget policy are chosen under A-02. This makes the fixture scenario reproducible without a tile account; it does not settle the public basemap choice.
 
 The panel presents current transport/weather facts, planning context and source coverage in separate sections. Each fact exposes source time, validity and an evidence link. Every fixture screen shows a persistent synthetic-data label and a fixed scenario clock. Planning status and snapshot time stay separate from current disruption counts.
 

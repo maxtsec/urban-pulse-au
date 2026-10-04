@@ -3,6 +3,8 @@ import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
 import type { Vehicle } from './city';
+import tramIcon from './assets/tram.svg';
+import { fixtureTracks } from './fixture-tracks';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Emit the worker and its imports as local build assets.
@@ -23,6 +25,7 @@ type Props = {
   onSelect: (id: string) => void;
   showVehicles: boolean;
   showBoundary: boolean;
+  showTracks: boolean;
 };
 
 export function CityMap({
@@ -32,6 +35,7 @@ export function CityMap({
   onSelect,
   showVehicles,
   showBoundary,
+  showTracks,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -52,7 +56,7 @@ export function CityMap({
             {
               id: 'background',
               type: 'background',
-              paint: { 'background-color': '#eaf0eb' },
+              paint: { 'background-color': '#fafafa' },
             },
           ],
         },
@@ -75,17 +79,45 @@ export function CityMap({
           id: 'area-fill',
           type: 'fill',
           source: 'southbank',
-          paint: { 'fill-color': '#c4d9cd', 'fill-opacity': 0.72 },
+          paint: { 'fill-color': '#eeeeee', 'fill-opacity': 0.72 },
         });
         instance.addLayer({
           id: 'area-line',
           type: 'line',
           source: 'southbank',
           paint: {
-            'line-color': '#7d9b89',
+            'line-color': '#b5b5b5',
             'line-width': 2,
             'line-dasharray': [3, 2],
           },
+        });
+        instance.addSource('fixture-tracks', {
+          type: 'geojson',
+          data: fixtureTracks,
+        });
+        instance.addLayer({
+          id: 'track-ties',
+          type: 'line',
+          source: 'fixture-tracks',
+          paint: {
+            'line-color': '#b5b5b5',
+            'line-width': 10,
+            'line-dasharray': [0.15, 1.3],
+          },
+        });
+        instance.addLayer({
+          id: 'track-rails',
+          type: 'line',
+          source: 'fixture-tracks',
+          layout: { 'line-join': 'round' },
+          paint: { 'line-color': '#999999', 'line-width': 5 },
+        });
+        instance.addLayer({
+          id: 'track-center',
+          type: 'line',
+          source: 'fixture-tracks',
+          layout: { 'line-join': 'round' },
+          paint: { 'line-color': '#fafafa', 'line-width': 2.5 },
         });
         const bounds = new maplibregl.LngLatBounds();
         const polygons =
@@ -127,6 +159,13 @@ export function CityMap({
         showBoundary ? 'visible' : 'none',
       );
     }
+    for (const layer of ['track-ties', 'track-rails', 'track-center']) {
+      instance.setLayoutProperty(
+        layer,
+        'visibility',
+        showTracks ? 'visible' : 'none',
+      );
+    }
     const visible = showVehicles
       ? vehicles.filter((vehicle) => vehicle.visible_on_map)
       : [];
@@ -144,8 +183,10 @@ export function CityMap({
         button.type = 'button';
         button.setAttribute('aria-label', `Select ${vehicle.label} on map`);
         button.dataset.testid = `marker-${vehicle.label.replace(' ', '-')}`;
-        const icon = document.createElement('span');
-        icon.textContent = '▥';
+        const icon = document.createElement('img');
+        icon.src = tramIcon;
+        icon.alt = '';
+        icon.draggable = false;
         icon.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span');
         label.textContent = vehicle.label;
@@ -161,7 +202,15 @@ export function CityMap({
       button.setAttribute('aria-pressed', String(vehicle.id === selected));
       marker.setLngLat([vehicle.longitude, vehicle.latitude]);
     });
-  }, [ready, vehicles, selected, onSelect, showVehicles, showBoundary]);
+  }, [
+    ready,
+    vehicles,
+    selected,
+    onSelect,
+    showVehicles,
+    showBoundary,
+    showTracks,
+  ]);
 
   return (
     <div className="map-shell">
@@ -171,15 +220,18 @@ export function CityMap({
         aria-label="Southbank tram map"
         data-testid="map"
       />
-      <div className="map-caption">
-        <span className="dot" /> Southbank CLUE area
-      </div>
+      <div className="map-caption">Southbank CLUE boundary</div>
       {failed && (
         <p className="map-fallback" role="status">
           Map unavailable. The tram list below has the same observations.
         </p>
       )}
       <div className="map-legend">
+        {showTracks && (
+          <span>
+            <i className="legend-track" /> Illustrative tracks
+          </span>
+        )}
         <span>
           <i className="legend-dot" /> Current
         </span>

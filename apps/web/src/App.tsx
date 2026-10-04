@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AREA_ID, displayTime, readJson } from './city';
 import type { Snapshot } from './city';
 import { CityMap } from './CityMap';
+import tramIcon from './assets/tram.svg';
 import type { Boundary } from './CityMap';
 
 export function App() {
@@ -12,6 +13,7 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [showVehicles, setShowVehicles] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
+  const [showTracks, setShowTracks] = useState(true);
   const result = useQuery({
     queryKey: ['city', scenario, seconds],
     queryFn: ({ signal }) =>
@@ -57,24 +59,16 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <a className="brand" href="/" aria-label="UrbanPulse home">
-          <span className="brand-mark">
-            u<span>p</span>
-          </span>{' '}
-          UrbanPulse<span className="brand-au">AU</span>
+          UrbanPulse
         </a>
-        <span className="city-name">
-          <span className="dot" /> Melbourne, Victoria
-        </span>
+        <span className="city-name">Melbourne, Victoria</span>
         <span className="fixture-badge">SYNTHETIC DEMO · NO LIVE DATA</span>
       </header>
       <main>
         <section className="page-heading">
           <div>
-            <p className="eyebrow">YOUR CITY, IN VIEW</p>
-            <h1>A closer look at Southbank.</h1>
-            <p className="subtitle">
-              What’s happening now. What shapes this neighbourhood.
-            </p>
+            <h1>Southbank</h1>
+            <p className="subtitle">Trams, conditions and area context.</p>
           </div>
           <label className="area-picker">
             Explore an area
@@ -158,7 +152,6 @@ export function App() {
               <div className="card-heading">
                 <div>
                   <h2>Neighbourhood map</h2>
-                  <p>Observed tram positions within the Southbank boundary</p>
                 </div>
                 <span className="count-chip">
                   {snapshot.vehicles.filter((v) => v.visible_on_map).length} on
@@ -182,7 +175,14 @@ export function App() {
                   />{' '}
                   Area boundary
                 </label>
-                <span>No external map requests</span>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showTracks}
+                    onChange={(event) => setShowTracks(event.target.checked)}
+                  />
+                  Tracks (illustrative)
+                </label>
               </div>
               {geometry.data && (
                 <CityMap
@@ -192,6 +192,7 @@ export function App() {
                   onSelect={selectVehicle}
                   showVehicles={showVehicles}
                   showBoundary={showBoundary}
+                  showTracks={showTracks}
                 />
               )}
               {geometry.isPending && (
@@ -208,16 +209,13 @@ export function App() {
                 </div>
               )}
               <div className="map-footnote">
-                Positions are synthetic observations. Marker movement does not
-                imply a measured route between points.
+                Tracks and trams are illustrative. Southbank boundary: City of
+                Melbourne.
               </div>
             </section>
             <aside className="area-panel" aria-label="Area overview">
-              <p className="eyebrow">AREA OVERVIEW</p>
-              <h2>Southbank</h2>
-              <p className="area-description">
-                Inner Melbourne · City of Melbourne
-              </p>
+              <h2>Area conditions</h2>
+              <p className="area-description">Southbank · City of Melbourne</p>
               <div className={`condition-box ${condition}`} role="status">
                 <span className="status-symbol">
                   {condition === 'degraded' ? '!' : '?'}
@@ -248,7 +246,6 @@ export function App() {
                 </div>
               ))}
               <div className="domain-row">
-                <span className="domain-icon">↔</span>
                 <div>
                   <h3>Transport</h3>
                   <p>
@@ -266,16 +263,14 @@ export function App() {
                 </span>
               </div>
               <div className="domain-row">
-                <span className="domain-icon">☁</span>
                 <div>
                   <h3>Weather & hazards</h3>
                   <p>Warning data not connected</p>
                 </div>
                 <span className="coverage-pill">unknown</span>
               </div>
-              <div className="profile-heading">LONGER-TERM AREA PROFILE</div>
+              <div className="profile-heading">Area profile</div>
               <div className="domain-row">
-                <span className="domain-icon">▥</span>
                 <div>
                   <h3>Planning & infrastructure</h3>
                   <p>Development data not connected</p>
@@ -290,19 +285,11 @@ export function App() {
               >
                 View fixture evidence ↗
               </a>
-              <p className="small-note">
-                Conditions and data coverage are separate. No numerical
-                area-health score.
-              </p>
             </aside>
             <section className="observations-card">
               <div className="card-heading">
                 <div>
                   <h2>Tram observations</h2>
-                  <p>
-                    The same observations as the map, with source times and
-                    last-known positions.
-                  </p>
                 </div>
                 <span className="count-chip">
                   {snapshot.positions_total} in area
@@ -328,7 +315,7 @@ export function App() {
                     className={`tram-row ${selected === vehicle.id ? 'selected' : ''}`}
                     onClick={() => selectVehicle(vehicle.id)}
                   >
-                    <span className="tram-list-icon">▥</span>
+                    <img className="tram-list-icon" src={tramIcon} alt="" />
                     <span>
                       <strong>{vehicle.label}</strong>
                       <small>{vehicle.route_id ?? 'Route unknown'}</small>
@@ -371,12 +358,8 @@ export function App() {
               </div>
             </section>
             <section className="scenario-notes">
-              <p className="eyebrow">EXPLORE THE SCENARIO</p>
-              <h2>Watch the evidence change.</h2>
-              <p>
-                Skip to a moment, or play the six-minute fixture at an
-                accelerated pace.
-              </p>
+              <h2>Demo moments</h2>
+              <p>Jump to a change in the six-minute scenario.</p>
               <div className="moments">
                 <button onClick={() => jump(30)}>30s · Position update</button>
                 <button onClick={() => jump(60)}>
