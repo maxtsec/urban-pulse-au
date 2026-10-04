@@ -13,7 +13,7 @@ The first city view needs reproducible moving observations, an explainable area 
 - Use stable area ID `au-vic-melbourne-clue-southbank`, WGS84 longitude/latitude and PostGIS SRID 4326.
 - Use `ST_Covers`: points on the boundary are included; no walking buffer. Service impact belongs to the affected stop independently of vehicle movement.
 - Retain the official Southbank geometry with attribution and source-response hash. Hash sorted-key compact JSON geometry as `sorted-keys-json-v1`; metadata changes do not change the boundary revision.
-- Use MapLibre with a local outline and synthetic markers. No external tiles, fonts or styles. Marker and keyboard-list selection share the same vehicle identity.
+- Use MapLibre with a local outline, synthetic tram icons and optional illustrative tracks. The white/grey interface uses a text-only wordmark. Track geometry is decorative fixture data, never an input to spatial membership or routing. No external tiles, fonts or styles. Marker and keyboard-list selection share the same vehicle identity.
 - Use a fixed, request-local fixture clock. Position age below 120 seconds is current; age 120–299 seconds is stale; age 300 seconds or more remains in the last-known list only. Missing/future observation time is unknown. These values apply only to `southbank-fixture-v1`.
 - Keep transport service coverage, weather warnings and planning profile separate. Absent weather prevents Normal; an applicable transport disruption gives Degraded. Positions themselves are not a health signal.
 

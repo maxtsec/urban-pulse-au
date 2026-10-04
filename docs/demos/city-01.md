@@ -34,9 +34,9 @@ Open [UrbanPulse](http://127.0.0.1:5173). No provider key is required. The API a
 6. Choose **330s · Last known only**. Tram 01 has reached age 300 seconds. Its marker is removed, but its last-known observation remains in the list. Tram 03 stays labelled Time unknown.
 7. Expand **Replay diagnostics**: at 330 seconds expect 5 applied, 1 duplicate, 1 superseded, 1 conflict and 1 invalid event. A retry with different trace context does not move a vehicle; an older/conflicting event cannot overwrite revision 2.
 8. Select **Empty transport**: no markers or observations, no overall healthy claim. Select **Transport outage** at 60–179 seconds: the known interruption remains Degraded while transport coverage is Error.
-9. Toggle the two layers, inspect at a narrow mobile width, and open **View fixture evidence**. For an API failure demonstration, stop the API and choose an unvisited clock time; the UI shows an error and retry. Restart and retry.
+9. Toggle the tram, boundary and illustrative-track layers, inspect at a narrow mobile width, and open **View fixture evidence**. For an API failure demonstration, stop the API and choose an unvisited clock time; the UI shows an error and retry. Restart and retry.
 
-Marker movement connects discrete observations visually; it is not a measured route. Nearby markers can overlap at low zoom: zoom in or use the equivalent list. The fixture deliberately makes no external map requests.
+The white/grey view uses a text-only UrbanPulse name and tram icons. Track lines are locally authored fixture illustrations, not real rail geometry or evidence of a measured route. Marker movement connects discrete observations visually. Nearby markers can overlap at low zoom: zoom in or use the equivalent list. The fixture deliberately makes no external map requests.
 
 ## Acceptance cases and verification
 

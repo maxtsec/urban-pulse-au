@@ -16,7 +16,7 @@ test('map and keyboard list select the same moving tram without external request
   });
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'A closer look at Southbank.' }),
+    page.getByRole('heading', { name: 'Southbank', level: 1 }),
   ).toBeVisible();
   await expect(page.getByText('SYNTHETIC DEMO · NO LIVE DATA')).toBeVisible();
   const marker = page.getByRole('button', {
@@ -24,6 +24,27 @@ test('map and keyboard list select the same moving tram without external request
     exact: true,
   });
   await expect(marker).toBeVisible();
+  await expect(marker.locator('img')).toBeVisible();
+  expect(
+    await marker
+      .locator('img')
+      .evaluate(
+        (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+      ),
+  ).toBe(true);
+  await expect(
+    page.getByText('Illustrative tracks', { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('checkbox', { name: 'Tracks (illustrative)', exact: true })
+    .uncheck();
+  await expect(
+    page.getByText('Illustrative tracks', { exact: true }),
+  ).toHaveCount(0);
+  await expect(marker).toBeVisible();
+  await page
+    .getByRole('checkbox', { name: 'Tracks (illustrative)', exact: true })
+    .check();
   const before = await marker.boundingBox();
   const list = page.getByRole('button', {
     name: 'Select Tram 01 in list',
@@ -145,7 +166,7 @@ test('mobile layout fits and keeps the area overview usable', async ({
     page.getByRole('button', { name: 'Select Tram 01 on map' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'Southbank', exact: true }),
+    page.getByRole('heading', { name: 'Area conditions', exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),

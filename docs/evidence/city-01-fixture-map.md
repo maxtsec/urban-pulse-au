@@ -11,12 +11,12 @@ Scope: the CITY-01 feature revision containing this record, based on `abde0144ae
 | `scripts/check.ps1` | Pass: Ruff lint/format, mypy (17 source files), 161 unit/API tests, ESLint, Prettier, TypeScript and Vite build |
 | `uv run --locked pytest -m integration -q` | 7 passed against real local PostGIS 17 / extension 3.5 |
 | `npm.cmd --prefix apps/web run test:e2e` | 5 Chromium tests passed against the production Vite build and real FastAPI/PostGIS |
-| Visual inspection | Desktop 1440 px and mobile 390 px screenshots reviewed; map boundary rendered, markers selectable, panel/list usable and no horizontal overflow |
+| Visual inspection | Desktop 1440 px and mobile 390 px screenshots reviewed; white/grey layout, text-only wordmark, tram icons and illustrative rails inspected; markers selectable, panel/list usable and no horizontal overflow |
 | External requests | Browser test observed no external HTTP requests during the fixture map flow |
 
 Unit and integration markers deliberately run separately: the baseline deselects 7 integration cases, and the integration command deselects 161 unit/API cases. All selected cases passed.
 
-Browser coverage includes keyboard selection with retained focus, marker/list synchronization, position movement, layer visibility, play/pause/reset, stale/expired/missing-time observations, unknown weather/planning, empty/outage scenarios, API retry, boundary failure with usable list, and mobile width. MapLibre workers are bundled as local assets; a development-only success is insufficient.
+Browser coverage includes keyboard selection with retained focus, marker/list synchronization, position movement, locally loaded tram artwork, illustrative-track toggle, layer visibility, play/pause/reset, stale/expired/missing-time observations, unknown weather/planning, empty/outage scenarios, API retry, boundary failure with usable list, and mobile width. MapLibre workers are bundled as local assets; a development-only success is insufficient.
 
 PostGIS coverage includes actual Southbank inside/edge/outside membership, invalid/empty/wrong-type/out-of-range geometry, capture-to-API replay and changed-boundary recomputation. The same revision and assessment rules used by the UI are exercised through the API.
 
