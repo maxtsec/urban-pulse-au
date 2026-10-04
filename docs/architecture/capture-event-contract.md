@@ -2,6 +2,10 @@
 
 CloudEvents 1.0 is accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md). The initial UrbanPulse wire profile below is accepted; capture storage/recovery and handler design remain A-03 proposals. It prepares CONTRACT-01 and the parallel capture track. [Area semantics](area-contract.md) define the consuming view; [delivery status](../delivery-plan.md) owns implementation progress.
 
+## Weather provider boundary
+
+[ADR 0005](../adr/0005-weather-source-policy.md) requires capture before provider-specific normalisation and replay from retained payloads/manifests. Weather & Hazards publishes domain facts through this envelope for Location Intelligence; provider wire formats and database tables do not cross that boundary. Modelled readings, forecasts and station observations retain distinct meaning. Warning identity includes its provider/product scope; do not merge identities across providers. Same-provider redelivery and revision rules still apply. Concrete weather payload schemas remain CONTRACT-01 work.
+
 ## Separate three identities
 
 | Identity | Meaning | Retry/replay rule |

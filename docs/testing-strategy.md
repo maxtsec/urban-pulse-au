@@ -63,3 +63,16 @@ For each feature, connect acceptance cases to test names and applicable integrat
 Before review, run affected checks and report commands, outcomes, skipped checks and unresolved limitations. If a feature requires warehouse behavior, a successful local parse is insufficient to call it verified. Code can be reviewed with an explicit blocker while its required integration acceptance remains open.
 
 Before closing a phase, demonstrate its exit criteria, create its Git tag, and attach release notes, demo/evidence, a passing CI run and relevant measurements. No arbitrary coverage percentage replaces those behavioral checks. Revisit coverage and performance targets with evidence as the implementation grows.
+
+## Weather-source acceptance
+
+Implement these cases with CITY-02/CITY-04 under [ADR 0005](adr/0005-weather-source-policy.md); this list specifies required evidence, not tests already implemented.
+
+- Modelled weather changes, disappears or recovers without changing area conditions or weather-warning coverage.
+- Effective, applicable Watch and Act/Emergency Warning records degrade conditions; Advice remains in the information list and contributes no degradation reason.
+- Future, expired, cancelled, superseded or spatially inapplicable warnings contribute no active reason. Preserve unknown source categories and geometry without claiming complete coverage.
+- A fresh incomplete or unverified snapshot cannot establish absence. A verified complete empty in-scope snapshot can support Normal only when all other required inputs are current/complete and no adverse facts remain.
+- Known adverse facts plus missing warning coverage remain Degraded; no adverse fact plus missing coverage is Unknown. Source failure alone does not resolve facts. A timer handles expiry without new events.
+- Same-provider duplicate/older updates are idempotent; different-provider warning identities and lifecycles remain independent.
+- Replay retained payloads/manifests with provider network access disabled. Verify published CloudEvents and Location Intelligence output without cross-module table reads.
+- A later BOM adapter passes applicable shared contracts while retaining product-specific meaning, provenance and modelled/forecast/station-observation distinctions. Review its severity and coverage policy separately; test any required migration and outage behavior.

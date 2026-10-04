@@ -38,3 +38,16 @@ In phase 5, use captures retained since phases 1-2 to inspect a historical time 
 Record the source commit/release, fixture or live mode, selected geography, source permissions, input identities/times, approved status rule version, test results and known limitations. Tie each completed phase demonstration to its Git tag. For reliability extensions, add event IDs, consumer attempts, failure injection, observed recovery and cleanup.
 
 Label the demonstration mode and use the city MVP exit criteria in the delivery plan.
+
+## Weather-source evolution demonstration
+
+Follow [ADR 0005](../adr/0005-weather-source-policy.md), using synthetic captures until live source gates pass:
+
+1. Replay an Open-Meteo-shaped modelled reading and show its source, effective time and label in weather information. Area status and warning coverage remain unchanged.
+2. Replay an applicable active VicEmergency Watch and Act warning: show the original level/link and a degradation reason. Display Advice separately without a degradation reason.
+3. Compare a fresh but unverified empty snapshot with a verified complete empty in-scope snapshot. Only the latter can establish warning absence; Normal still requires complete current transport coverage and no adverse fact.
+4. Disable provider access and replay retained payloads/manifests through normalisation, Weather & Hazards CloudEvents and Location Intelligence. Demonstrate update, duplicate, older revision, cancellation and timer-driven expiry.
+5. When BOM access and a product-specific policy are accepted, add its adapter and run applicable shared contracts. Show its provenance alongside the existing provider, without cross-provider merging or relabelling old modelled data as station observations.
+6. Interrupt a source: expose stale/unknown coverage and preserve unresolved applicable adverse facts. Do not claim provider interchangeability when product semantics differ.
+
+Show changed adapter/mapping code and any justified compatible migration alongside stable domain boundaries. Record actual results in dated evidence; the scenario does not imply these adapters already exist.

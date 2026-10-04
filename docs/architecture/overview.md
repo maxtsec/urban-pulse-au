@@ -9,7 +9,7 @@ The target begins as a modular backend with independent runtimes. Bounded contex
 | Bounded context           | Owns                                                                                             | Published information                                     |
 | ------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
 | Transport                 | Train/tram/bus references, vehicle positions where supported, delay observations and disruptions | Current service facts and meaningful status changes       |
-| Weather & Hazards         | Observations, warning validity, severity and affected geography                                  | Applicable warnings and updates/expiry                    |
+| Weather & Hazards         | Modelled readings/observations, warning validity, severity and affected geography                                  | Informational readings, applicable warnings and lifecycle changes                    |
 | Planning & Infrastructure | Developments, works, infrastructure records and source status                                    | Area context and verified changes with source as-of dates |
 | Location Intelligence     | Area identity, spatial/temporal combination, explained status and area history                   | Area summaries and meaningful AreaStatusChanged events    |
 
@@ -64,6 +64,24 @@ Shared configuration belongs in a neutral module; workers and pipelines must not
 | Dagster metadata database      | Orchestration run state                                                           | Separate database and credentials from application data                  |
 
 Cross-module reads use published interfaces, versioned exports or integration contracts. Contracts carry schema/publication versions where relevant. PostgreSQL and BigQuery are not competing owners of the same analytical result.
+
+## Weather-source boundary
+
+[ADR 0005](../adr/0005-weather-source-policy.md) keeps readings and warnings within one Weather & Hazards context. Open-Meteo provides informational modelled weather; verified weather-related VicEmergency products are the candidate warning slice; BOM may be added after source and product-policy review. Forecast features remain a later scope option.
+
+```mermaid
+flowchart LR
+    Feeds[Provider feeds] --> Capture[Capture adapter]
+    Capture --> Raw[Permitted raw payload and manifest]
+    Raw --> Normalise[Provider-specific normalisation]
+    Normalise --> Weather[Weather & Hazards]
+    Weather --> Events[CloudEvents - phase 2 in-process]
+    Events --> Location[Location Intelligence]
+    Location --> Area[Area projection]
+    Area --> UI[API and city view]
+```
+
+Replay starts from retained captures. Domain contracts preserve source meaning and provenance; provider adapters do not call area assessment directly. Select aggregate boundaries and database fields for demonstrated needs, with compatible migrations for genuinely new concepts. Modelled readings cannot satisfy warning coverage; warnings retain original levels and are not merged across providers in the pilot. The diagram does not imply transactional raw storage or durable event delivery.
 
 ## Early cloud capture
 

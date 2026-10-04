@@ -1,6 +1,6 @@
 # Southbank area and map contract
 
-CITY-01 fixture identity, point membership, local map and fixture freshness are implemented for review under the proposal in [ADR 0004](../adr/0004-southbank-fixture-map.md). A-04 separates conditions from coverage as accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md); live freshness, warning applicability, required-source completeness and timing targets remain proposals. Southbank CLUE and the tram slice are accepted in [ADR 0002](../adr/0002-southbank-tram-pilot.md). Progress belongs in the [delivery plan](../delivery-plan.md).
+CITY-01 fixture identity, point membership, local map and fixture freshness are implemented for review under the proposal in [ADR 0004](../adr/0004-southbank-fixture-map.md), which remains proposed for architect acceptance. A-04 separates conditions from coverage as accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md); pilot weather-source roles, required inputs and VicEmergency severity are accepted in [ADR 0005](../adr/0005-weather-source-policy.md). Live freshness, spatial applicability, complete-snapshot evidence and timing targets remain subject to review. Southbank CLUE and the tram slice are accepted in [ADR 0002](../adr/0002-southbank-tram-pilot.md). Progress belongs in the [delivery plan](../delivery-plan.md).
 
 ## Area identity and geometry
 
@@ -38,11 +38,21 @@ Use Normal, Degraded and Unknown conditions, accompanied by reasons and per-inpu
 | Sole warning expires while weather access is unavailable | UNKNOWN | Expired warning stops contributing; missing coverage prevents NORMAL |
 | Planning volume rises | Unchanged | Update the area profile without inventing a positive/negative score |
 
-Proposed required inputs for an eventual NORMAL claim are transport service status (complete alerts and trip-update coverage for the agreed scope) and the agreed weather warning product coverage. Positions describe map observations, not service health. Planning completeness belongs to the area profile. Phase 1's transport-only fixture must therefore show UNKNOWN overall when weather is absent, even when transport is clear.
+Accepted pilot input categories for an eventual NORMAL claim are transport service status (complete alerts and trip-update coverage for the agreed scope) and the agreed weather warning product coverage. Positions describe map observations, not service health. Planning completeness belongs to the area profile. Phase 1's transport-only fixture must therefore show UNKNOWN overall when weather is absent, even when transport is clear.
 
 An empty response only supports absence when the source contract establishes a successful complete snapshot of the relevant scope. Source time, capture time, projection time and evaluation time remain distinct. The full status/reason/coverage tuple is the externally observable state: changing coverage is meaningful even if conditions remain DEGRADED.
 
 A timer re-evaluates expiry/freshness with no incoming event. Proposed targets remain p95 domain-commit-to-area-commit within 5 seconds and warning-expiry recomputation within 60 seconds under the agreed baseline workload. Catch-up after restart is measured separately. Neither target includes provider delay or browser rendering.
+
+## Weather-source policy
+
+[ADR 0005](../adr/0005-weather-source-policy.md) keeps Weather & Hazards as one context. Open-Meteo modelled readings appear in a separate weather information section; neither readings nor their availability affect conditions or warning coverage. Forecast features require later scope approval.
+
+An active, spatially applicable VicEmergency Watch and Act or Emergency Warning contributes a degradation reason for the verified weather-related slice. Cancelled, superseded or expired warnings do not. Advice is displayed as information, never as a degradation reason. Preserve source levels and links; do not infer physical impact from a warning polygon or apply this mapping to BOM. Unknown mappings cannot establish complete coverage.
+
+A fresh incomplete snapshot still has unknown warning coverage. Only a verified complete snapshot for the selected products, geography and time can establish absence; no warnings is not a general low-risk claim. A known adverse fact plus unknown coverage remains Degraded. Open-Meteo success does not turn warning coverage current. Source failure alone cannot resolve a warning.
+
+Keep warnings from different providers distinct with their own provenance and lifecycles. Location Intelligence consumes CloudEvents from Weather & Hazards and never accesses its internal tables. Future multi-provider precedence and coverage composition require a separate policy.
 
 ## Query boundary
 

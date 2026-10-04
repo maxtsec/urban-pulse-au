@@ -1,7 +1,7 @@
 # UrbanPulse AU Project Brief
 
 Version: v1
-Updated: 4 October 2026
+Updated: 5 October 2026
 
 UrbanPulse AU is a city intelligence platform, starting with Melbourne. It answers:
 
@@ -22,6 +22,7 @@ The area panel separates:
 | View                  | Meaning                                         | Examples                                                                                |
 | --------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Current conditions    | Time-sensitive events and their validity        | Transport disruption, active weather warning, known works affecting access              |
+| Weather information | Time-sensitive modelled readings with provenance; excluded from pilot status | Open-Meteo temperature, rainfall and wind, labelled as modelled |
 | Area profile          | Slower-changing context with its own as-of date | Infrastructure, development activity, accessibility and historical patterns             |
 | Coverage and evidence | What the system knows and does not know         | Source, supported geography, last successful capture, source time, missing/stale inputs |
 
@@ -35,7 +36,7 @@ Phases 1 and 2 deliver a small integrated city experience:
 
 - A Melbourne map with a selected, supported area scope.
 - Yarra Trams positions, trip updates and service alerts, with compatible static GTFS, as the first transport slice. Include position freshness, identity, attribution and rate-budget requirements; use synthetic playback before live-source enablement.
-- One verified weather warning product with issue time, affected area and expiry/update handling.
+- One verified weather warning product with issue time, affected area and expiry/update handling. Open-Meteo supplies separately labelled modelled weather information under [ADR 0005](docs/adr/0005-weather-source-policy.md); it does not affect area status or warning coverage. Forecast features remain a later scope option.
 - One verified planning/infrastructure dataset, shown at its actual update cadence.
 - A combined area panel with per-domain facts, coverage and a basic explained status under agreed rules.
 - Deterministic fixtures covering normal, disrupted, stale and incomplete conditions.
@@ -127,7 +128,7 @@ PostgreSQL uses separately owned operational and serving schemas. Dagster metada
 
 ## 4 Sources and access
 
-Candidate sources are Transport Victoria GTFS/GTFS-Realtime, BOM warning products, and official planning/infrastructure open data. The [source register](docs/source-register.md) records evidence and unresolved access/coverage questions.
+The selected source direction is Transport Victoria GTFS/GTFS-Realtime, Open-Meteo for modelled weather information, VicEmergency as the candidate initial weather-warning source, and official planning/infrastructure open data. BOM remains a possible later addition. [ADR 0005](docs/adr/0005-weather-source-policy.md) preserves one Weather & Hazards context and limits the warning slice to verified weather-related products. The [source register](docs/source-register.md) records evidence and unresolved access/coverage questions.
 
 Before enabling a provider, record endpoints, authentication, licence, attribution, redistribution, retention and rate limits. Confirm static/realtime transport joins and each dataset's spatial coverage. Match planning coverage to the City of Melbourne pilot boundary. Richmond is in the City of Yarra and needs a different planning source. Road incidents require their own verified source; GTFS alerts do not establish a comprehensive road feed.
 
@@ -224,7 +225,7 @@ Initial marts can include route delay distributions by service date and time ban
 
 Location Intelligence owns area aggregation, not the underlying transport, warning or development records. Approve the area boundary source/version, spatial join rules and temporal overlap before building its schema or public API. Retain source IDs and reasons so a user can inspect the evidence behind a summary.
 
-Keep current conditions (Normal, Degraded or Unknown) separate from source coverage, as accepted in [ADR 0003](docs/adr/0003-cloudevents-and-area-conditions.md). A known adverse fact remains Degraded with missing inputs; Normal requires all required inputs to be current and complete. Source-specific freshness, severity and spatial rules still require approved examples. Recompute on time-driven warning expiry as well as new events. A failed source cannot silently improve a status. Keep current conditions separate from the slower area profile, and version any future score formula, weights and uncertainty handling. Numeric scoring requires its own evidence and approval.
+Keep current conditions (Normal, Degraded or Unknown) separate from source coverage, as accepted in [ADR 0003](docs/adr/0003-cloudevents-and-area-conditions.md). A known adverse fact remains Degraded with missing inputs; Normal requires all required inputs to be current and complete. The VicEmergency severity and required-input policy is accepted in [ADR 0005](docs/adr/0005-weather-source-policy.md): applicable active Watch and Act/Emergency Warning facts degrade conditions; Advice remains informational. Live source completeness, freshness and spatial evidence remain enablement gates. Modelled weather never satisfies warning coverage. Recompute on time-driven warning expiry as well as new events. A failed source cannot silently improve a status. Keep current conditions separate from the slower area profile, and version any future score formula, weights and uncertainty handling. Numeric scoring requires its own evidence and approval.
 
 ## 8 Redis and graceful degradation
 
