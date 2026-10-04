@@ -2,11 +2,12 @@
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     AfterValidator,
@@ -41,10 +42,26 @@ Timestamp = Annotated[
 ]
 
 
+def require_finite_numbers(value: object) -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("optional fields must contain only finite numbers")
+    if isinstance(value, dict):
+        for item in value.values():
+            require_finite_numbers(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            require_finite_numbers(item)
+
+
 class WireModel(BaseModel):
     """Preserve optional additions when reading and forwarding a v1 payload."""
 
     model_config = ConfigDict(extra="allow", frozen=True, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def finite_extras(self) -> Self:
+        require_finite_numbers(self.model_extra)
+        return self
 
 
 class Provenance(WireModel):
@@ -138,7 +155,11 @@ class EventReceipt:
     @classmethod
     def from_event[Payload: WireModel](cls, event: CloudEvent[Payload]) -> "EventReceipt":
         serialized = json.dumps(
-            event.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), allow_nan=False
+            # Delivery tracing can change without changing the published event.
+            event.model_dump(mode="json", exclude={"traceparent", "tracestate"}),
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
         ).encode("utf-8")
         return cls(
             source=event.source,

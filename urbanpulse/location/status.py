@@ -86,6 +86,8 @@ def assess_area(
         raise ValueError("fact IDs must be unique within the assessment")
     if any(fact.input_id not in by_input for fact in facts):
         raise ValueError("every fact must have explicit source coverage")
+    if any(fact.input_id not in required_inputs for fact in facts):
+        raise ValueError("facts must belong to required current-condition inputs")
     incomplete = tuple(
         sorted(key for key in required_inputs if by_input.get(key) != CoverageState.CURRENT)
     )

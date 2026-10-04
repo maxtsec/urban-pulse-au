@@ -361,16 +361,19 @@ Define retention by source and storage class before enabling live ingestion. Raw
 Keep the project brief and architecture records in Markdown alongside the code.
 
 ```text
-au-urban-pulse/
+urban-pulse-au/
   project_brief.md
   apps/
     api/                    # FastAPI entry point
     web/                    # React and TypeScript
   workers/
     ingestion/              # Continuous feed capture and current processing
-  packages/
-    domain/                 # Domain models and rules
-    contracts/              # Shared versioned interfaces
+  urbanpulse/               # Python package; add contexts as their slices are implemented
+    contracts/              # Shared versioned interfaces and wire validation
+    location/               # Location Intelligence domain rules
+    transport/              # Transport domain and application logic
+    weather/                # Weather & Hazards domain and application logic
+    planning/               # Planning & Infrastructure domain and application logic
     providers/              # External source adapters
     ai_tools/               # Proposal generation, validation and review contracts
   pipelines/

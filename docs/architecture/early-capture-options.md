@@ -18,9 +18,15 @@ Domain boundaries remain separate even when processes share a host. Collection m
 
 Use measured payload sizes and memory/CPU observations before sizing a deployment. An initial comparison scenario uses tram positions every 30 seconds and updates/alerts every 60 seconds: four requests per minute. At an assumed average payload of 1 MiB and 30-day retention, this produces 172,800 captures and 168.75 GiB of retained payloads at steady state. These values are planning inputs, not measured source characteristics or an accepted retention policy.
 
-The proposed intent, payload and terminal-manifest scheme needs at least three writes per successful capture. Include lease/retry operations, logs, reads, secrets, image/build storage, database backups and transfer in the evaluation. Static GTFS and other source products need their own cadence and size measurements. Soft deletion/versioning can retain billable bytes after lifecycle deletion.
+The baseline intent, payload and terminal-manifest scheme needs at least three writes per successful capture. A-03 also evaluates [shared payload objects and compression](capture-event-contract.md#payload-storage-options-for-a-03); remeasure bytes and operation counts after selecting the design. Include lease/retry operations, logs, reads, secrets, image/build storage, database backups and transfer in the evaluation. Static GTFS and other source products need their own cadence and size measurements. Soft deletion/versioning can retain billable bytes after lifecycle deletion.
 
 Avoid bulk cross-region history downloads when evaluating network overhead. A shared host also needs disk-growth and backup capacity checks; a collector-only estimate cannot establish whole-application suitability. Free-tier eligibility is scoped to the billing account and supported regions, and does not make every associated resource free.
+
+## Retention and historical analysis
+
+The 30-day example above is a sizing scenario only. Phase 5 targets analysis across multiple months; retention must cover the chosen analytical window and its replay/correction needs before collection starts. Approve raw, normalized and aggregate retention separately, including source rights, capture manifests, static timetable versions and gaps.
+
+A shorter raw window can support longer analytical history only if the required longer-lived records are actually produced, validated and retained, and the loss of older raw replay is explicitly accepted. Do not assume deleted raw inputs can be regenerated or that aggregation preserves every future analysis. Shared payload objects require reference-aware retention; compression savings must be measured. A-03 and A-06 must resolve this with the historical requirements before CLOUD-01 enables a deletion policy.
 
 ## Controls and decision before provisioning
 
