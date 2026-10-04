@@ -274,11 +274,9 @@ for (const state of ['current', 'stale', 'error', 'unsupported']) {
       await route.fulfill({ response, json: data });
     });
     await page.goto('/');
-    const weather = page
-      .locator('.domain-row')
-      .filter({
-        has: page.getByRole('heading', { name: 'Weather & hazards' }),
-      });
+    const weather = page.locator('.domain-row').filter({
+      has: page.getByRole('heading', { name: 'Weather & hazards' }),
+    });
     await expect(weather.locator('.coverage-pill')).toHaveText(state);
     await expect(weather).not.toContainText('Warning data not connected');
   });
