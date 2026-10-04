@@ -1,0 +1,22 @@
+name: Local baseline checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: uv sync --locked
+      - run: uv run --locked ruff check . && uv run --locked ruff format --check .
+      - run: uv run --locked mypy && uv run --locked pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci && npm run lint && npm run format:check && npm run build
+        working-directory: apps/web

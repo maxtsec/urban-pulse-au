@@ -1,0 +1,9 @@
+version: 2
+models:
+  - name: fixture_environment
+    description: Synthetic fixture used only to verify BigQuery access.
+    columns:
+      - name: fixture_id
+        data_tests: [not_null, unique]
+      - name: mode
+        data_tests: [not_null]

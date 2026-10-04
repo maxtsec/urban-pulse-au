@@ -1,0 +1,34 @@
+[project]
+name = "urbanpulse-au"
+version = "0.1.0"
+description = "UrbanPulse AU development baseline"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "pydantic-settings", "sqlalchemy",
+  "psycopg[binary]", "alembic", "redis", "httpx", "polars",
+  "google-cloud-storage", "google-cloud-bigquery", "opentelemetry-api",
+  "opentelemetry-sdk", "opentelemetry-instrumentation-fastapi", "prometheus-client",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy"]
+pipeline = ["dagster", "dagster-webserver", "dbt-bigquery"]
+
+[tool.uv]
+default-groups = ["dev", "pipeline"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["apps/api", "workers/ingestion"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

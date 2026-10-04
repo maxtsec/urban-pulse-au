@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label": "Dev: API", "type": "shell", "command": "uv run uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000", "problemMatcher": []},
+    {"label": "Dev: Web", "type": "shell", "command": "npm.cmd run dev", "options": {"cwd": "${workspaceFolder}/apps/web"}, "problemMatcher": []},
+    {"label": "Dev: API + Web", "dependsOn": ["Dev: API", "Dev: Web"], "dependsOrder": "parallel", "problemMatcher": []},
+    {"label": "Dev: services", "type": "shell", "command": "docker compose up -d --wait", "problemMatcher": []},
+    {"label": "Dev: Dagster", "type": "shell", "command": "uv run dagster dev -m pipelines.dagster.definitions --host 127.0.0.1", "problemMatcher": []},
+    {"label": "Check", "type": "shell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1", "group": "test", "problemMatcher": []}
+  ]
+}

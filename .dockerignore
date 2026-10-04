@@ -1,0 +1,15 @@
+.git
+.venv
+.local
+.env
+**/__pycache__
+**/node_modules
+**/dist
+AGENTS.md
+CLAUDE.md
+agent.md
+claude.md
+**/AGENTS.md
+**/CLAUDE.md
+**/agent.md
+**/claude.md

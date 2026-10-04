@@ -1,0 +1,18 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["tests"],
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {"source.organizeImports.ruff": "explicit"}
+  },
+  "[typescript]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+  "[typescriptreact]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+  "[markdown]": {"editor.defaultFormatter": "yzhang.markdown-all-in-one"},
+  "eslint.workingDirectories": ["apps/web"],
+  "files.exclude": {"**/__pycache__": true, "**/.pytest_cache": true, "**/.ruff_cache": true},
+  "search.exclude": {".venv": true, "**/node_modules": true, ".local": true},
+  "yaml.schemas": {"https://json.schemastore.org/github-workflow.json": ".github/workflows/*.{yml,yaml}"}
+}

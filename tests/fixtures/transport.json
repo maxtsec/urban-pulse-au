@@ -1,0 +1,11 @@
+{
+  "mode": "fixture",
+  "provider": "synthetic",
+  "description": "Synthetic development data. Not a live transport feed.",
+  "source_timestamp": "2026-10-04T00:00:00Z",
+  "observations": [
+    {"route_id": "demo-1", "stop_id": "demo-stop-1", "delay_seconds": 120},
+    {"route_id": "demo-1", "stop_id": "demo-stop-2", "delay_seconds": null},
+    {"route_id": "demo-2", "stop_id": "demo-stop-3", "delay_seconds": -30}
+  ]
+}

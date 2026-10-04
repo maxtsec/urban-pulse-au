@@ -1,0 +1,54 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #163349;
+  background: #f1f6f9;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 850px;
+  margin: 8vh auto;
+  padding: 32px;
+  background: white;
+  border-radius: 16px;
+}
+h1 {
+  font-size: 3rem;
+  letter-spacing: -0.04em;
+}
+.eyebrow {
+  color: #387b83;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+}
+.badge {
+  display: inline-block;
+  background: #fff0c2;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+}
+th,
+td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #dbe5eb;
+}
+a {
+  color: #006a78;
+}
+@media (max-width: 600px) {
+  main {
+    margin: 12px;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 2.2rem;
+  }
+}

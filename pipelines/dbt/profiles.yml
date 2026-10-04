@@ -1,0 +1,12 @@
+urbanpulse:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GOOGLE_CLOUD_PROJECT') }}"
+      dataset: "{{ env_var('BIGQUERY_DATASET', 'urbanpulse_dev') }}"
+      location: "{{ env_var('BIGQUERY_LOCATION', 'australia-southeast1') }}"
+      threads: 2
+      job_execution_timeout_seconds: 60
+      maximum_bytes_billed: 1000000000
