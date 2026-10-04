@@ -1,25 +1,18 @@
 """Local environment smoke API; fixture data is always explicitly labelled."""
 
 import json
-from pathlib import Path
 from typing import Any
 
 import psycopg
 from fastapi import FastAPI, HTTPException
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis import Redis
 from redis.exceptions import RedisError
 
-ROOT = Path(__file__).resolve().parents[2]
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
-    database_url: str = "postgresql://urbanpulse:urbanpulse_local@127.0.0.1:5432/urbanpulse"
-    redis_url: str = "redis://127.0.0.1:6379/0"
-
+from apps.api.city import router
+from urbanpulse.config import ROOT, Settings
 
 app = FastAPI(title="UrbanPulse AU", version="0.1.0")
+app.include_router(router)
 
 
 @app.get("/health/live")

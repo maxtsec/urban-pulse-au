@@ -16,6 +16,8 @@ For pilot/source review: [SRC-01 comparison](evidence/src-01-source-feasibility.
 
 For contract review: [ADR 0003](adr/0003-cloudevents-and-area-conditions.md), [area/map contract](architecture/area-contract.md), [capture/event contract](architecture/capture-event-contract.md) and [early capture hosting comparison](architecture/early-capture-options.md).
 
+For the runnable city view: [CITY-01 walkthrough](demos/city-01.md), [fixture map decision](adr/0004-southbank-fixture-map.md) and [test evidence](evidence/city-01-fixture-map.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -26,13 +28,16 @@ For contract review: [ADR 0003](adr/0003-cloudevents-and-area-conditions.md), [a
 | [ADR 0001](adr/0001-city-intelligence-scope.md)          | Accepted integrated product scope and consequences                 | A later decision supersedes it                          |
 | [ADR 0002](adr/0002-southbank-tram-pilot.md)             | Accepted Southbank CLUE pilot and initial tram scope               | The architect changes the pilot or transport scope      |
 | [ADR 0003](adr/0003-cloudevents-and-area-conditions.md) | Accepted CloudEvents format and separate condition/coverage principle | A later decision supersedes either principle |
+| [ADR 0004](adr/0004-southbank-fixture-map.md) | Accepted fixture identity, point membership, local map and age policy | A later decision supersedes the fixture policy |
+| [CITY-01 walkthrough](demos/city-01.md) | Feature scope, acceptance cases, local replay and query details | Fixture behavior or reproduction steps change |
+| [CITY-01 evidence](evidence/city-01-fixture-map.md) | Dated spatial/browser results and verification limits | A new checkpoint is verified |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |
 | [Source register](source-register.md)                    | Provider evidence, coverage, access and open questions             | A source is evaluated, enabled or changes terms         |
 | [Development guide](development.md)                      | Runnable setup, configuration and troubleshooting                  | Tooling or commands change                              |
 | [Testing strategy](testing-strategy.md)                  | Existing checks and required feature coverage                      | Behavior or a service boundary changes                  |
-| [Phase 0 demo](demos/phase-0.md)                         | Present-day fixture walkthrough                                    | The current baseline changes                            |
+| [Phase 0 demo](demos/phase-0.md)                         | Tagged phase-0 baseline walkthrough                                    | The current baseline changes                            |
 | [Clean-checkout walkthrough](demos/clean-checkout.md)    | Isolated baseline reproduction and cleanup procedure               | Reproduction steps or the referenced checkpoint change  |
 | [City MVP demo](demos/city-mvp.md)                       | Cross-domain acceptance scenario and evidence                      | Product acceptance rules are agreed or implemented      |
 | [Local evidence](evidence/phase-0-local.md)              | Actual checks and their limits                                     | A new verification checkpoint is recorded               |

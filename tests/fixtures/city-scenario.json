@@ -1,0 +1,369 @@
+{
+  "started_at": "2026-10-04T00:00:00Z",
+  "labels": {
+    "yarra-trams/synthetic-tram-01": "Tram 01",
+    "yarra-trams/synthetic-tram-02": "Tram 02",
+    "yarra-trams/synthetic-tram-03": "Tram 03"
+  },
+  "service_stop": {
+    "id": "synthetic-stop-A",
+    "coordinates": [
+      144.9617,
+      -37.82529
+    ]
+  },
+  "frames": [
+    {
+      "at_seconds": 0,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-01-1",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-01",
+        "time": "2026-10-04T00:00:00Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 1,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-01",
+            "capture_ids": [
+              "synthetic-capture-tram-01-1"
+            ],
+            "source_observed_at": "2026-10-04T00:00:00Z"
+          },
+          "effective_from": "2026-10-04T00:00:00Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-01",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.9617,
+              "latitude": -37.82529
+            },
+            "observed_at": "2026-10-04T00:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 0,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-02-1",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-02",
+        "time": "2026-10-04T00:00:00Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 1,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-02",
+            "capture_ids": [
+              "synthetic-capture-tram-02-1"
+            ],
+            "source_observed_at": "2026-10-04T00:00:00Z"
+          },
+          "effective_from": "2026-10-04T00:00:00Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-02",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.967,
+              "latitude": -37.8275
+            },
+            "observed_at": "2026-10-04T00:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 0,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-03-1",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-03",
+        "time": "2026-10-04T00:00:00Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 1,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-03",
+            "capture_ids": [
+              "synthetic-capture-tram-03-1"
+            ],
+            "source_observed_at": null
+          },
+          "effective_from": null,
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-03",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.955,
+              "latitude": -37.824
+            },
+            "observed_at": null
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 30,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-01-2",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-01",
+        "time": "2026-10-04T00:00:30Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 2,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-01",
+            "capture_ids": [
+              "synthetic-capture-tram-01-2"
+            ],
+            "source_observed_at": "2026-10-04T00:00:30Z"
+          },
+          "effective_from": "2026-10-04T00:00:30Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-01",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.9622,
+              "latitude": -37.8249
+            },
+            "observed_at": "2026-10-04T00:00:30Z"
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 45,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-01-2",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-01",
+        "time": "2026-10-04T00:00:30Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 2,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-01",
+            "capture_ids": [
+              "synthetic-capture-tram-01-2"
+            ],
+            "source_observed_at": "2026-10-04T00:00:30Z"
+          },
+          "effective_from": "2026-10-04T00:00:30Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-01",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.9622,
+              "latitude": -37.8249
+            },
+            "observed_at": "2026-10-04T00:00:30Z"
+          }
+        },
+        "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+      }
+    },
+    {
+      "at_seconds": 50,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-late-older-position",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-01",
+        "time": "2026-10-04T00:00:00Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 1,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-01",
+            "capture_ids": [
+              "synthetic-capture-tram-01-1"
+            ],
+            "source_observed_at": "2026-10-04T00:00:00Z"
+          },
+          "effective_from": "2026-10-04T00:00:00Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-01",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.9617,
+              "latitude": -37.82529
+            },
+            "observed_at": "2026-10-04T00:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 60,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-02-2",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-02",
+        "time": "2026-10-04T00:01:00Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 2,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-02",
+            "capture_ids": [
+              "synthetic-capture-tram-02-2"
+            ],
+            "source_observed_at": "2026-10-04T00:01:00Z"
+          },
+          "effective_from": "2026-10-04T00:01:00Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-02",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.98,
+              "latitude": -37.81
+            },
+            "observed_at": "2026-10-04T00:01:00Z"
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 75,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-tram-01-1",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-tram-01",
+        "time": "2026-10-04T00:00:00Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 1,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "tram-01",
+            "capture_ids": [
+              "synthetic-capture-tram-01-1"
+            ],
+            "source_observed_at": "2026-10-04T00:00:00Z"
+          },
+          "effective_from": "2026-10-04T00:00:00Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-tram-01",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.9628,
+              "latitude": -37.82529
+            },
+            "observed_at": "2026-10-04T00:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "at_seconds": 90,
+      "event": {
+        "specversion": "1.0",
+        "id": "city-invalid-coordinate-1",
+        "source": "urn:urbanpulse:fixture:transport",
+        "type": "au.urbanpulse.transport.vehicle-position-changed.v1",
+        "subject": "yarra-trams/synthetic-invalid-coordinate",
+        "time": "2026-10-04T00:01:30Z",
+        "datacontenttype": "application/json",
+        "upmode": "fixture",
+        "data": {
+          "schema_version": "1.0",
+          "revision": 1,
+          "provenance": {
+            "provider": "synthetic",
+            "product": "tram-positions",
+            "record_id": "invalid-coordinate",
+            "capture_ids": [
+              "synthetic-capture-invalid-coordinate-1"
+            ],
+            "source_observed_at": "2026-10-04T00:01:30Z"
+          },
+          "effective_from": "2026-10-04T00:01:30Z",
+          "effective_until": null,
+          "correlation_id": "city-01-synthetic",
+          "causation_id": null,
+          "state": {
+            "vehicle_id": "yarra-trams/synthetic-invalid-coordinate",
+            "route_id": "synthetic-route-A",
+            "position": {
+              "longitude": 144.962,
+              "latitude": 91
+            },
+            "observed_at": "2026-10-04T00:01:30Z"
+          }
+        }
+      }
+    }
+  ]
+}
