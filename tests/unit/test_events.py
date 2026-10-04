@@ -332,3 +332,71 @@ def test_repeated_capture_references_are_rejected():
         "capture-1",
         "capture-2",
     )
+
+
+@pytest.mark.parametrize("field", ["id", "subject"])
+@pytest.mark.parametrize("character", ["\x00", "\x7f", "\x9f", "\ufdd0", "\ufffe", "\U0001ffff"])
+def test_core_context_identifiers_reject_disallowed_characters(field, character):
+    data = payload()
+    data[field] += character
+    if field == "subject":
+        data["data"]["state"]["vehicle_id"] = data[field]
+    with pytest.raises(ValidationError, match="controls or noncharacters|noncharacters"):
+        VehiclePositionChanged.model_validate(data)
+    with pytest.raises(ValidationError):
+        VehiclePositionChanged.model_validate_json(json.dumps(data))
+
+
+@pytest.mark.parametrize(
+    "path", [("data",), ("data", "state"), ("data", "provenance"), ("data", "state", "position")]
+)
+@pytest.mark.parametrize("surrogate", ["\ud800", "\udfff"])
+@pytest.mark.parametrize("location", ["value", "key"])
+def test_python_payload_rejects_unpaired_surrogates_before_acceptance(path, surrogate, location):
+    data = payload()
+    target = data
+    for part in path:
+        target = target[part]
+    target["optional"] = {
+        "values": ("safe", {surrogate: "text"} if location == "key" else {"label": surrogate})
+    }
+    with pytest.raises(ValidationError, match="unpaired surrogates"):
+        VehiclePositionChanged(**data)
+    with pytest.raises(ValidationError):
+        VehiclePositionChanged.model_validate_json(json.dumps(data))
+
+
+def test_payload_unicode_pairs_roundtrip_without_restricting_json_text():
+    data = payload()
+    data["id"] = "event-\ud83d\ude8b"
+    data["data"]["state"]["optional"] = {
+        "\ud83d\ude8b": ["\ud83d\ude8b", "line\ntext\x00\x7f\ufdd0"]
+    }
+    event = VehiclePositionChanged(**data)
+    wire = event.model_dump_json()
+    restored = VehiclePositionChanged.model_validate_json(wire)
+    assert event.id == "event-\U0001f68b"
+    assert restored.data.state.model_extra["optional"] == {
+        "\U0001f68b": ["\U0001f68b", "line\ntext\x00\x7f\ufdd0"]
+    }
+    assert EventReceipt.from_event(event) == EventReceipt.from_event(restored)
+
+
+def test_normalizing_payload_keys_cannot_silently_overwrite_content():
+    data = payload()
+    data["data"]["state"]["optional"] = {"\ud83d\ude8b": 1, "\U0001f68b": 2}
+    with pytest.raises(ValidationError, match="keys must be unique"):
+        VehiclePositionChanged.model_validate(data)
+
+
+@pytest.mark.parametrize("observed", [None, "2026-10-04T00:00:25Z"])
+def test_position_producer_cannot_extend_freshness_with_effective_until(observed):
+    data = payload()
+    data["data"]["effective_from"] = observed
+    data["data"]["state"]["observed_at"] = observed
+    data["data"]["provenance"]["source_observed_at"] = observed
+    data["data"]["effective_until"] = "2099-01-01T00:00:00Z"
+    with pytest.raises(ValidationError, match="position effective_until must be null"):
+        VehiclePositionChanged.model_validate(data)
+    data["data"]["effective_until"] = None
+    assert VehiclePositionChanged.model_validate(data).data.effective_until is None
