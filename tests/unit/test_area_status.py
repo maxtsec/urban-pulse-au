@@ -49,7 +49,7 @@ def test_empty_or_absent_coverage_cannot_claim_normal():
 def test_planning_profile_does_not_change_current_conditions():
     result = assess(coverage=(*CURRENT, Coverage("planning", CoverageState.UNKNOWN)))
     assert result.condition == Condition.NORMAL
-    assert result.coverage[-1].state == CoverageState.UNKNOWN
+    assert Coverage("planning", CoverageState.UNKNOWN) in result.coverage
 
 
 def test_expiry_without_new_event_removes_only_the_warning():
@@ -102,3 +102,29 @@ def test_facts_outside_current_condition_policy_are_rejected(input_id):
     coverage = (*CURRENT, Coverage(input_id, CoverageState.CURRENT))
     with pytest.raises(ValueError, match="required current-condition inputs"):
         assess((DISRUPTION, profile_fact), coverage)
+
+
+def test_input_permutations_produce_equal_area_assessments():
+    from itertools import permutations
+
+    coverage = (*CURRENT, Coverage("planning", CoverageState.UNKNOWN))
+    expected = assess((DISRUPTION, WARNING), coverage)
+    for entries in permutations(coverage):
+        assert assess((WARNING, DISRUPTION), entries) == expected
+    assert tuple(entry.input_id for entry in expected.coverage) == (
+        "planning",
+        "transport_service",
+        "weather_warnings",
+    )
+
+
+def test_resolution_before_effective_start_is_rejected():
+    with pytest.raises(ValueError, match="resolved_at must not precede"):
+        replace(DISRUPTION, resolved_at=NOW - timedelta(seconds=1))
+
+
+def test_resolution_boundary_is_exclusive_and_can_equal_effective_start():
+    resolved = replace(DISRUPTION, resolved_at=NOW + timedelta(seconds=1))
+    assert resolved.active_at(NOW)
+    assert not resolved.active_at(NOW + timedelta(seconds=1))
+    assert not replace(DISRUPTION, resolved_at=NOW).active_at(NOW)

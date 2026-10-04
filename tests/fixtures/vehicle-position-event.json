@@ -22,7 +22,7 @@
     "correlation_id": "synthetic-scenario-1",
     "causation_id": null,
     "state": {
-      "vehicle_id": "synthetic-vehicle-1",
+      "vehicle_id": "yarra-trams/synthetic-vehicle-1",
       "route_id": "synthetic-route-1",
       "position": {"longitude": 144.96, "latitude": -37.824},
       "observed_at": "2026-10-04T00:00:25Z"

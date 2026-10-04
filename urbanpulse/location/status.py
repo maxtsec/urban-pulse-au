@@ -49,6 +49,8 @@ class AdverseFact:
                 raise ValueError("effective_until must be after effective_from")
         if self.resolved_at is not None:
             require_aware(self.resolved_at)
+            if self.resolved_at < self.effective_from:
+                raise ValueError("resolved_at must not precede effective_from")
 
     def active_at(self, at: datetime) -> bool:
         require_aware(at)
@@ -98,4 +100,5 @@ def assess_area(
         condition = Condition.UNKNOWN
     else:
         condition = Condition.NORMAL
-    return AreaAssessment(condition, active, coverage, incomplete, at)
+    ordered_coverage = tuple(sorted(coverage, key=lambda entry: entry.input_id))
+    return AreaAssessment(condition, active, ordered_coverage, incomplete, at)
