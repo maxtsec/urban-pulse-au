@@ -18,6 +18,8 @@ For contract review: [ADR 0003](adr/0003-cloudevents-and-area-conditions.md), [a
 
 For the runnable city view: [CITY-01 walkthrough](demos/city-01.md), [fixture map decision](adr/0004-southbank-fixture-map.md) and [test evidence](evidence/city-01-fixture-map.md).
 
+For weather-source evolution: [ADR 0005](adr/0005-weather-source-policy.md) → [source enablement gates](source-register.md#weather-enablement-evidence) → [area weather policy](architecture/area-contract.md#weather-source-policy).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -31,6 +33,7 @@ For the runnable city view: [CITY-01 walkthrough](demos/city-01.md), [fixture ma
 | [ADR 0004](adr/0004-southbank-fixture-map.md) | Proposed fixture identity, point membership, local map and age policy | The architect accepts or revises the proposal |
 | [CITY-01 walkthrough](demos/city-01.md) | Feature scope, acceptance cases, local replay and query details | Fixture behavior or reproduction steps change |
 | [CITY-01 evidence](evidence/city-01-fixture-map.md) | Dated spatial/browser results and verification limits | A new checkpoint is verified |
+| [ADR 0005](adr/0005-weather-source-policy.md) | Accepted weather-source roles, warning severity/coverage and provider evolution | Source scope or assessment policy changes |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |
