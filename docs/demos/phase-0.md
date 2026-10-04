@@ -1,5 +1,7 @@
 # Phase 0 demonstration
 
+This walkthrough describes the `phase-0` release tag, including its original table UI and test count. Use a checkout of that tag to reproduce it. For the current city view, follow [CITY-01](city-01.md).
+
 Purpose: show that the local toolchain, fixture API/UI connection and independent data-tool smoke paths work. Audience: developers or reviewers evaluating the starting point. Suggested presentation length: 5-10 minutes; this is a presentation plan, not measured setup time.
 
 See the [delivery plan](../delivery-plan.md#milestones-and-exit-evidence) for phase completion and the [implementation baseline](../delivery-plan.md#implementation-baseline) for the data paths used here.

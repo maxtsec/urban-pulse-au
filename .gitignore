@@ -25,3 +25,6 @@ pipelines/dbt/dbt_packages/
 [Aa][Gg][Ee][Nn][Tt].[Mm][Dd]
 [Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd]
 pipelines/dbt/.user.yml
+
+apps/web/test-results/
+apps/web/playwright-report/

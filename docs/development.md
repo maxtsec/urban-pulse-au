@@ -38,13 +38,13 @@ npm.cmd --prefix apps/web run dev
 
 | Address                        | Current behavior                                           |
 | ------------------------------ | ---------------------------------------------------------- |
-| `http://127.0.0.1:5173`        | Synthetic fixture table through the Vite proxy             |
+| `http://127.0.0.1:5173`        | Southbank fixture map and area panel through the Vite proxy             |
 | `http://127.0.0.1:8000/docs`   | Generated API documentation                                |
 | `/health/live` on port 8000    | Process liveness with a fixture label                      |
 | `/health/ready` on port 8000   | Checks both PostGIS and Redis; returns 503 if either fails |
 | `/api/v1/fixture` on port 8000 | Reads the static JSON fixture directly                     |
 
-Readiness is separate from the fixture response. The fixture endpoint works without databases. The target cache-outage behavior is defined in the [brief](../project_brief.md#8-redis-and-graceful-degradation).
+Readiness is separate from the fixture response. The original `/api/v1/fixture` works without databases; `/api/v1/areas/au-vic-melbourne-clue-southbank` requires PostGIS and retained fixture storage. Redis is not used by city queries. The target cache-outage behavior is defined in the [brief](../project_brief.md#8-redis-and-graceful-degradation).
 
 VS Code tasks: **Dev: services**, **Dev: API + Web**, **Dev: Dagster**, and **Check**. F5 runs the API debugger. The interpreter is `.venv/Scripts/python.exe`. Markdown preview is **Ctrl+Shift+V**; side-by-side preview is **Ctrl+K V**.
 
@@ -53,10 +53,10 @@ VS Code tasks: **Dev: services**, **Dev: API + Web**, **Dev: Dagster**, and **Ch
 | Setting                                                         | Current consumer and behavior                                                         |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `DATABASE_URL`, `REDIS_URL`                                     | API settings; read environment variables and root `.env`                              |
-| `RAW_STORAGE_PATH`                                              | Worker process environment; defaults to `.local/raw`; the worker does not load `.env` |
+| `RAW_STORAGE_PATH`                                              | City API/worker settings read `.env`; city bundles use `<path>/city`. Original smoke worker uses process environment only; default `.local/raw` |
 | `VITE_API_PROXY`                                                | Vite process environment; defaults to `http://127.0.0.1:8000`                         |
 | `GOOGLE_CLOUD_PROJECT`, `BIGQUERY_DATASET`, `BIGQUERY_LOCATION` | dbt process environment; `.env` is not loaded by dbt                                  |
-| `URBANPULSE_MODE`                                               | Reserved placeholder in `.env.example`; changing it does not enable live ingestion    |
+| `URBANPULSE_MODE`                                               | City settings accept only `fixture`; changing it does not enable live ingestion    |
 
 The sample BigQuery location is a configuration example, not an approved cloud placement decision. Keep credentials outside the repository and frontend bundle.
 
@@ -67,7 +67,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1
 uv run --locked python scripts/smoke.py
 ```
 
-Stop host API/UI servers before the second command. It uses ports 8000 and 5173, verifies HTTP connectivity and stops its temporary servers. Logs are under `.local/smoke/`. It does not exercise a real browser or the database path. See [testing strategy](testing-strategy.md) for scope.
+For real spatial and browser checks, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-city.ps1` with PostGIS running; keep ports 8011/5174 free. Chromium installation needs internet access.
+
+Stop host API/UI servers before the HTTP smoke command. It uses ports 8000 and 5173, verifies HTTP connectivity and stops its temporary servers. Logs are under `.local/smoke/`. It does not exercise a real browser or the database path. See [testing strategy](testing-strategy.md) for scope.
 
 ```powershell
 uv run --locked python -m workers.ingestion.main --once
@@ -91,7 +93,7 @@ Read the [brief](../project_brief.md), [domain boundaries](architecture/overview
 
 The existing fixture endpoint is a smoke interface, not the future area API contract. Adding another domain needs its own fixture schema, validation and coverage semantics. Do not fill missing weather/planning values with zeros or treat development activity as an automatic health benefit.
 
-The [city MVP scenario](demos/city-mvp.md) describes intended acceptance behavior. Move shared configuration out of API entry points when implementing the first related structural change.
+Shared configuration lives in `urbanpulse/config.py`. Follow the [CITY-01 walkthrough](demos/city-01.md) for the runnable map and [city MVP scenario](demos/city-mvp.md) for later cross-domain acceptance.
 
 ## Cloud work
 

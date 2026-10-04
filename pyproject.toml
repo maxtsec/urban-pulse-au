@@ -31,4 +31,6 @@ files = ["apps/api", "workers/ingestion", "urbanpulse"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not integration'"
+markers = ["integration: requires a real local PostGIS service"]
 pythonpath = ["."]

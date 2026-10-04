@@ -365,10 +365,13 @@ urban-pulse-au/
   project_brief.md
   apps/
     api/                    # FastAPI entry point
-    web/                    # React and TypeScript
+    web/                    # React and TypeScript; browser tests in tests/
   workers/
     ingestion/              # Continuous feed capture and current processing
   urbanpulse/               # Python package; add contexts as their slices are implemented
+    config.py               # Shared runtime configuration
+    application/            # Use cases and external boundary ports
+    adapters/               # Storage and spatial implementations
     contracts/              # Shared versioned interfaces and wire validation
     location/               # Location Intelligence domain rules
     transport/              # Transport domain and application logic

@@ -1,14 +1,14 @@
 # Southbank area and map contract
 
-A-01 spatial rules and A-02 map delivery are proposed for review. A-04 separates conditions from coverage as accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md); detailed freshness, required-source and timing policies below remain proposals. Southbank CLUE and the tram slice are accepted in [ADR 0002](../adr/0002-southbank-tram-pilot.md). Progress belongs in the [delivery plan](../delivery-plan.md).
+CITY-01 fixture identity, point membership, local map and fixture freshness follow [ADR 0004](../adr/0004-southbank-fixture-map.md). A-04 separates conditions from coverage as accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md); live freshness, warning applicability, required-source completeness and timing targets remain proposals. Southbank CLUE and the tram slice are accepted in [ADR 0002](../adr/0002-southbank-tram-pilot.md). Progress belongs in the [delivery plan](../delivery-plan.md).
 
 ## Area identity and geometry
 
-Propose the application ID `au-vic-melbourne-clue-southbank`. Keep it stable when the boundary changes. Each published geometry carries its provider dataset, feature name, retrieval time, licence/attribution and a SHA-256 boundary revision. Derive the revision from canonical geometry bytes under a named serialization version; keep the original download hash separately. A metadata edit alone must not create a geometry revision.
+Use the application ID `au-vic-melbourne-clue-southbank`. Keep it stable when the boundary changes. Each published geometry carries its provider dataset, feature name, retrieval time, licence/attribution and a SHA-256 boundary revision. Derive the revision from canonical geometry bytes under a named serialization version; keep the original download hash separately. A metadata edit alone must not create a geometry revision.
 
-Use longitude/latitude GeoJSON and PostGIS SRID 4326. Validate geometry before publishing it; reject empty, invalid or implausible coordinates. Do not repair geometry silently. Boundary changes produce a new area projection version and recompute memberships while retaining the earlier revision for replay.
+Use longitude/latitude GeoJSON and PostGIS SRID 4326. Validate geometry before publishing it; reject empty, invalid or implausible coordinates. Do not repair geometry silently. Boundary changes produce a new area projection version and recompute memberships. Retain earlier raw bundles for replay; the CITY-01 HTTP adapter serves only its current bundle and returns 404 for other revisions.
 
-Proposed inclusion rule: a point is in scope when the area covers it, including the edge. [PostGIS ST_Covers](https://postgis.net/docs/ST_Covers.html) includes boundary points; it requires valid inputs. Apply no walking buffer in the first pilot. A stop across the river is not automatically a Southbank stop. A later catchment feature must use a separately named/versioned rule.
+Accepted point inclusion rule: a point is in scope when the area covers it, including the edge. [PostGIS ST_Covers](https://postgis.net/docs/ST_Covers.html) includes boundary points; it requires valid inputs. Apply no walking buffer in the first pilot. A stop across the river is not automatically a Southbank stop. A later catchment feature must use a separately named/versioned rule.
 
 Position membership describes where a tram was observed. Service-impact membership uses affected stops or routes joined to the compatible static schedule. A vehicle moving outside the polygon does not cancel a route disruption. A disruption with unknown geography remains visible as unlocated evidence and cannot establish area-wide normality.
 
@@ -22,7 +22,7 @@ The panel presents current transport/weather facts, planning context and source 
 
 Selecting a marker or list item selects the same record. Keyboard controls reach the area selector, layer toggles and list without requiring map gestures. Announce selection and status changes without repeatedly interrupting screen readers on every position refresh. Reduced-motion mode places markers directly at the latest observation; any later animation is a visual transition between observed points, not a claim about an unobserved trajectory.
 
-Proposed fixture freshness example: position age below 120 seconds is current; from 120 seconds show a stale marker and its last observed time; at 300 seconds remove it from the current-marker layer while retaining it in the last-known list. Missing source time is unknown from the outset. These are deterministic scenario values for review; live thresholds require cadence evidence and A-04 acceptance. A repeated fetch must not reset age. Invalid points are withheld and counted in quality/coverage evidence.
+Accepted fixture freshness policy: position age below 120 seconds is current; from 120 seconds show a stale marker and its last observed time; at 300 seconds remove it from the current-marker layer while retaining it in the last-known list. Missing source time is unknown from the outset. These are deterministic scenario values; live thresholds require cadence evidence and A-04 acceptance. A repeated fetch must not reset age. Invalid points are withheld and counted in quality/coverage evidence.
 
 ## Conditions and coverage
 
@@ -46,13 +46,13 @@ A timer re-evaluates expiry/freshness with no incoming event. Proposed targets r
 
 ## Query boundary
 
-Propose `GET /api/v1/areas/{area_id}` for one bounded snapshot: area/boundary revision, fixture/live mode, projection version, evaluated time, condition reasons, per-domain coverage and planning profile. Serve geometry through a revision-addressed endpoint so UI refreshes do not repeatedly transfer it. Bound position queries to the selected area and an explicit server limit; pagination/truncation must be visible.
+Use `GET /api/v1/areas/{area_id}` for one bounded snapshot: area/boundary revision, fixture/live mode, projection version, evaluated time, condition reasons, per-domain coverage and planning profile. Serve geometry through a revision-addressed endpoint so UI refreshes do not repeatedly transfer it. Bound position queries to the selected area and an explicit server limit; pagination/truncation must be visible.
 
-Responses reference the applicable source/capture and policy versions. Public API fields expose attribution and provenance identifiers, never raw storage credentials or internal signed URLs. Unknown area IDs return 404; known areas with missing inputs return a valid snapshot with explicit coverage. Database/read-model failure is a service error, not an empty healthy area. The current `/api/v1/fixture` smoke route remains separate until CITY-01 implements this contract.
+Responses reference the applicable source/capture and policy versions. Public API fields expose attribution and provenance identifiers, never raw storage credentials or internal signed URLs. Unknown area IDs return 404; known areas with missing inputs return a valid snapshot with explicit coverage. Database/read-model failure is a service error, not an empty healthy area. The `/api/v1/fixture` smoke route remains separate. The [CITY-01 walkthrough](../demos/city-01.md#storage-and-query-details) defines fixture clock/scenario parameters, version semantics, cap and evidence links.
 
 ## Contract review and CITY-01 evidence
 
-1. Review the stable ID, versioned boundary, point-edge/no-buffer rule and warning precision rule.
+1. Apply the accepted fixture ID, versioned boundary and point-edge/no-buffer rule. Review warning precision separately in SRC-02/CITY-02.
 2. Rehearse point-inside, exact-edge, outside and invalid-geometry examples against real PostGIS in CITY-01; verify boundary revision changes rebuild memberships.
 3. Demonstrate the same selection through keyboard/list and map, with fixture clock, provenance, loading, empty, error and unknown states.
 4. Exercise successive, repeated, missing-time and stale positions at the exact threshold boundaries. Compare visible markers and the accessible list.
@@ -62,4 +62,4 @@ The pure evaluator takes an explicit required-input policy and an evaluation clo
 
 Coverage entries are returned in input-ID order; active reasons are returned in fact-ID order. Reordering the same inputs at the same evaluation time must not create a changed assessment. A fact cannot resolve before its effective start; resolution at the start is allowed and gives an empty active interval. Resolution and expiry endpoints are exclusive.
 
-AREA-01 closes when the architect accepts the identity/spatial/map contract and its scenario examples (item 1 and the specified behavior). CITY-01 then implements and demonstrates items 2-5, including real PostGIS and accessible map/panel evidence. This keeps contract approval ahead of implementation without making AREA-01 depend on its own downstream feature. Live-source proof remains in SRC-02.
+Fixture acceptance is recorded in ADR 0004; the delivery plan owns completion state. CITY-01 demonstrates the point-based map slice with real PostGIS and browser evidence. Existing pure evaluator tests cover warning expiry cases; spatially applicable weather data and shared cross-domain events require CITY-02/CITY-04 evidence. Live-source proof remains in SRC-02.

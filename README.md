@@ -33,7 +33,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 | Phase | Outcome                                                                  | Status                                                                                                                        |
 | ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Reproducible local foundation                                            | Complete: [phase-0 release](https://github.com/maxtsec/urban-pulse-au/releases/tag/phase-0), demo and verified clean checkout |
-| 1     | Area/map foundation and transport fixture slice                          | SRC-01 complete; initial event rules accepted and tested; area policy decisions and fixture map next                                                           |
+| 1     | Area/map foundation and transport fixture slice                          | SRC-01 complete; CITY-01 fixture map ready for review with PostGIS/browser evidence                                                           |
 | 2     | Weather + planning + integrated area view using shared in-process events | Planned; phases 1-2 form the city MVP                                                                                         |
 | 3     | Durable event delivery and recovery                                      | Planned                                                                                                                       |
 | 4     | Full application cloud deployment and operations                         | Planned                                                                                                                       |
@@ -42,22 +42,23 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
-The runnable baseline is the synthetic fixture demo, with tested CloudEvents validation/revision comparison and a pure area-condition evaluator. These rules are not yet connected to the UI; city map/layers, live capture and cloud services follow. Hosted demo and recording: pending. Detailed acceptance, dependencies and decisions live in the [delivery plan](docs/delivery-plan.md).
+The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. Weather and planning are explicit unknown sections. Live capture and hosted delivery follow the [delivery plan](docs/delivery-plan.md).
 
-[Run the fixture demo](docs/demos/phase-0.md) | [Local evidence](docs/evidence/phase-0-local.md)
+[Run the Southbank demo](docs/demos/city-01.md) | [CITY-01 evidence](docs/evidence/city-01-fixture-map.md)
 
 ## Fixture quickstart
 
-Prerequisites: Git, uv, Node.js 24 LTS and npm. Run from the repository root. Installation needs internet access; fixture execution needs no provider/cloud credentials.
+Prerequisites: Git, uv, Node.js 24 LTS, npm and Docker Desktop. Run from the repository root. Installation needs internet access; fixture execution needs no provider/cloud credentials.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1
-uv run --locked python scripts/smoke.py
+docker compose up -d --wait
+uv run --locked python -m workers.ingestion.main --city-fixture
 ```
 
-The smoke command starts temporary API and Vite servers on ports 8000 and 5173, checks HTTP/proxy connectivity, and stops them. Keep both ports free.
+Start Docker Desktop before Compose. The city view uses PostGIS; fixture collection needs no provider credentials. Keep API/UI ports 8000 and 5173 free.
 
-To inspect the fixture table, start these in separate terminals:
+To inspect the Southbank map, start these in separate terminals:
 
 ```powershell
 uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
@@ -67,7 +68,7 @@ uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 npm.cmd --prefix apps/web run dev
 ```
 
-Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). The three synthetic observations preserve unknown and negative delay values.
+Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). Use Play, Reset or the scenario moments to inspect moving, stale and last-known observations. Select a tram on the map or in the equivalent list.
 
 For PostGIS/Redis, start Docker Desktop and run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/services-smoke.ps1`. See the [development guide](docs/development.md) for setup, configuration and troubleshooting.
 

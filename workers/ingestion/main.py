@@ -7,7 +7,8 @@ import os
 import time
 from pathlib import Path
 
-from apps.api.main import ROOT
+from urbanpulse.adapters.city_fixture import capture_city
+from urbanpulse.config import ROOT, Settings
 
 
 def capture(destination: Path) -> str:
@@ -22,8 +23,16 @@ def capture(destination: Path) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--city-fixture", action="store_true")
     parser.add_argument("--interval", type=float, default=30)
     args = parser.parse_args()
+    if args.city_fixture:
+        print(
+            json.dumps(
+                {"mode": "fixture", "capture_id": capture_city(Settings().city_capture_path)}
+            )
+        )
+        return
     if args.interval <= 0:
         parser.error("--interval must be positive")
     destination = ROOT / os.environ.get("RAW_STORAGE_PATH", ".local/raw")

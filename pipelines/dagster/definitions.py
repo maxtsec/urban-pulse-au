@@ -3,7 +3,7 @@
 import polars as pl
 from dagster import AssetExecutionContext, Definitions, asset
 
-from apps.api.main import ROOT
+from urbanpulse.config import ROOT
 
 
 @asset

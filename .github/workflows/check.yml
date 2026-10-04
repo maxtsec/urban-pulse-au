@@ -1,10 +1,22 @@
-name: Local baseline checks
+name: Project checks
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: urbanpulse
+          POSTGRES_PASSWORD: urbanpulse_local
+          POSTGRES_DB: urbanpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U urbanpulse -d urbanpulse"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -13,6 +25,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run --locked ruff check . && uv run --locked ruff format --check .
       - run: uv run --locked mypy && uv run --locked pytest -q
+      - run: uv run --locked pytest -m integration -q
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -20,3 +33,12 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci && npm run lint && npm run format:check && npm run build
         working-directory: apps/web
+      - run: npx playwright install --with-deps chromium && npm run test:e2e
+        working-directory: apps/web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: city-browser-evidence
+          path: |
+            .local/city01/*.png
+            apps/web/test-results/
