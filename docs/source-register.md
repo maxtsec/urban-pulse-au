@@ -55,6 +55,10 @@ Preserve this completion time in the accepted capture/manifest and carry it thro
 
 Track receipt evidence independently of warning-domain changes so an unchanged but successfully refreshed feed can update its receipt display and coverage evaluation. Receipt success alone does not establish source freshness or completeness: provider time, warning validity and the verified snapshot contract still apply. Coverage changes remain observable under the [area contract](architecture/area-contract.md#conditions-and-coverage), even when no warning-change event is emitted.
 
+### SRC-02 snapshot freshness question
+
+Verify whether VicEmergency exposes a feed-level generation timestamp and what it means. Use a trustworthy feed-level timestamp to assess snapshot age when available; if absent, evaluate receipt time together with verified snapshot completeness. Set the live freshness thresholds through A-04 after cadence evidence. An individual warning may remain valid for hours without a content update; its issue/update age must not by itself make a freshly verified complete snapshot stale. Warning validity, snapshot freshness and receipt evidence remain separate checks.
+
 ### Modelled weather access
 
 Open-Meteo service access and data licensing are separate considerations. Verify current request accounting/limits for the selected query, application eligibility, required credits and stored-output use against its official terms. Keep model identity, units and effective times; receiving model data cannot make warning coverage current. Follow ADR 0005 for informational readings and warning severity; do not apply VicEmergency levels to BOM.
