@@ -94,3 +94,11 @@ def test_conflicting_inputs_and_empty_policy_are_rejected():
         assess((WARNING,), coverage=(CURRENT[0],))
     with pytest.raises(ValueError, match="nonempty input policy"):
         assess_area(facts=(), coverage=(), required_inputs=frozenset(), at=NOW)
+
+
+@pytest.mark.parametrize("input_id", ["planning", "vehicle_positions"])
+def test_facts_outside_current_condition_policy_are_rejected(input_id):
+    profile_fact = AdverseFact("profile-1", input_id, "Profile change", NOW)
+    coverage = (*CURRENT, Coverage(input_id, CoverageState.CURRENT))
+    with pytest.raises(ValueError, match="required current-condition inputs"):
+        assess((DISRUPTION, profile_fact), coverage)

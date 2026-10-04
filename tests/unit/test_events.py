@@ -127,3 +127,64 @@ def test_documented_event_matches_executable_fixture():
     example = document.split("```json\n", 1)[1].split("```", 1)[0]
     assert json.loads(example) == payload()
     assert VehiclePositionChanged.model_validate_json(example).id == receipt().event_id
+
+
+@pytest.mark.parametrize(
+    "context",
+    [
+        {},
+        {"traceparent": "00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01"},
+        {
+            "traceparent": "00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01",
+            "tracestate": "collector=retry",
+        },
+    ],
+)
+def test_redelivery_with_changed_or_removed_trace_context_is_duplicate(context):
+    original = payload()
+    original["traceparent"] = "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+    original["tracestate"] = "collector=first"
+    current = EventReceipt.from_event(VehiclePositionChanged.model_validate(original))
+    retried = VehiclePositionChanged.model_validate({**payload(), **context})
+    assert compare_revision(EventReceipt.from_event(retried), current) == RevisionOutcome.DUPLICATE
+    wire = json.loads(retried.model_dump_json())
+    for key, value in context.items():
+        assert wire[key] == value
+
+
+@pytest.mark.parametrize("path", [("semanticversion",), ("data", "state", "traceparent")])
+def test_non_transport_extensions_still_participate_in_identity(path):
+    original = payload()
+    changed = payload()
+    for data, value in ((original, "first"), (changed, "changed")):
+        target = data
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+    current = EventReceipt.from_event(VehiclePositionChanged.model_validate(original))
+    incoming = EventReceipt.from_event(VehiclePositionChanged.model_validate(changed))
+    assert compare_revision(incoming, current) == RevisionOutcome.CONFLICT
+
+
+@pytest.mark.parametrize(
+    "path",
+    [("data",), ("data", "provenance"), ("data", "state"), ("data", "state", "position")],
+)
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_numbers_in_nested_extras_are_rejected(path, value):
+    data = payload()
+    target = data
+    for key in path:
+        target = target[key]
+    target["optional_metrics"] = {"samples": [1.0, {"value": value}]}
+    with pytest.raises(ValidationError, match="finite"):
+        VehiclePositionChanged.model_validate(data)
+    with pytest.raises(ValidationError, match="finite"):
+        VehiclePositionChanged.model_validate_json(json.dumps(data))
+
+
+def test_finite_nested_extras_preserve_numbers_and_explicit_null():
+    data = payload()
+    data["data"]["state"]["optional_metrics"] = {"samples": [0, -1.5, None, {"valid": True}]}
+    event = VehiclePositionChanged.model_validate(data)
+    assert json.loads(event.model_dump_json()) == data
