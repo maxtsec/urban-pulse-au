@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 from uuid import uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection, Engine
@@ -18,10 +19,12 @@ from urbanpulse.application.durable_delivery import (
     MAX_ATTEMPTS,
     DeliveryClaim,
     EventTransaction,
+    InvalidPublication,
     PublicationConflict,
     StaleClaim,
     TransactionAborted,
     receipt_from_wire,
+    retry_delay,
     validate_key,
 )
 from urbanpulse.contracts.events import EventReceipt, RevisionOutcome, compare_revision
@@ -218,7 +221,10 @@ class PostgresEventStore:
                     .where(
                         deliveries.c.consumer == consumer,
                         or_(
-                            deliveries.c.status == "pending",
+                            and_(
+                                deliveries.c.status.in_(("pending", "retry")),
+                                deliveries.c.available_at <= func.clock_timestamp(),
+                            ),
                             and_(
                                 deliveries.c.status == "leased",
                                 deliveries.c.lease_until <= func.clock_timestamp(),
@@ -252,6 +258,20 @@ class PostgresEventStore:
                         )
                     )
                     continue
+                if row["status"] == "leased":
+                    due = row["lease_until"] + timedelta(seconds=retry_delay(row["attempt_count"]))
+                    connection.execute(
+                        update(deliveries)
+                        .where(deliveries.c.id == row["id"])
+                        .values(
+                            status="retry",
+                            lease_until=None,
+                            available_at=due,
+                            outcome="lease-expired",
+                        )
+                    )
+                    if due > now:
+                        continue
                 generation = row["generation"] + 1
                 deadline = now + timedelta(seconds=lease_seconds)
                 connection.execute(
@@ -261,6 +281,7 @@ class PostgresEventStore:
                         status="leased",
                         generation=generation,
                         attempt_count=row["attempt_count"] + 1,
+                        outcome=None,
                         lease_until=deadline,
                     )
                 )
@@ -315,8 +336,12 @@ class PostgresEventStore:
             if row["status"] != "leased" or row["lease_until"] <= clock(connection):
                 raise StaleClaim("delivery claim is not active")
             wire = row["envelope"]
-            if receipt_from_wire(wire) != receipt(row):
-                raise ValueError("stored publication integrity mismatch")
+            try:
+                incoming = receipt_from_wire(wire)
+            except (ValidationError, ValueError) as error:
+                raise InvalidPublication("stored publication is invalid") from error
+            if incoming != receipt(row):
+                raise InvalidPublication("stored publication integrity mismatch")
             outcome = transaction.consume(
                 row["context"], row["consumer"], wire, lambda: effect(transaction, wire)
             )

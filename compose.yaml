@@ -55,6 +55,18 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+  recovery-worker:
+    profiles: [recovery]
+    image: "${COMPOSE_PROJECT_NAME:-urbanpulse}-api:local"
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://urbanpulse:urbanpulse_local@postgres:5432/urbanpulse
+    command: [/app/.venv/bin/python, -m, workers.events.main, run]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
   web:
     profiles: [app]
     build:

@@ -93,7 +93,7 @@ def expire(store, claim):
         connection.execute(
             update(deliveries)
             .where(deliveries.c.id == claim.delivery_id)
-            .values(lease_until=text("clock_timestamp() - interval '1 second'"))
+            .values(lease_until=text("clock_timestamp() - interval '10 seconds'"))
         )
 
 
@@ -444,11 +444,11 @@ def test_attempt_policy_upgrade_preserves_work_and_allows_a_larger_application_l
     config = Config()
     config.set_main_option("script_location", str(Path(__file__).parents[2] / "migrations"))
     config.attributes["database_url"] = store.engine.url.render_as_string(hide_password=False)
-    command.downgrade(config, "0004_outbox_ledger")
     publication = publish(store, wire)
     for _ in range(3):
         claim = store.claim("location-v1")[0]
         expire(store, claim)
+    command.downgrade(config, "0004_outbox_ledger")
     command.upgrade(config, "head")
     monkeypatch.setattr("urbanpulse.adapters.event_store.MAX_ATTEMPTS", 4)
     fourth = store.claim("location-v1")[0]
@@ -465,6 +465,6 @@ def test_attempt_policy_upgrade_preserves_work_and_allows_a_larger_application_l
         command.downgrade(config, "0004_outbox_ledger")
     with store.engine.connect() as connection:
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "0005_attempt_policy"
+            "0006_worker_recovery"
         )
         assert connection.execute(select(deliveries.c.attempt_count)).scalar_one() == 4

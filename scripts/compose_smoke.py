@@ -45,6 +45,30 @@ def main() -> None:
             if result.returncode:
                 raise RuntimeError(f"Compose {' '.join(args)} failed; inspect {log_path}")
 
+        def recovery(*args: str) -> object:
+            result = subprocess.run(
+                [
+                    *base,
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "recovery-worker",
+                    "/app/.venv/bin/python",
+                    "-m",
+                    "workers.events.main",
+                    *args,
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            log.write(result.stdout + result.stderr)
+            log.flush()
+            if result.returncode:
+                raise RuntimeError(f"Recovery worker failed; inspect {log_path}")
+            return json.loads(result.stdout)
+
         def url(service: str, port: int) -> str:
             address = subprocess.check_output(
                 [*base, "port", service, str(port)], cwd=ROOT, text=True
@@ -95,9 +119,28 @@ def main() -> None:
             print("Repeating initialization against existing inputs", flush=True)
             run("run", "--rm", "city-init")
             require_equal(read(api + route), view, "Repeated initialization")
+            print("Checking independent recovery worker and replay", flush=True)
+            recovery("seed-probe", "--context", "compose-recovery")
+            processed = recovery("run", "--once")
+            if not isinstance(processed, dict):
+                raise RuntimeError("recovery worker must return a result")
+            require_equal(processed["status"], "apply", "Initial recovery effect")
+            recovery(
+                "replay",
+                processed["delivery_id"],
+                "--generation",
+                str(processed["generation"]),
+                "--reason",
+                "verify-deduplication",
+            )
+            repeated = recovery("run", "--once")
+            if not isinstance(repeated, dict):
+                raise RuntimeError("recovery replay must return a result")
+            require_equal(repeated["status"], "duplicate", "Recovery replay")
+            require_equal(read(api + route), view, "Recovery worker isolation")
             print(
                 "Compose smoke passed: cold readiness, initializer, city/boundary/evidence, "
-                "proxy and recreation",
+                "proxy, recreation and independent worker replay",
                 flush=True,
             )
         finally:
