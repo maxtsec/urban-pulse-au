@@ -1,0 +1,4 @@
+# Copy to ignored terraform.tfvars and use the existing reviewed project ID.
+project_id = "your-project-id"
+# Preserve once applied; a name change can replace protected resources.
+name_prefix = "urbanpulse-demo"

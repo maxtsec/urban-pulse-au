@@ -27,6 +27,8 @@ The default [web image](../../apps/web/Dockerfile) runs Vite. [Compose](../../co
 
 Selection does not activate a trial or provision resources. Confirm project, region, supported Postgres/PostGIS versions, capacity, backup/recovery expectations and identities in a reviewed resource plan. Melbourne remains the preferred regional candidate. [Cloud SQL supports PostGIS](https://docs.cloud.google.com/sql/docs/postgres/extensions); verify the actual extension version against the local queries and migrations before choosing the instance.
 
+The database/resource profile, initial organization-only audience and manual bounded worker were subsequently selected in [ADR 0012](0012-managed-demo-resource-profile.md). Its resource plan carries the connection envelope and remaining deployment gates.
+
 ## B: serving, database and workers
 
 Serve compiled frontend assets and the API on one IAP-protected origin. The packaging candidate is a static ingress container proxying to an API sidecar over localhost in one Cloud Run revision. The [compiled serving implementation](../runbooks/web-serving.md) uses Caddy for this boundary and includes a local shared-network rehearsal; hosted acceptance remains separate. Cloud Run terminates HTTPS; the container does not manage public certificates. Both containers share the service identity and lifecycle, so grant it only application runtime permissions. Configure startup ordering/probes and keep database credentials out of static assets. [Cloud Run sidecars](https://docs.cloud.google.com/run/docs/deploying) support this layout; confirm the final packaging in the implementation PR.
