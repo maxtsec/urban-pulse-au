@@ -15,11 +15,23 @@ from scripts.compose_smoke import ROOT, cleanup_stack, project_volumes
 def check_response(base: str, path: str, expected: int = 200) -> object:
     try:
         with urllib.request.urlopen(base + path, timeout=15) as response:
-            status, body = response.status, response.read()
+            status, body, headers = response.status, response.read(), response.headers
     except urllib.error.HTTPError as error:
-        status, body = error.code, error.read()
+        status, body, headers = error.code, error.read(), error.headers
     if status != expected:
         raise RuntimeError(f"{path}: expected HTTP {expected}, received {status}")
+    for name, value in {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000",
+    }.items():
+        if headers.get(name) != value:
+            raise RuntimeError(f"{path}: missing or incorrect {name}")
+    if headers.get("Server") is not None:
+        raise RuntimeError(f"{path}: server identity exposed")
+    if "frame-ancestors 'none'" not in headers.get("Content-Security-Policy", ""):
+        raise RuntimeError(f"{path}: framing protection missing")
     if expected >= 400 and b'<div id="root">' in body:
         raise RuntimeError(f"{path}: error was replaced by the SPA")
     try:

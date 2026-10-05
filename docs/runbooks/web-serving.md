@@ -16,6 +16,18 @@ The `serving` target in `apps/web/Dockerfile` packages Caddy and compiled assets
 
 The image runs as UID/GID `10001:10001`, with no Node runtime, source tree or package dependencies copied into the serving stage. Caddy's admin endpoint, automatic HTTPS and config persistence are disabled. Its image is pinned by manifest digest and its unnecessary privileged-port capability is removed. The local rehearsal drops capabilities and uses a read-only root filesystem. The exact-file build-context allowlist includes only the new `Caddyfile` alongside existing build inputs.
 
+### Response security
+
+The ingress applies one deferred header policy to HTML, assets, backend responses and Caddy-generated errors:
+
+- CSP limits scripts, workers, connections and stylesheets to the same origin; disables objects, base overrides and all framing; and allows images from local, `data:` and `blob:` sources. MapLibre's emitted worker uses a same-origin URL. Only style **attributes** allow inline values for React/MapLibre marker positioning; inline scripts, inline stylesheets and script evaluation remain blocked.
+- `frame-ancestors 'none'` and `X-Frame-Options: DENY` prevent embedding, including for authenticated users.
+- `Referrer-Policy: strict-origin-when-cross-origin` sends only the origin on cross-origin navigation, excluding the scenario query.
+- `Strict-Transport-Security: max-age=31536000` applies to the hosted HTTPS domain, without subdomain or preload opt-in. Caddy sends it for the TLS-terminating edge; browsers ignore it on local HTTP.
+- `X-Content-Type-Options: nosniff` remains enabled. `Server` is removed at response write time, including 404/502 error routes.
+
+Caddy-generated errors retain their status and return only the status code/text with `Cache-Control: no-store`. Backend JSON errors pass through with their original body/status and the same security headers.
+
 Cloud Run will terminate HTTPS and enforce IAP. This local container provides HTTP only and performs no user authentication; bind the rehearsal to loopback. Service configuration, IAP, Cloud SQL, identities, migration Jobs, image publishing and revision promotion belong to subsequent deployment work. No cloud compatibility or access-control acceptance is established by local tests.
 
 ## Run locally
@@ -46,8 +58,8 @@ Pop-Location
 python -O -m scripts.web_serving_smoke
 ```
 
-The smoke owns a unique project and random loopback port. It runs the existing city/weather/planning browser suite plus serving-specific checks against the compiled image. Its API shares the web container's network namespace, exercising the default localhost upstream and a non-default `PORT`. It tests API and database outage/recovery through the ingress, verifies non-root execution and no Redis, and tears down all profiles with recorded anonymous-volume checks. Images and build caches remain available for reuse. Docker logs remain under `.local/web-serving-smoke/`; browser failure traces remain in `apps/web/test-results/serving/`.
+The smoke owns a unique project and random loopback port. It runs the existing city/weather/planning browser suite plus serving-specific checks against the compiled image. Its API shares the web container's network namespace, exercising the default localhost upstream and a non-default `PORT`. It checks CSP compatibility, rejected inline scripts and cross-origin framing, origin-only Referer, and security headers on successful/error responses. It tests API and database outage/recovery through the ingress, verifies non-root execution and no Redis, and tears down all profiles with recorded anonymous-volume checks. Images and build caches remain available for reuse. Docker logs remain under `.local/web-serving-smoke/`; browser failure traces remain in `apps/web/test-results/serving/`.
 
 The separate `python -O scripts/web_build_smoke.py` checks both actual and adversarial build contexts and the static export. [Serving evidence](../evidence/demo-01-web-serving.md) records measured results.
 
-References: [Caddy SPA/proxy patterns](https://caddyserver.com/docs/caddyfile/patterns), [Caddy global options](https://caddyserver.com/docs/caddyfile/options), [Cloud Run container contract](https://docs.cloud.google.com/run/docs/container-contract).
+References: [Caddy response headers](https://caddyserver.com/docs/caddyfile/directives/header), [Caddy error routes](https://caddyserver.com/docs/caddyfile/directives/handle_errors), [MapLibre CSP requirements](https://maplibre.org/maplibre-gl-js/docs/), [HSTS browser behavior](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security), [Caddy SPA/proxy patterns](https://caddyserver.com/docs/caddyfile/patterns), [Caddy global options](https://caddyserver.com/docs/caddyfile/options), [Cloud Run container contract](https://docs.cloud.google.com/run/docs/container-contract).
