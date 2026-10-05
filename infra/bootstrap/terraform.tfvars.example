@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (ignored by Git) and set your project ID.
+project_id = "your-project-id"
