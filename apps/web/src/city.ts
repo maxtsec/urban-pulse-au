@@ -127,6 +127,7 @@ export type Development = {
 
 export type PlanningProfile = {
   state: string;
+  capture_state?: string;
   as_of: string | null;
   description: string;
   snapshot_id?: string | null;

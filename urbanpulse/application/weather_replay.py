@@ -1,12 +1,17 @@
 """Normalize received fixture records and expose evidence without area or database work."""
 
-import hashlib
-import json
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any, Protocol
 
+from urbanpulse.application.capture_replay import (
+    CaptureHistory,
+    capture_received_at,
+    payload_hash,
+    received_frames,
+)
 from urbanpulse.contracts.weather import ModelledReadingChanged, WeatherWarningChanged
 
 WeatherEvent = WeatherWarningChanged | ModelledReadingChanged
@@ -25,12 +30,6 @@ class WeatherStep:
     warning_records: tuple[WeatherWarningChanged, ...] = ()
 
 
-def payload_hash(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-    ).hexdigest()
-
-
 def weather_steps(
     bundle: dict[str, Any],
     seconds: int,
@@ -38,8 +37,7 @@ def weather_steps(
     outage: bool,
     normalizer: WeatherNormalizer,
 ) -> Iterator[WeatherStep]:
-    normalized: dict[str, WeatherWarningChanged] = {}
-    sent: dict[str, WeatherWarningChanged] = {}
+    history = CaptureHistory[WeatherWarningChanged]()
     for raw in sorted(bundle["readings"], key=lambda item: item["at_seconds"]):
         if raw["at_seconds"] > seconds:
             continue
@@ -61,11 +59,7 @@ def weather_steps(
             },
             (reading,),
         )
-    for frame in sorted(bundle["frames"], key=lambda item: item["at_seconds"]):
-        if frame["at_seconds"] > seconds or (
-            outage and frame["at_seconds"] >= bundle["outage_at_seconds"]
-        ):
-            continue
+    for frame in received_frames(bundle, seconds, outage):
         if frame["kind"] == "coverage":
             if frame["state"] not in {"stale", "error", "unknown", "unsupported"}:
                 raise ValueError("a coverage checkpoint cannot assert a fresh snapshot")
@@ -73,19 +67,18 @@ def weather_steps(
             continue
         if frame["kind"] == "redelivery":
             yield WeatherStep(
-                frame, {**frame, "kind": "event-redelivery"}, (sent[frame["event_id"]],)
+                frame,
+                {**frame, "kind": "event-redelivery"},
+                (history.redeliver(frame["event_id"]),),
             )
             continue
         if frame["kind"] != "capture":
             raise ValueError("unknown fixture frame kind")
         # Broken bundle references are structural failures, not rejected provider records.
         payload = bundle["payloads"][frame["payload_id"]]
-        received = datetime.fromisoformat(frame["received_at"])
+        received = capture_received_at(frame, seconds, at)
         source_time = datetime.fromisoformat(frame["source_generated_at"])
-        if (
-            received != at + timedelta(seconds=frame["at_seconds"] - seconds)
-            or source_time > received
-        ):
+        if source_time > received:
             raise ValueError("fixture capture timestamps cannot reveal future data")
         candidates: list[tuple[str, WeatherWarningChanged]] = []
         try:
@@ -94,10 +87,8 @@ def weather_steps(
             for raw in payload:
                 if not isinstance(raw, dict):
                     raise ValueError("warning record must be an object")
-                digest = payload_hash(raw)
-                event = normalized.get(digest)
                 candidates.append(
-                    (digest, event if event is not None else normalizer.warning(raw, frame))
+                    history.prepare(payload_hash(raw), partial(normalizer.warning, raw, frame))
                 )
         except (KeyError, ValueError):
             yield WeatherStep(
@@ -110,12 +101,7 @@ def weather_steps(
                 },
             )
             continue
-        events: list[WeatherWarningChanged] = []
-        for digest, event in candidates:
-            if digest not in normalized:
-                normalized[digest] = event
-                sent.setdefault(event.id, event)
-                events.append(event)
+        events = history.commit(candidates)
         yield WeatherStep(
             frame,
             {

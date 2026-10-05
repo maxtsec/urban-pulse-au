@@ -53,16 +53,32 @@ export function PlanningPanel({
         {displayDateTime(planning.last_successful_received_at ?? null)}
       </p>
       {planning.state !== 'current' && (
-        <p className="planning-notice" role="status">
-          {planning.state === 'error'
-            ? 'Planning source unavailable. '
-            : planning.state === 'stale'
-              ? 'Planning coverage is stale. '
-              : 'Planning coverage is incomplete or unknown. '}
-          {planning.snapshot_id
-            ? 'Showing the last complete snapshot; location gaps remain explicit.'
-            : 'No complete snapshot received yet.'}
-        </p>
+        <div className="planning-notice" role="status">
+          {!planning.snapshot_id ? (
+            <p>No complete snapshot received yet.</p>
+          ) : planning.capture_state === 'current' ? (
+            <p>Latest complete snapshot received successfully.</p>
+          ) : (
+            <p>
+              {planning.state === 'error'
+                ? 'Planning source unavailable. '
+                : planning.state === 'stale'
+                  ? 'Planning coverage is stale. '
+                  : 'Planning coverage is incomplete or unknown after the latest capture attempt. '}
+              Showing the previously accepted complete snapshot.
+            </p>
+          )}
+          {unlocated.length > 0 && (
+            <p>
+              Records with unknown locations: {unlocated.length}. Spatial
+              coverage is unresolved until every record in this fixture snapshot
+              can be located; reported area labels do not resolve this gap.
+            </p>
+          )}
+          {planning.snapshot_id && !planning.as_of && (
+            <p>The source snapshot date is unknown.</p>
+          )}
+        </div>
       )}
       <div
         className="development-list"

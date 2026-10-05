@@ -11,6 +11,7 @@ from urbanpulse.adapters.planning_fixture import FixturePlanningNormalizer
 from urbanpulse.adapters.postgis import PostgisMembership
 from urbanpulse.adapters.weather_fixture import FixtureWeatherNormalizer
 from urbanpulse.application.city import AREA_ID, MAX_SECONDS, CaptureNotFoundError, CityService
+from urbanpulse.application.scenarios import Scenario
 from urbanpulse.config import Settings
 
 router = APIRouter()
@@ -37,10 +38,7 @@ def require_area(area_id: str) -> None:
 def area_snapshot(
     area_id: str,
     seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
-    scenario: str = Query(
-        default="journey",
-        pattern="^(journey|empty|outage|weather|weather-outage|city|planning-outage)$",
-    ),
+    scenario: Scenario = Scenario.JOURNEY,
 ) -> dict[str, Any]:
     require_area(area_id)
     try:
@@ -67,10 +65,7 @@ def area_boundary(area_id: str, revision: str) -> dict[str, Any]:
 def fixture_evidence(
     capture_id: str,
     seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
-    scenario: str = Query(
-        default="journey",
-        pattern="^(journey|empty|outage|weather|weather-outage|city|planning-outage)$",
-    ),
+    scenario: Scenario = Scenario.JOURNEY,
 ) -> dict[str, Any]:
     try:
         return city_service().evidence(capture_id, seconds, scenario)

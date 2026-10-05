@@ -563,20 +563,40 @@ export function App() {
                       Authored receipt timeline; source dates advance
                       separately.
                     </p>
-                    <div className="moments">
-                      <button onClick={() => jump(120)}>
-                        120s · Partial capture
-                      </button>
-                      <button onClick={() => jump(150)}>
-                        150s · New planning snapshot
-                      </button>
-                      <button onClick={() => jump(240)}>
-                        240s · Planning unavailable
-                      </button>
-                      <button onClick={() => jump(270)}>
-                        270s · Planning recovered
-                      </button>
-                    </div>
+                    {snapshot.scenario === 'planning-outage' ? (
+                      <>
+                        <p>
+                          Captures after 120s are unavailable in this scenario;
+                          no new snapshot or recovery is received.
+                        </p>
+                        <div className="moments">
+                          <button onClick={() => jump(90)}>
+                            90s · Last successful receipt
+                          </button>
+                          <button onClick={() => jump(120)}>
+                            120s · Planning outage begins
+                          </button>
+                          <button onClick={() => jump(270)}>
+                            270s · Still unavailable
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="moments">
+                        <button onClick={() => jump(120)}>
+                          120s · Partial capture
+                        </button>
+                        <button onClick={() => jump(150)}>
+                          150s · New planning snapshot
+                        </button>
+                        <button onClick={() => jump(240)}>
+                          240s · Planning unavailable
+                        </button>
+                        <button onClick={() => jump(270)}>
+                          270s · Planning recovered
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <details>

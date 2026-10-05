@@ -12,14 +12,14 @@ The source dates below are authored historical snapshot dates. The six-minute cl
 | 60s | Planning snapshot redelivery appears as one duplicate. Transport and weather independently affect current conditions. |
 | 90s | Identical planning payload recapture advances receipt only; the source date remains 1 September. |
 | 120s | Partial capture preserves the previous list/date; planning coverage becomes unknown. |
-| 150s | A complete 1 October snapshot changes original statuses, omits one prior record and adds an unlocated record. Missing location stays off the map and outside the count; inspect retained absence history. |
+| 150s | A complete 1 October snapshot changes original statuses, omits one prior record and adds an unlocated record. The panel confirms that the latest complete snapshot was received; spatial coverage remains unknown. Missing location stays off the map and outside the count; inspect retained absence history. |
 | 180s | A malformed capture is rejected atomically; the profile and receipt remain at 150s. |
 | 210/240s | Authored stale/error checkpoints keep the last complete profile visible. |
 | 270s | A complete 2 October snapshot restores location coverage. Three developments appear; transport/weather support Normal. |
 
 Select a building on the map or use the keyboard in **Development activity** to inspect source status, reported area, position and completion year. Toggle **Development sites**; the accessible list remains available. The area profile links to the detailed list. Open **Replay diagnostics** for separate Transport, Weather and Planning outcomes.
 
-Select **Planning outage** at 270s. The first profile remains available with error coverage and its original 1 September source date; later captures are suppressed. Current conditions stay Normal because planning is outside the current-condition inputs. Rewind to zero to reproduce the initial result. Scenario switching preserves the camera and clock; its URL supports reload/share, while reload starts at zero.
+Select **Planning outage** at 270s. Its planning moments show the last successful receipt, outage onset and continued unavailability; they do not offer a new snapshot or recovery. The first profile remains available with error coverage and its original 1 September source date; later captures are suppressed. Current conditions stay Normal because planning is outside the current-condition inputs. Rewind to zero to reproduce the initial result. Scenario switching preserves the camera and clock; its URL supports reload/share, while reload starts at zero.
 
 ## Verification
 

@@ -185,6 +185,7 @@ for (const empty of [false, true]) {
       data.planning.removed_records = [];
       if (!empty) {
         data.planning.state = 'unknown';
+        data.planning.capture_state = 'unknown';
         data.planning.snapshot_id = null;
         data.planning.as_of = null;
         data.planning.last_successful_received_at = null;
@@ -223,4 +224,59 @@ test('integrated profile fits mobile and weather remains visible without scrolli
     path: '../../.local/city03/overview-mobile.png',
     fullPage: true,
   });
+});
+
+test('planning panel distinguishes accepted location gaps from rejected captures', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=city');
+  const planning = page.getByRole('region', { name: 'Planning details' });
+  await page
+    .getByRole('button', { name: '150s · New planning snapshot', exact: true })
+    .click();
+  await expect(planning).toContainText(
+    'Latest complete snapshot received successfully.',
+  );
+  await expect(planning).toContainText('Records with unknown locations: 1.');
+  await expect(planning).not.toContainText('previously accepted');
+  await expect(planning).toContainText('Snapshot as of 1 Oct 2026');
+  await page.getByLabel('Scenario time', { exact: true }).fill('180');
+  await expect(page.getByTestId('clock')).toHaveText('11:03:00');
+  await expect(planning).toContainText(
+    'Showing the previously accepted complete snapshot.',
+  );
+  await expect(planning).not.toContainText('received successfully');
+  await expect(planning).toContainText('Snapshot as of 1 Oct 2026');
+});
+
+test('planning outage moments describe only received data and continuing failure', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=planning-outage');
+  const moments = page.locator('.planning-moments');
+  await expect(moments.getByRole('button')).toHaveCount(3);
+  await expect(
+    moments.getByRole('button', {
+      name: /New planning snapshot|Planning recovered|Partial capture/,
+    }),
+  ).toHaveCount(0);
+  await moments
+    .getByRole('button', { name: '90s · Last successful receipt', exact: true })
+    .click();
+  await expect(page.getByTestId('clock')).toHaveText('11:01:30');
+  const planning = page.getByRole('region', { name: 'Planning details' });
+  await expect(planning.locator('.coverage-pill')).toHaveText('current');
+  await moments
+    .getByRole('button', { name: '120s · Planning outage begins', exact: true })
+    .click();
+  await expect(planning).toContainText('Planning source unavailable.');
+  await moments
+    .getByRole('button', { name: '270s · Still unavailable', exact: true })
+    .click();
+  await expect(page.getByTestId('clock')).toHaveText('11:04:30');
+  await expect(planning).toContainText('Snapshot as of 1 Sept 2026');
+  await expect(planning).toContainText(
+    'Showing the previously accepted complete snapshot.',
+  );
+  await expect(planning.locator('.coverage-pill')).toHaveText('error');
 });

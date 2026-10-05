@@ -14,6 +14,7 @@ class PlanningProjection:
     def __init__(self) -> None:
         self.latest: PlanningSnapshotPublished | None = None
         self.history: list[PlanningSnapshotPublished] = []
+        self._latest_receipt: EventReceipt | None = None
         self.receipts: dict[tuple[str, str], EventReceipt] = {}
         self.snapshots: dict[str, PlanningSnapshot] = {}
         self.outcomes = {outcome.value: 0 for outcome in RevisionOutcome}
@@ -22,7 +23,7 @@ class PlanningProjection:
         receipt = EventReceipt.from_event(event)
         outcome = compare_revision(
             receipt,
-            EventReceipt.from_event(self.latest) if self.latest else None,
+            self._latest_receipt,
             prior_receipt=self.receipts.get((event.source, event.id)),
         )
         prior_snapshot = self.snapshots.get(event.data.state.snapshot_id)
@@ -39,6 +40,7 @@ class PlanningProjection:
         self.outcomes[outcome.value] += 1
         if outcome == RevisionOutcome.APPLY:
             self.latest = event
+            self._latest_receipt = receipt
             self.history.append(event)
             self.snapshots[event.data.state.snapshot_id] = event.data.state
         if outcome != RevisionOutcome.CONFLICT:

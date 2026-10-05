@@ -48,6 +48,7 @@ def replay_planning(
         state = "current"
     if outage and seconds >= bundle["outage_at_seconds"]:
         state = "error"
+    capture_state = state
     profile = projection.profile(area, spatial)
     latest = projection.latest
     if state == "current" and (
@@ -57,6 +58,7 @@ def replay_planning(
     return {
         "mode": "fixture",
         "state": state,
+        "capture_state": capture_state,
         "as_of": latest.data.state.as_of if latest else None,
         "snapshot_id": latest.data.state.snapshot_id if latest else None,
         "last_successful_received_at": last_received,
