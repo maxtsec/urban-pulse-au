@@ -58,3 +58,4 @@ jobs:
           path: |
             .local/compose-smoke/
             .local/web-build-smoke/*/docker.log
+            .local/web-build-smoke/*/*-inventory.json
