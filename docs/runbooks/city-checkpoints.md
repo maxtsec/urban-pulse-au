@@ -61,9 +61,12 @@ Each consumer uses the existing queue metric definitions:
 | --- | --- |
 | `counts` | Current delivery counts by status; absent statuses have zero deliveries |
 | `backlog_count` | Pending, leased and retry deliveries across all runs for this consumer |
+| `blocked_count` | Backlog deliveries blocked directly or transitively by a dead-letter predecessor in the same consumer lane; excludes the dead letter itself and stops at a completed predecessor |
 | `backlog_age_seconds` | Age of the oldest original delivery still in that backlog; zero when empty; replay retains original age |
 | `retry_count` | Deliveries currently waiting in retry, not cumulative attempts |
 | `dead_letter_count` | Deliveries currently dead-lettered; inspect/replay using the existing operator commands |
+
+`blocked_count` is a subset of `backlog_count`; backlog age still includes blocked work. A positive blocked count identifies lanes that need operator recovery, while pending, leased or retry predecessors alone do not count as terminal blockage. Replay clears the terminal blockage when accepted, even while delivery remains queued. Completed successors break the dependency chain, so replaying an older completed event cannot falsely block work beyond them. Counts and blocking are read in the same database statement.
 
 These are separate consumer reads, not one atomic cross-consumer snapshot. No run/event IDs become metric dimensions. Zero backlog does not mean a run is complete: dead letters are reported separately, and future scheduled checkpoints have not yet published deliveries. Check `inspect <run-id>` for checkpoint errors, blocked publications, target and completed clocks. Result delivery may lag an already completed checkpoint.
 

@@ -227,6 +227,17 @@ class PostgresRecoveryStore(PostgresEventStore):
 
     def metrics(self, consumer: str) -> dict[str, Any]:
         validate_key(consumer)
+        # Follow unfinished dependencies beyond the immediate dead-letter successor.
+        blocked = (
+            select(deliveries.c.id)
+            .where(deliveries.c.consumer == consumer, deliveries.c.status == "dead-letter")
+            .cte("blocked_deliveries", recursive=True)
+        )
+        blocked = blocked.union(
+            select(deliveries.c.id)
+            .join(blocked, deliveries.c.predecessor_id == blocked.c.id)
+            .where(deliveries.c.consumer == consumer, deliveries.c.status != "complete")
+        )
         with self.engine.connect() as connection:
             rows = (
                 connection.execute(
@@ -234,6 +245,9 @@ class PostgresRecoveryStore(PostgresEventStore):
                         deliveries.c.status,
                         func.count().label("count"),
                         func.min(deliveries.c.created_at).label("oldest"),
+                        func.count()
+                        .filter(deliveries.c.id.in_(select(blocked.c.id)))
+                        .label("blocked"),
                     )
                     .where(deliveries.c.consumer == consumer)
                     .group_by(deliveries.c.status)
@@ -248,6 +262,7 @@ class PostgresRecoveryStore(PostgresEventStore):
             "consumer": consumer,
             "counts": counts,
             "backlog_count": sum(row["count"] for row in pending),
+            "blocked_count": sum(row["blocked"] for row in pending),
             "backlog_age_seconds": max(
                 (max(0, (now - row["oldest"]).total_seconds()) for row in pending), default=0
             ),
