@@ -68,8 +68,11 @@ For durable delivery design: [ADR 0009 options](adr/0009-durable-event-delivery.
 | [BASE-01 evidence](evidence/base-01-clean-checkout.md)   | Dated clean-checkout results, measurements and verification scope  | A new clean-checkout checkpoint is recorded             |
 | [SRC-01 evidence](evidence/src-01-source-feasibility.md) | Official source findings, pilot comparison and reproduction method | Source evidence changes or a new comparison is measured |
 
-| [ADR 0009](adr/0009-durable-event-delivery.md) | Durable transport options, proposed transaction/recovery model and A-05 decision | Architect reviews durable delivery scope |
+| [ADR 0009](adr/0009-durable-event-delivery.md) | Durable transport decision and transaction/recovery model | Architect reviews durable delivery scope |
 | [EVENT-01 specification](architecture/event-01-durable-delivery.md) | Implementation sequence and crash/concurrency/replay acceptance cases | Durable recovery behavior or test scope changes |
+
+| [Observation storage](architecture/observation-storage.md) | Versioned event slots, migration compatibility and rollback rules | Stored observation format changes |
+| [Observation storage evidence](evidence/event-01-observation-storage.md) | Migration, integrity and city compatibility results | Storage verification changes |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 

@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
 
+from urbanpulse.adapters.observation_codec import VERSION, decode_observation, encode_observation
 from urbanpulse.application.capture_replay import payload_hash
 from urbanpulse.application.city import CapturedCity
 from urbanpulse.application.inputs import CityInputs
@@ -79,6 +80,7 @@ for owner in ("transport", "weather", "planning"):
         Column("sequence", Integer, primary_key=True),
         Column("seconds", Integer, nullable=False),
         Column("body", Text, nullable=False),
+        Column("codec_version", Integer, nullable=False, server_default="2"),
     )
 
 Event = (
@@ -121,45 +123,39 @@ class DomainExport:
         aggregate_revisions: set[tuple[str, str, int]] = set()
         original_wires: dict[tuple[str, str], str] = {}
 
-        def reference(value: Any) -> Any:
-            if isinstance(value, CloudEvent):
-                receipt = EventReceipt.from_event(value)
-                key = (value.source, value.id)
-                aggregate = (value.source, value.subject, value.data.revision)
-                previous = accepted.get(key)
-                if (
-                    previous is not None
-                    and previous != receipt
-                    or previous is None
-                    and aggregate in aggregate_revisions
-                ):
-                    return {"rejected_event": value.model_dump_json()}
-                if previous is None:
-                    accepted[key] = receipt
-                    original_wires[key] = value.model_dump_json()
-                    aggregate_revisions.add(aggregate)
-                    connection.execute(
-                        revisions[self.owner]
-                        .insert()
-                        .values(
-                            scope=scope,
-                            source=value.source,
-                            event_id=value.id,
-                            subject=value.subject,
-                            revision=value.data.revision,
-                            fingerprint=receipt.fingerprint,
-                            envelope=value.model_dump_json(),
-                        )
+        def reference(value: CloudEvent[Any]) -> dict[str, Any]:
+            receipt = EventReceipt.from_event(value)
+            key = (value.source, value.id)
+            aggregate = (value.source, value.subject, value.data.revision)
+            previous = accepted.get(key)
+            if (
+                previous is not None
+                and previous != receipt
+                or previous is None
+                and aggregate in aggregate_revisions
+            ):
+                return {"kind": "rejected", "envelope": value.model_dump_json()}
+            if previous is None:
+                accepted[key] = receipt
+                original_wires[key] = value.model_dump_json()
+                aggregate_revisions.add(aggregate)
+                connection.execute(
+                    revisions[self.owner]
+                    .insert()
+                    .values(
+                        scope=scope,
+                        source=value.source,
+                        event_id=value.id,
+                        subject=value.subject,
+                        revision=value.data.revision,
+                        fingerprint=receipt.fingerprint,
+                        envelope=value.model_dump_json(),
                     )
-                event_reference = {"event_reference": [value.source, value.id]}
-                if value.model_dump_json() != original_wires[key]:
-                    return {**event_reference, "attempt_envelope": value.model_dump_json()}
-                return event_reference
-            if isinstance(value, dict):
-                return {key: reference(item) for key, item in value.items()}
-            if isinstance(value, (tuple, list)):
-                return [reference(item) for item in value]
-            return value
+                )
+            descriptor = {"kind": "reference", "source": value.source, "id": value.id}
+            if value.model_dump_json() != original_wires[key]:
+                descriptor["attempt_envelope"] = value.model_dump_json()
+            return descriptor
 
         for sequence, row in enumerate(rows):
             connection.execute(
@@ -169,7 +165,8 @@ class DomainExport:
                     scope=scope,
                     sequence=sequence,
                     seconds=row["frame"]["at_seconds"],
-                    body=encode(reference(row)),
+                    body=encode(encode_observation(self.owner, row, reference)),
+                    codec_version=VERSION,
                 )
             )
 
@@ -189,30 +186,27 @@ class DomainExport:
                 raise ValueError("persisted event integrity mismatch")
             known[(event.source, event.id)] = event
 
-        def resolve(value: Any) -> Any:
-            if isinstance(value, dict):
-                if "event_reference" in value:
-                    original = known[tuple(value["event_reference"])]
-                    if "attempt_envelope" in value:
-                        attempt = EVENT.validate_json(value["attempt_envelope"])
-                        if EventReceipt.from_event(attempt) != EventReceipt.from_event(original):
-                            raise ValueError("attempt does not match its accepted event identity")
-                        return attempt
-                    return original
-                if set(value) == {"rejected_event"}:
-                    return EVENT.validate_json(value["rejected_event"])
-                return {key: resolve(item) for key, item in value.items()}
-            if isinstance(value, list):
-                return [resolve(item) for item in value]
-            return value
+        def resolve(value: dict[str, Any]) -> Event:
+            if value["kind"] == "rejected":
+                return EVENT.validate_json(value["envelope"])
+            key = (value["source"], value["id"])
+            if key not in known:
+                raise ValueError("observation references a missing event")
+            original = known[key]
+            if "attempt_envelope" in value:
+                attempt = EVENT.validate_json(value["attempt_envelope"])
+                if EventReceipt.from_event(attempt) != EventReceipt.from_event(original):
+                    raise ValueError("attempt does not match its accepted event identity")
+                return attempt
+            return original
 
         return [
-            resolve(json.loads(body))
-            for body in connection.execute(
-                select(observations[self.owner].c.body)
+            decode_observation(self.owner, version, json.loads(body), resolve)
+            for body, version in connection.execute(
+                select(observations[self.owner].c.body, observations[self.owner].c.codec_version)
                 .where(observations[self.owner].c.scope == scope)
                 .order_by(observations[self.owner].c.sequence)
-            ).scalars()
+            )
         ]
 
 

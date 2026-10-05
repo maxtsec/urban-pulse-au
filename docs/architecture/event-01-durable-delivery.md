@@ -1,6 +1,6 @@
 # EVENT-01: Durable city event delivery
 
-Decision: [ADR 0009](../adr/0009-durable-event-delivery.md), proposed under A-05. Progress: [delivery plan](../delivery-plan.md).
+Decision: [ADR 0009](../adr/0009-durable-event-delivery.md), accepted option A under A-05. Progress: [delivery plan](../delivery-plan.md).
 
 ## User outcome
 

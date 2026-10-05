@@ -63,6 +63,8 @@ The city API reads a consistent persisted export and reconstructs request-local 
 
 `/health/ready` checks PostGIS and Redis only, without reading city history. It may return 200 before migration/import while city endpoints return 503. Redis remains outside the city query path.
 
+Before upgrading observation storage, stop old API/import processes, run migration `0003_observation_codec`, and restart with the updated code. Existing valid selections need no reimport. The migration preserves unsupported older normalizer exports and rejects ambiguous or corrupt supported history; [storage compatibility and rollback](architecture/observation-storage.md) explains the checks.
+
 Read [CITY-04](demos/city-04.md) for event/restart verification.
 
 ## Configuration boundaries
