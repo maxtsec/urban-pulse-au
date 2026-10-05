@@ -34,7 +34,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 | ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Reproducible local foundation                                            | Complete: [phase-0 release](https://github.com/maxtsec/urban-pulse-au/releases/tag/phase-0), demo and verified clean checkout |
 | 1     | Area/map foundation and transport fixture slice                          | SRC-01 complete; CITY-01 complete with PostGIS/browser evidence; fixture policy acceptance and phase release remain open                                                           |
-| 2     | Weather + planning + integrated area view using shared in-process events | CITY-02 complete; CITY-03 complete; [weather-source policy accepted](docs/adr/0005-weather-source-policy.md), live-source gates remain open; phases 1-2 form the city MVP                                                                                         |
+| 2     | Weather + planning + integrated area view using shared in-process events | CITY-02 complete; CITY-03 complete; [CITY-04 ready for review](docs/adr/0008-in-process-city-composition.md); [weather-source policy accepted](docs/adr/0005-weather-source-policy.md), live-source gates remain open; phases 1-2 form the city MVP                                                                                         |
 | 3     | Durable event delivery and recovery                                      | Planned                                                                                                                       |
 | 4     | Full application cloud deployment and operations                         | Planned                                                                                                                       |
 | 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
@@ -53,6 +53,7 @@ Prerequisites: Git, uv, Node.js 24 LTS, npm and Docker Desktop. Run from the rep
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1
 docker compose up -d --wait
+uv run --locked python -m urbanpulse.adapters.city_store migrate
 uv run --locked python -m workers.ingestion.main --city-fixture
 ```
 
@@ -68,7 +69,7 @@ uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 npm.cmd --prefix apps/web run dev
 ```
 
-Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). The default weather scenario shows modelled readings above the map. Switch scenarios using the visible buttons. Use Play, Reset or the scenario moments to inspect moving, stale and last-known observations. Select a tram on the map or in the equivalent list.
+Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). The default City overview shows transport, modelled weather, warnings and planning together. Switch scenarios using the visible buttons. Use Play, Reset or the scenario moments to inspect moving, stale and last-known observations. Select a tram on the map or in the equivalent list.
 
 For PostGIS/Redis, start Docker Desktop and run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/services-smoke.ps1`. See the [development guide](docs/development.md) for setup, configuration and troubleshooting.
 

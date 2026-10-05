@@ -1,9 +1,19 @@
 """Replay retained weather captures through normalization and published contracts."""
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from urbanpulse.application.weather_replay import WeatherNormalizer, weather_steps
+from pydantic import TypeAdapter
+
+from urbanpulse.application.delivery import ProjectionHandler, Publisher, revision_result
+from urbanpulse.application.dispatch import InProcessPublisher
+from urbanpulse.application.weather_replay import (
+    WeatherEvent,
+    WeatherNormalizer,
+    WeatherStep,
+    weather_steps,
+)
 from urbanpulse.contracts.events import RevisionOutcome
 from urbanpulse.contracts.weather import PRODUCTS, ModelledReadingChanged
 from urbanpulse.location.status import AdverseFact, CoverageState
@@ -17,9 +27,22 @@ def replay_weather(
     outage: bool,
     area: dict[str, Any],
     spatial: WarningMembership,
-    normalizer: WeatherNormalizer,
+    normalizer: WeatherNormalizer | None,
+    steps: Iterable[WeatherStep] | None = None,
+    publisher: Publisher | None = None,
 ) -> tuple[dict[str, Any], tuple[AdverseFact, ...], CoverageState]:
-    projection = WeatherProjection()
+    if steps is None:
+        if normalizer is None:
+            raise ValueError("weather inputs are unavailable")
+        steps = weather_steps(bundle, seconds, at, outage, normalizer)
+    publisher = publisher or InProcessPublisher("weather-fixture")
+    handler: ProjectionHandler[WeatherProjection, WeatherEvent] = ProjectionHandler(
+        "location.weather",
+        WeatherProjection(),
+        TypeAdapter(WeatherEvent).validate_json,
+        WeatherProjection.consume,
+    )
+    projection = handler.state
     evidence: list[dict[str, Any]] = []
     rejected = 0
     last_received = None
@@ -29,10 +52,14 @@ def replay_weather(
     snapshot_valid = False
     outage_at = bundle["outage_at_seconds"]
     reading = None
-    for step in weather_steps(bundle, seconds, at, outage, normalizer):
+    for step in steps:
         frame = step.frame
         evidence.append(step.evidence)
-        outcomes = [projection.consume(event) for event in step.events]
+        outcomes = [
+            revision_result(publisher.publish(event.model_dump_json(), (handler,))[handler.name])
+            for event in step.events
+        ]
+        projection = handler.state
         if frame["kind"] == "reading":
             event = step.events[0]
             assert isinstance(event, ModelledReadingChanged)

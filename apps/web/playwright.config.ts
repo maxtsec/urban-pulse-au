@@ -25,7 +25,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `"${python}" -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8011`,
+      command: `"${python}" -m urbanpulse.adapters.city_store migrate && "${python}" -m urbanpulse.adapters.city_store import && "${python}" -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8011`,
       cwd: root,
       url: 'http://127.0.0.1:8011/health/live',
       env: {

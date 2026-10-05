@@ -35,8 +35,10 @@ def weather_steps(
     seconds: int,
     at: datetime,
     outage: bool,
-    normalizer: WeatherNormalizer,
+    normalizer: WeatherNormalizer | None,
 ) -> Iterator[WeatherStep]:
+    if normalizer is None:
+        raise ValueError("normalizer is required for raw fixture import")
     history = CaptureHistory[WeatherWarningChanged]()
     for raw in sorted(bundle["readings"], key=lambda item: item["at_seconds"]):
         if raw["at_seconds"] > seconds:
@@ -124,6 +126,6 @@ def weather_evidence(
     seconds: int,
     at: datetime,
     outage: bool,
-    normalizer: WeatherNormalizer,
+    normalizer: WeatherNormalizer | None,
 ) -> list[dict[str, Any]]:
     return [step.evidence for step in weather_steps(bundle, seconds, at, outage, normalizer)]

@@ -190,9 +190,18 @@ Architecture changes should include an ADR explaining alternatives, consequences
 
 ### Weather fixture path
 
-CITY-02 retains authored weather payloads alongside the city capture. Application orchestration calls a fixture normalization port, passes published weather CloudEvents to Location Intelligence and evaluates warning polygons through PostGIS. The area API presents independent modelled information, warning lifecycle, source receipt and coverage. [Weather contract](weather-fixture-contract.md) records the boundaries; shared publisher/handler delivery and persisted reconciliation remain CITY-04 work.
+CITY-02 retains authored weather payloads alongside the city capture. Application orchestration calls a fixture normalization port, passes published weather CloudEvents to Location Intelligence and evaluates warning polygons through PostGIS. The area API presents independent modelled information, warning lifecycle, source receipt and coverage. [Weather contract](weather-fixture-contract.md) records the boundaries; [CITY-04 composition](city-04-composition.md) defines shared delivery and persisted reconciliation.
 
 
 ## Planning fixture profile
 
-CITY-03 extends the retained city bundle with synthetic DAM-shaped complete snapshots. Planning publishes a typed full snapshot; Location Intelligence applies revision receipts and PostGIS point membership, then serves original statuses and source dates separately from current conditions. Partial, rejected and failed attempts cannot clear the profile. Snapshot absence follows [ADR 0007](../adr/0007-planning-fixture-profile.md); [contract](planning-fixture-contract.md) and [demo](../demos/city-03.md) define acceptance. Shared publisher/handler delivery remains CITY-04.
+CITY-03 extends the retained city bundle with synthetic DAM-shaped complete snapshots. Planning publishes a typed full snapshot; Location Intelligence applies revision receipts and PostGIS point membership, then serves original statuses and source dates separately from current conditions. Partial, rejected and failed attempts cannot clear the profile. Snapshot absence follows [ADR 0007](../adr/0007-planning-fixture-profile.md); [contract](planning-fixture-contract.md) and [demo](../demos/city-03.md) define acceptance. The shared delivery/recovery boundary is defined in [ADR 0008](../adr/0008-in-process-city-composition.md).
+
+
+## In-process composition and recovery
+
+An explicit fixture import normalizes transport, weather and planning inputs into owner-specific PostgreSQL revision and observation tables. Alembic owns the schema. Serving loads a consistent export through the persistence adapter; it never runs import or migrations. The API preserves its scenario/clock interface and returns 503 when inputs or dependencies are unavailable.
+
+Each request reconstructs disposable Location projections through serialized CloudEvents and publisher/handler ports. Effects and receipts commit together in memory, transient handler retries are bounded, and time checkpoints cause expiry/coverage reevaluation. Context includes bundle, scenario policy, boundary, rules and clock. Rewinding cannot mutate another request's view. A fresh process uses the same persisted history and original identities.
+
+The `composition` response includes typed source coverage and deterministic area transitions. Planning contributes the profile independently of current conditions. Retained raw fixtures remain import evidence; serving/restart uses normalized exports. Full reconstruction is deliberate for the bounded pilot; consumer persistence and durable notifications belong to EVENT-01. See [ADR 0008](../adr/0008-in-process-city-composition.md) and the [recovery demo](../demos/city-04.md).

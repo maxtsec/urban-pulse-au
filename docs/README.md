@@ -24,6 +24,8 @@ For the integrated weather replay: [CITY-02 walkthrough](demos/city-02.md), [fix
 
 For the planning slice: [ADR 0007](adr/0007-planning-fixture-profile.md), [planning contract](architecture/planning-fixture-contract.md) and [CITY-03 walkthrough](demos/city-03.md).
 
+For event composition: [ADR 0008](adr/0008-in-process-city-composition.md), [CITY-04 acceptance specification](architecture/city-04-composition.md), [recovery demo](demos/city-04.md) and [verification evidence](evidence/city-04-composition.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -46,6 +48,10 @@ For the planning slice: [ADR 0007](adr/0007-planning-fixture-profile.md), [plann
 | [Planning fixture contract](architecture/planning-fixture-contract.md) | Snapshot publication, atomic capture/profile semantics and API additions | Planning contracts or projection behavior changes |
 | [CITY-03 walkthrough](demos/city-03.md) | Three-domain fixture demo and planning acceptance cases | Fixture behavior or reproduction steps change |
 | [CITY-03 evidence](evidence/city-03-planning.md) | Dated planning, spatial and browser verification | A new checkpoint is verified |
+| [ADR 0008](adr/0008-in-process-city-composition.md) | Accepted persisted inputs, in-process handlers and reconstruction scope | The architect selects or revises the recovery design |
+| [CITY-04 specification](architecture/city-04-composition.md) | Implementation sequence, failure/restart acceptance and demo plan | Composition scope or acceptance cases change |
+| [CITY-04 demo](demos/city-04.md) | Reproducible event/expiry/restart walkthrough | Recovery commands or observable behavior change |
+| [CITY-04 evidence](evidence/city-04-composition.md) | Dated delivery/persistence/browser results and limits | A new checkpoint is verified |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |

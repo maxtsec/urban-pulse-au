@@ -1,11 +1,14 @@
 """Compose the slower planning profile separately from current-condition facts."""
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from urbanpulse.application.planning_replay import PlanningNormalizer, planning_steps
+from urbanpulse.application.delivery import ProjectionHandler, Publisher, revision_result
+from urbanpulse.application.dispatch import InProcessPublisher
+from urbanpulse.application.planning_replay import PlanningNormalizer, PlanningStep, planning_steps
 from urbanpulse.contracts.events import RevisionOutcome
-from urbanpulse.contracts.planning import SOURCE_URL
+from urbanpulse.contracts.planning import SOURCE_URL, PlanningSnapshotPublished
 from urbanpulse.location.planning import PlanningMembership, PlanningProjection
 
 
@@ -16,15 +19,28 @@ def replay_planning(
     outage: bool,
     area: dict[str, Any],
     spatial: PlanningMembership,
-    normalizer: PlanningNormalizer,
+    normalizer: PlanningNormalizer | None,
+    steps: Iterable[PlanningStep] | None = None,
+    publisher: Publisher | None = None,
 ) -> dict[str, Any]:
-    projection = PlanningProjection()
+    if steps is None:
+        if normalizer is None:
+            raise ValueError("planning inputs are unavailable")
+        steps = planning_steps(bundle, seconds, at, outage, normalizer)
+    publisher = publisher or InProcessPublisher("planning-fixture")
+    handler = ProjectionHandler(
+        "location.planning",
+        PlanningProjection(),
+        PlanningSnapshotPublished.model_validate_json,
+        PlanningProjection.consume,
+    )
+    projection = handler.state
     state = "unknown"
     last_received = None
     rejected = 0
     incomplete = 0
     evidence = []
-    for step in planning_steps(bundle, seconds, at, outage, normalizer):
+    for step in steps:
         frame = step.frame
         evidence.append(step.evidence)
         if frame["kind"] == "coverage":
@@ -36,7 +52,14 @@ def replay_planning(
             state = "unknown"
             continue
         assert step.event is not None
-        outcome = None if step.recapture else projection.consume(step.event)
+        outcome = (
+            None
+            if step.recapture
+            else revision_result(
+                publisher.publish(step.event.model_dump_json(), (handler,))[handler.name]
+            )
+        )
+        projection = handler.state
         if frame["kind"] == "redelivery":
             continue
         if outcome not in {None, RevisionOutcome.APPLY, RevisionOutcome.DUPLICATE} or (

@@ -2,7 +2,7 @@
 
 ## Run
 
-Follow the [local city setup](city-01.md#run), including PostGIS, and restart the API after updating fixture files. Open `/` or `/?scenario=city`. **City overview** combines tram positions, weather information/warnings and synthetic development sites. No provider key is used by this demo.
+Follow the [local city setup](city-01.md#run), including PostGIS, and rerun the fixture import after updating fixture files. Open `/` or `/?scenario=city`. **City overview** combines tram positions, weather information/warnings and synthetic development sites. No provider key is used by this demo.
 
 The source dates below are authored historical snapshot dates. The six-minute clock compresses capture attempts and failures; it does not imply monthly development changes occur within minutes.
 

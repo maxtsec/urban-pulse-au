@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -10,14 +11,22 @@ from typing import Any, Protocol
 
 from pydantic import ValidationError
 
-from urbanpulse.application.city_replay import ServiceFrame, received, service_at
+from urbanpulse.application.capture_replay import payload_hash
+from urbanpulse.application.city_replay import ServiceFrame, received
+from urbanpulse.application.coverage_events import publish_coverage
+from urbanpulse.application.delivery import ProjectionHandler, Publisher, revision_result
+from urbanpulse.application.dispatch import InProcessPublisher
+from urbanpulse.application.inputs import CityInputs
 from urbanpulse.application.planning import replay_planning
 from urbanpulse.application.planning_replay import PlanningNormalizer, planning_steps
 from urbanpulse.application.scenarios import scenario_policy
+from urbanpulse.application.service_events import service_events
 from urbanpulse.application.weather import replay_weather
 from urbanpulse.application.weather_replay import WeatherNormalizer, weather_evidence
+from urbanpulse.contracts.composition import TransportServiceStatusChanged
 from urbanpulse.contracts.events import VehiclePositionChanged
 from urbanpulse.location.city import Freshness, PositionProjection, position_freshness
+from urbanpulse.location.published import PublishedProjection
 from urbanpulse.location.status import AdverseFact, Coverage, CoverageState, assess_area
 from urbanpulse.location.weather import WarningMembership
 
@@ -61,11 +70,15 @@ class CityService:
         spatial: SpatialMembership,
         weather_normalizer: WeatherNormalizer | None = None,
         planning_normalizer: PlanningNormalizer | None = None,
+        inputs: CityInputs | None = None,
+        publisher_factory: Callable[[str], Publisher] = InProcessPublisher,
     ) -> None:
         self.capture = capture
         self.spatial = spatial
         self.weather_normalizer = weather_normalizer
         self.planning_normalizer = planning_normalizer
+        self.inputs = inputs
+        self.publisher_factory = publisher_factory
 
     @cached_property
     def captured(self) -> CapturedCity:
@@ -113,7 +126,17 @@ class CityService:
         started_at = datetime.fromisoformat(captured.scenario["started_at"])
         at = started_at + timedelta(seconds=seconds)
         outage_at = captured.scenario["outage_at_seconds"]
-        projection = PositionProjection()
+        context = hashlib.sha256(
+            f"{captured.capture_id}:{policy}:{revision}:{POLICY_VERSION}:{seconds}".encode()
+        ).hexdigest()
+        publisher = self.publisher_factory(context)
+        position_handler = ProjectionHandler(
+            "location.positions",
+            PositionProjection(),
+            VehiclePositionChanged.model_validate_json,
+            PositionProjection.consume,
+        )
+        projection = position_handler.state
         rejected = 0
         for frame in captured.scenario["frames"]:
             if not received(frame["at_seconds"], seconds, policy, outage_at):
@@ -126,7 +149,12 @@ class CityService:
             if event.upmode != "fixture" or event.source != "urn:urbanpulse:fixture:transport":
                 rejected += 1
                 continue
-            projection.consume(event)
+            revision_result(
+                publisher.publish(event.model_dump_json(), (position_handler,))[
+                    position_handler.name
+                ]
+            )
+            projection = position_handler.state
         entries = sorted(projection.positions.values(), key=lambda item: item.event.subject)
         points = [
             (entry.event.data.state.position.longitude, entry.event.data.state.position.latitude)
@@ -160,9 +188,51 @@ class CityService:
                     "capture_ids": entry.event.data.provenance.capture_ids,
                 }
             )
-        fact, service_evidence = service_at(
-            self.service_frames, started_at, seconds, policy, outage_at
+        service_handler = ProjectionHandler(
+            "location.service",
+            PublishedProjection(),
+            TransportServiceStatusChanged.model_validate_json,
+            PublishedProjection.consume,
         )
+        latest_service = None
+        for service_event in (
+            self.inputs.services
+            if self.inputs
+            else service_events(self.service_frames, started_at, stop)
+        ):
+            frame_seconds = int((service_event.time - started_at).total_seconds())
+            if received(frame_seconds, seconds, policy, outage_at):
+                revision_result(
+                    publisher.publish(service_event.model_dump_json(), (service_handler,))[
+                        service_handler.name
+                    ]
+                )
+                latest_service = service_event
+        fact = None
+        service_evidence = None
+        if latest_service is not None:
+            accepted = service_handler.state.events[(latest_service.source, latest_service.subject)]
+            service_state = TransportServiceStatusChanged.model_validate(
+                accepted.model_dump()
+            ).data.state
+            service_evidence = {
+                "event_id": accepted.id,
+                "capture_ids": accepted.data.provenance.capture_ids,
+                "observed_at": service_state.observed_at,
+                "stop_id": service_state.stop_id,
+                "status": service_state.status,
+            }
+            if (
+                service_state.status == "disrupted"
+                and service_state.episode_id is not None
+                and service_state.started_at is not None
+            ):
+                fact = AdverseFact(
+                    id=service_state.episode_id,
+                    input_id="transport_service",
+                    reason=service_state.reason,
+                    effective_from=service_state.started_at,
+                )
         facts: tuple[AdverseFact, ...] = (fact,) if fact is not None and membership[-1] else ()
         transport_coverage = (
             CoverageState.ERROR
@@ -174,7 +244,9 @@ class CityService:
         weather = None
         weather_coverage = CoverageState.UNKNOWN
         if policy.weather:
-            if captured.weather is None or self.weather_normalizer is None:
+            if captured.weather is None or (
+                self.weather_normalizer is None and self.inputs is None
+            ):
                 raise ValueError("weather fixture adapter is not configured")
             weather, weather_facts, weather_coverage = replay_weather(
                 captured.weather,
@@ -184,6 +256,8 @@ class CityService:
                 boundary["geometry"],
                 self.spatial,
                 self.weather_normalizer,
+                self.inputs.weather_at(seconds, policy.weather_outage) if self.inputs else None,
+                publisher,
             )
             facts += weather_facts
         planning: dict[str, Any] = {
@@ -192,7 +266,9 @@ class CityService:
             "description": "Planning data not connected",
         }
         if policy.planning:
-            if captured.planning is None or self.planning_normalizer is None:
+            if captured.planning is None or (
+                self.planning_normalizer is None and self.inputs is None
+            ):
                 raise ValueError("planning fixture adapter is not configured")
             planning = replay_planning(
                 captured.planning,
@@ -202,13 +278,125 @@ class CityService:
                 boundary["geometry"],
                 self.spatial,
                 self.planning_normalizer,
+                self.inputs.planning_at(seconds, policy.planning_outage) if self.inputs else None,
+                publisher,
             )
+        timeline = payload_hash([captured.capture_id, asdict(policy), revision, POLICY_VERSION])
+        service_revisions = (
+            []
+            if latest_service is None
+            else [
+                {
+                    "source": latest_service.source,
+                    "subject": latest_service.subject,
+                    "event_id": latest_service.id,
+                    "revision": latest_service.data.revision,
+                }
+            ]
+        )
+        warning_revisions = (
+            []
+            if weather is None
+            else [
+                {
+                    "source": "urn:urbanpulse:fixture:weather",
+                    "subject": warning["id"],
+                    "event_id": warning["event_id"],
+                    "revision": warning["revision"],
+                }
+                for warning in weather["warnings"]
+            ]
+        )
+
+        def observation(
+            evidence: list[dict[str, Any]], excluded: set[str], outage: bool, cutoff: int
+        ) -> dict[str, Any]:
+            candidates = [item for item in evidence if item["kind"] not in excluded]
+            latest = max(candidates, key=lambda item: item["at_seconds"], default=None)
+            if outage and seconds >= cutoff:
+                return {"observed_seconds": cutoff, "observation_id": f"authored-outage-{cutoff}"}
+            return {
+                "observed_seconds": latest["at_seconds"] if latest else 0,
+                "observation_id": latest["id"] if latest else "initial-unknown",
+            }
+
+        transport_observation = {
+            "observed_seconds": int((latest_service.time - started_at).total_seconds())
+            if latest_service
+            else 0,
+            "observation_id": latest_service.id
+            if latest_service
+            else "initial-empty"
+            if policy.transport_empty
+            else "initial-unknown",
+        }
+        if policy.transport_outage and seconds >= outage_at:
+            transport_observation = {
+                "observed_seconds": outage_at,
+                "observation_id": f"authored-outage-{outage_at}",
+            }
+        weather_observation = observation(
+            weather["evidence"] if weather else [],
+            {"modelled-reading-capture", "event-redelivery"},
+            policy.weather_outage,
+            captured.weather["outage_at_seconds"] if captured.weather else 0,
+        )
+        planning_observation = observation(
+            planning.get("evidence", []),
+            {"planning-redelivery"},
+            policy.planning_outage,
+            captured.planning["outage_at_seconds"] if captured.planning else 0,
+        )
+        successful_weather = (
+            [item for item in weather["evidence"] if item["kind"] == "warning-capture"]
+            if weather
+            else []
+        )
+        successful_planning = [
+            item
+            for item in planning.get("evidence", [])
+            if item["kind"] == "planning-snapshot-capture"
+        ]
+        coverage_events = publish_coverage(
+            publisher,
+            timeline,
+            at,
+            seconds,
+            [
+                {
+                    **transport_observation,
+                    "owner": "transport",
+                    "input_id": "transport_service",
+                    "state": transport_coverage,
+                    "received_at": service_evidence["observed_at"] if service_evidence else None,
+                    "capture_ids": service_evidence["capture_ids"] if service_evidence else [],
+                    "revisions": service_revisions,
+                },
+                {
+                    **weather_observation,
+                    "owner": "weather",
+                    "input_id": "weather_warnings",
+                    "state": weather_coverage,
+                    "received_at": weather["last_feed_update_received_at"] if weather else None,
+                    "capture_ids": [successful_weather[-1]["id"]] if successful_weather else [],
+                    "revisions": warning_revisions,
+                },
+                {
+                    **planning_observation,
+                    "owner": "planning",
+                    "input_id": "planning",
+                    "state": planning["state"],
+                    "received_at": planning.get("last_successful_received_at"),
+                    "capture_ids": [successful_planning[-1]["id"]] if successful_planning else [],
+                    "revisions": [],
+                },
+            ],
+        )
         assessment = assess_area(
             facts=facts,
-            coverage=(
-                Coverage("transport_service", transport_coverage),
-                Coverage("weather_warnings", weather_coverage),
-                Coverage("planning", CoverageState(planning["state"])),
+            coverage=tuple(
+                Coverage(event.data.state.input_id, CoverageState(event.data.state.state))
+                for event in coverage_events
             ),
             required_inputs=REQUIRED,
             at=at,
@@ -222,12 +410,17 @@ class CityService:
             "geometry_url": f"/api/v1/areas/{AREA_ID}/boundaries/{revision}",
             "policy_version": POLICY_VERSION,
             "projection_version": hashlib.sha256(
-                f"city-projection-v7:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
+                f"city-projection-v8:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},
             "assessment": asdict(assessment),
             "service_evidence": service_evidence,
+            "composition": {
+                "timeline_id": timeline,
+                "delivery": "in-process",
+                "coverage_events": [event.model_dump(mode="json") for event in coverage_events],
+            },
             "weather": weather,
             "planning": planning,
             "vehicles": vehicles[:MAX_VEHICLES],
@@ -263,13 +456,17 @@ class CityService:
             if received(frame.at_seconds, seconds, policy, outage_at)
         )
         if policy.weather:
-            if captured.weather is None or self.weather_normalizer is None:
+            if captured.weather is None or (
+                self.weather_normalizer is None and self.inputs is None
+            ):
                 raise ValueError("weather fixture adapter is not configured")
             at = datetime.fromisoformat(captured.scenario["started_at"]) + timedelta(
                 seconds=seconds
             )
             events.extend(
-                weather_evidence(
+                [step.evidence for step in self.inputs.weather_at(seconds, policy.weather_outage)]
+                if self.inputs
+                else weather_evidence(
                     captured.weather,
                     seconds,
                     at,
@@ -278,19 +475,25 @@ class CityService:
                 )
             )
         if policy.planning:
-            if captured.planning is None or self.planning_normalizer is None:
+            if captured.planning is None or (
+                self.planning_normalizer is None and self.inputs is None
+            ):
                 raise ValueError("planning fixture adapter is not configured")
             at = datetime.fromisoformat(captured.scenario["started_at"]) + timedelta(
                 seconds=seconds
             )
             events.extend(
                 step.evidence
-                for step in planning_steps(
-                    captured.planning,
-                    seconds,
-                    at,
-                    policy.planning_outage,
-                    self.planning_normalizer,
+                for step in (
+                    self.inputs.planning_at(seconds, policy.planning_outage)
+                    if self.inputs
+                    else planning_steps(
+                        captured.planning,
+                        seconds,
+                        at,
+                        policy.planning_outage,
+                        self.planning_normalizer,
+                    )
                 )
             )
         return {

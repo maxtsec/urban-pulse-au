@@ -124,3 +124,22 @@ The revision guard compares a SHA-256 of sorted-key JSON from the validated mode
 A handler must look up retained receipts by `(source, event ID)` and pass a found `prior_receipt` to `compare_revision` before considering the aggregate cursor. An exact retained event is Duplicate even after newer revisions; changed content, subject or revision under the same event identity is Conflict. Without a retained receipt, the guard can only compare with the latest aggregate cursor and may classify an older revision as Superseded. The pure function does not retain history: the delivery adapter must implement a receipt ledger with an explicit retention window and atomic effect/receipt storage. It cannot guarantee conflict detection outside retained history.
 
 CONTRACT-01 acceptance also requires shared publisher/handler contracts and source-specific payloads. Cover roundtrip with nulls and UTC timestamps; missing/invalid fields and future versions; repeated captures versus storage retry; duplicate events; older revisions; equal-revision conflicts; failure then retry; same observations with newer fetch times; fixture/live isolation; warning expiry without incoming events; and stale recomputation losing to a newer projection. Real storage/transaction/crash tests accompany the adapters that introduce those boundaries.
+
+
+## CITY-04 fixture publications and recovery
+
+[ADR 0008](../adr/0008-in-process-city-composition.md) accepts persisted domain inputs with disposable projections. The executable payloads are in `urbanpulse/contracts/composition.py`:
+
+| Type suffix | Subject / payload |
+| --- | --- |
+| `transport.service-status-changed.v1` | `service/{stop_id}` equals `state.service_id`; stop identity/position, clear/disrupted, stable episode ID/start, observed time, nullable received resolution and reason |
+| `{owner}.coverage-changed.v1` | `coverage/{input_id}/{timeline_id}`; observation ID, coverage state, last successful receipt, completeness of assessed coverage, product scope and contributing published revisions |
+| `location.area-status-changed.v1` | `{area_id}/{timeline_id}`; area/timeline identity, condition, typed active reasons, required transport/weather coverage, boundary/rule versions, input revisions and evaluation time |
+
+The fixture namespace is `urn:urbanpulse:fixture:{owner}`. `timeline_id` hashes the bundle, scenario policy, boundary and rule versions. Derived coverage and area subjects include it so separate scenario timelines do not reuse an aggregate revision. Service observations retain original capture identities and only reveal resolution when the clearing observation arrives. A disrupted update retains its episode start. Coverage event identity/time derives from the last applicable capture or authored checkpoint, not the time a browser refreshes.
+
+Area transition revision counts semantic changes along that timeline; mere evaluation-time, input-order or trace-context changes do not create a transition. Planning changes stay outside area-condition reasons and required coverage. Each event carries original input revisions and capture references; a time-driven transition cites existing evidence. The response's `composition.area_events` is a deterministic fixture reconstruction, not a promise of external notification delivery.
+
+`Publisher.publish` takes serialized JSON and named handlers. `ProjectionHandler` validates the typed envelope, applies to a candidate projection, then commits effects/receipts together by replacing state. Results are applied, duplicate, superseded, rejected with a reason, or retryable-failure. Conflicts are rejected with `conflict`; invalid envelopes are terminal. The in-process dispatcher retries only the failed handler, up to three attempts with 100 ms and 250 ms injected waits. Exhaustion records structured diagnostics and aborts the snapshot; the next attempt rebuilds from owned exports.
+
+The first migration stores an immutable fixture import, owner-specific revisions, and ordered capture/replay observations in PostgreSQL. Revision rows retain original JSON text and semantic fingerprints. Observation references reuse accepted revisions while preserving a retry's distinct trace context; conflicts remain diagnostic attempts. Import is atomic and idempotent, and serving validates retained content integrity. Receipts remain local to each reconstruction. Retain the whole fixture scope; live retention, persistent receipts, publication intent and durable acknowledgements remain separate decisions.

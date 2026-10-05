@@ -44,9 +44,24 @@ npm.cmd --prefix apps/web run dev
 | `/health/ready` on port 8000   | Checks both PostGIS and Redis; returns 503 if either fails |
 | `/api/v1/fixture` on port 8000 | Reads the static JSON fixture directly                     |
 
-Readiness is separate from the fixture response. The original `/api/v1/fixture` works without databases; `/api/v1/areas/au-vic-melbourne-clue-southbank` requires PostGIS and retained fixture storage. Redis is not used by city queries. The target cache-outage behavior is defined in the [brief](../project_brief.md#8-redis-and-graceful-degradation).
+Readiness is separate from the fixture response. The original `/api/v1/fixture` works without databases; `/api/v1/areas/au-vic-melbourne-clue-southbank` requires PostGIS, migrated city tables and an explicitly imported fixture scope. Redis is not used by city queries. The target cache-outage behavior is defined in the [brief](../project_brief.md#8-redis-and-graceful-degradation).
 
 VS Code tasks: **Dev: services**, **Dev: API + Web**, **Dev: Dagster**, and **Check**. F5 runs the API debugger. The interpreter is `.venv/Scripts/python.exe`. Markdown preview is **Ctrl+Shift+V**; side-by-side preview is **Ctrl+K V**.
+
+## City input setup and recovery
+
+After starting PostGIS, run:
+
+```powershell
+uv run --locked python -m urbanpulse.adapters.city_store migrate
+uv run --locked python -m workers.ingestion.main --city-fixture
+```
+
+The import normalizes the retained synthetic bundle once, atomically saves owned domain history in PostgreSQL, and writes an ignored `current-import.json` pointer under the city capture directory. Repeating the import verifies the same content and reuses its scope. Reimport after changing fixture data or the normalizer version. A GET request performs neither migration nor import.
+
+The city API reads a consistent persisted export and reconstructs request-local projections. Restart requires PostgreSQL and the pointer, not the original fixture payload or normalizers. Missing schema/imports return 503 with setup guidance; database failure never becomes a successful empty city. Retain complete fixture scopes; selective history pruning is unsupported. Alembic downgrade removes the CITY-04 tables and should only be used when intentionally resetting local fixture state.
+
+Read [CITY-04](demos/city-04.md) for event/restart verification. Redis remains outside the city query path.
 
 ## Configuration boundaries
 

@@ -12,6 +12,7 @@ From the repository root, restore dependencies using [the development guide](../
 
 ```powershell
 docker compose up -d --wait
+uv run --locked python -m urbanpulse.adapters.city_store migrate
 uv run --locked python -m workers.ingestion.main --city-fixture
 uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -22,7 +23,7 @@ In a second terminal:
 npm.cmd --prefix apps/web run dev
 ```
 
-Open [UrbanPulse](http://127.0.0.1:5173/?scenario=journey), or press the **Tram journey** scenario button. No provider key is required. The API also initializes the same content-addressed bundle on first use if the worker step is omitted. Restart the API after changing fixture files.
+Open [UrbanPulse](http://127.0.0.1:5173/?scenario=journey), or press the **Tram journey** scenario button. No provider key is required. The fixture import is required before serving. Rerun it after changing fixture files; GET requests never create captures or migrate the database.
 
 ## Walkthrough
 
@@ -66,7 +67,7 @@ The CITY check requires an already-running PostGIS. It installs Chromium if need
 
 ## Storage and query details
 
-The worker retains a canonical JSON bundle under `RAW_STORAGE_PATH/city/<sha256>.json` (default `.local/raw/city/`). The service verifies and pins the bundle on first read, and caches its geometry revision until restart. Event `capture_ids` are synthetic references within this bundle; they are not provider acquisition records. The evidence endpoint maps event IDs to those references and includes boundary attribution. Its clock/scenario query parameters restrict records to those already received, including service-status frames. Replaying a retained bundle recreates receipts; there is no persistent ledger or claim of crash-safe publication.
+The worker retains a canonical JSON bundle under `RAW_STORAGE_PATH/city/<sha256>.json` (default `.local/raw/city/`). The explicit import verifies the bundle and persists normalized domain exports in PostgreSQL; serving selects that immutable import through the local pointer. Event `capture_ids` are synthetic references within this bundle; they are not provider acquisition records. The evidence endpoint maps event IDs to those references and includes boundary attribution. Its clock/scenario query parameters restrict records to those already received, including service-status frames. Replaying a retained bundle recreates receipts; there is no persistent ledger or claim of crash-safe publication.
 
 `GET /api/v1/areas/au-vic-melbourne-clue-southbank?seconds=30&scenario=journey` returns assessment, vehicles, coverage, clock, boundary/policy/projection versions and evidence links. Allowed seconds: integers 0–360; scenarios: journey, empty, outage. Geometry has its own revision-addressed URL. Positions are capped at 100 with explicit total/limit/truncated fields.
 

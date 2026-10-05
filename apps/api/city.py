@@ -1,16 +1,17 @@
 """Read-only fixture city endpoints; every clock is explicit and request-local."""
 
+import json
 from functools import lru_cache
 from typing import Any
 
 import psycopg
 from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy.exc import SQLAlchemyError
 
-from urbanpulse.adapters.city_fixture import LocalCityCapture, capture_city
-from urbanpulse.adapters.planning_fixture import FixturePlanningNormalizer
+from urbanpulse.adapters.city_store import CityInputStore, engine_for
 from urbanpulse.adapters.postgis import PostgisMembership
-from urbanpulse.adapters.weather_fixture import FixtureWeatherNormalizer
 from urbanpulse.application.city import AREA_ID, MAX_SECONDS, CaptureNotFoundError, CityService
+from urbanpulse.application.composition import ComposedCityService
 from urbanpulse.application.scenarios import Scenario
 from urbanpulse.config import Settings
 
@@ -18,15 +19,20 @@ router = APIRouter()
 
 
 @lru_cache(maxsize=1)
-def city_service() -> CityService:
+def input_store() -> CityInputStore:
+    return CityInputStore(engine_for(Settings().database_url))
+
+
+def city_service() -> ComposedCityService:
     settings = Settings()
-    capture_id = capture_city(settings.city_capture_path)
-    return CityService(
-        LocalCityCapture(settings.city_capture_path, capture_id),
-        PostgisMembership(settings.database_url),
-        FixtureWeatherNormalizer(),
-        FixturePlanningNormalizer(),
+    pointer = json.loads(
+        (settings.city_capture_path / "current-import.json").read_text(encoding="utf-8")
     )
+    if not isinstance(pointer, dict) or not isinstance(pointer.get("scope"), str):
+        raise ValueError("invalid fixture import pointer; rerun fixture import")
+    inputs = input_store().load(pointer["scope"])
+    city = CityService(inputs, PostgisMembership(settings.database_url), inputs=inputs)
+    return ComposedCityService(city, inputs)
 
 
 def require_area(area_id: str) -> None:
@@ -43,9 +49,10 @@ def area_snapshot(
     require_area(area_id)
     try:
         return city_service().snapshot(seconds, scenario)
-    except (psycopg.Error, OSError, ValueError, KeyError) as error:
+    except (psycopg.Error, SQLAlchemyError, OSError, ValueError, KeyError) as error:
         raise HTTPException(
-            status_code=503, detail="City snapshot unavailable; check local services"
+            status_code=503,
+            detail="City snapshot unavailable; check services, migrations and fixture import",
         ) from error
 
 
@@ -54,7 +61,7 @@ def area_boundary(area_id: str, revision: str) -> dict[str, Any]:
     require_area(area_id)
     try:
         geometry = city_service().geometry()
-    except (psycopg.Error, OSError, ValueError, KeyError) as error:
+    except (psycopg.Error, SQLAlchemyError, OSError, ValueError, KeyError) as error:
         raise HTTPException(status_code=503, detail="Boundary unavailable") from error
     if geometry["revision"] != revision:
         raise HTTPException(status_code=404, detail="Unknown boundary revision")
@@ -71,5 +78,5 @@ def fixture_evidence(
         return city_service().evidence(capture_id, seconds, scenario)
     except CaptureNotFoundError as error:
         raise HTTPException(status_code=404, detail="Unknown fixture capture") from error
-    except (psycopg.Error, OSError, ValueError, KeyError) as error:
+    except (psycopg.Error, SQLAlchemyError, OSError, ValueError, KeyError) as error:
         raise HTTPException(status_code=503, detail="Fixture evidence unavailable") from error

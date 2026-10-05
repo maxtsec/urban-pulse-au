@@ -265,10 +265,27 @@ test('playback and moment jumps respect the API clock limit', async ({
   await expect(
     page.getByRole('button', { name: 'Play scenario' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  const refreshedClock = (seconds: number) =>
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname.startsWith('/api/v1/areas/') &&
+        url.searchParams.get('seconds') === String(seconds)
+      );
+    });
+  // Reset can render cached data before its background refetch finishes.
+  await Promise.all([
+    refreshedClock(0),
+    page.getByRole('button', { name: 'Reset', exact: true }).click(),
+  ]);
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
-  await page.getByRole('button', { name: '330s · Last known only' }).click();
+  await Promise.all([
+    refreshedClock(75),
+    page.getByRole('button', { name: '330s · Last known only' }).click(),
+  ]);
   await expect(page.getByTestId('clock')).toHaveText('11:01:15');
+  // A cached clock can render while React Query refetches; finish the interceptor before teardown.
+  await page.unrouteAll({ behavior: 'wait' });
   expect(Math.max(...requested)).toBe(75);
 });
 

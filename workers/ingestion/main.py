@@ -7,7 +7,7 @@ import os
 import time
 from pathlib import Path
 
-from urbanpulse.adapters.city_fixture import capture_city
+from urbanpulse.adapters.city_import import import_fixture
 from urbanpulse.config import ROOT, Settings
 
 
@@ -29,7 +29,12 @@ def main() -> None:
     if args.city_fixture:
         print(
             json.dumps(
-                {"mode": "fixture", "capture_id": capture_city(Settings().city_capture_path)}
+                {
+                    "mode": "fixture",
+                    "import_id": import_fixture(
+                        Settings().database_url, Settings().city_capture_path
+                    ),
+                }
             )
         )
         return

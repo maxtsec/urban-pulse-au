@@ -28,8 +28,14 @@ class PlanningStep:
 
 
 def planning_steps(
-    bundle: dict[str, Any], seconds: int, at: datetime, outage: bool, normalizer: PlanningNormalizer
+    bundle: dict[str, Any],
+    seconds: int,
+    at: datetime,
+    outage: bool,
+    normalizer: PlanningNormalizer | None,
 ) -> Iterator[PlanningStep]:
+    if normalizer is None:
+        raise ValueError("normalizer is required for raw fixture import")
     history = CaptureHistory[PlanningSnapshotPublished]()
     for frame in received_frames(bundle, seconds, outage):
         evidence = {"id": frame["id"], "at_seconds": frame["at_seconds"]}
