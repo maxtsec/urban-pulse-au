@@ -49,7 +49,7 @@ export type Snapshot = {
     rejected: number;
   };
   weather: WeatherSnapshot | null;
-  planning: { state: string; as_of: string | null; description: string };
+  planning: PlanningProfile;
   evidence_url: string;
 };
 
@@ -113,4 +113,42 @@ export function displayDateTime(value: string | null) {
     dateStyle: 'medium',
     timeStyle: 'long',
   }).format(new Date(value));
+}
+
+export type Development = {
+  development_key: string;
+  name: string;
+  status: string;
+  clue_small_area: string | null;
+  position: { longitude: number; latitude: number } | null;
+  year_completed: number | null;
+  applicable: boolean | null;
+};
+
+export type PlanningProfile = {
+  state: string;
+  as_of: string | null;
+  description: string;
+  snapshot_id?: string | null;
+  last_successful_received_at?: string | null;
+  records?: Development[];
+  unlocated_records?: Development[];
+  removed_records?: (Development & { last_seen_as_of: string | null })[];
+  projection?: Snapshot['projection'];
+  incomplete_captures?: number;
+  attribution?: {
+    owner: string;
+    source_url: string;
+    licence_url: string;
+    modifications: string;
+  };
+};
+
+export function displaySourceDate(value: string | null) {
+  return value
+    ? new Intl.DateTimeFormat('en-AU', {
+        timeZone: 'Australia/Melbourne',
+        dateStyle: 'medium',
+      }).format(new Date(value))
+    : 'Source date unknown';
 }

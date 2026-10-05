@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
-import type { Vehicle, Warning } from './city';
+import type { Development, Vehicle, Warning } from './city';
 import tramIcon from './assets/tram.svg';
+import buildingIcon from './assets/building.svg';
 import { fixtureTracks } from './fixture-tracks';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -28,6 +29,10 @@ type Props = {
   showTracks: boolean;
   warnings: Warning[];
   showWarnings: boolean;
+  developments: Development[];
+  showPlanning: boolean;
+  selectedDevelopment: string | null;
+  onSelectDevelopment: (id: string) => void;
 };
 
 export function CityMap({
@@ -40,10 +45,15 @@ export function CityMap({
   showTracks,
   warnings,
   showWarnings,
+  developments,
+  showPlanning,
+  selectedDevelopment,
+  onSelectDevelopment,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const developmentMarkers = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [ready, setReady] = useState<maplibregl.Map | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -168,6 +178,8 @@ export function CityMap({
       resize.disconnect();
       markers.current.forEach((marker) => marker.remove());
       markers.current.clear();
+      developmentMarkers.current.forEach((marker) => marker.remove());
+      developmentMarkers.current.clear();
       map.current = null;
       instance.remove();
     };
@@ -236,6 +248,57 @@ export function CityMap({
     showTracks,
   ]);
 
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || ready !== instance) return;
+    const visible = showPlanning
+      ? developments.filter(
+          (record) => record.position && record.applicable === true,
+        )
+      : [];
+    const ids = new Set(visible.map((record) => record.development_key));
+    for (const [id, marker] of developmentMarkers.current) {
+      if (!ids.has(id)) {
+        marker.remove();
+        developmentMarkers.current.delete(id);
+      }
+    }
+    for (const record of visible) {
+      let marker = developmentMarkers.current.get(record.development_key);
+      if (!marker) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        const icon = document.createElement('img');
+        icon.src = buildingIcon;
+        icon.alt = '';
+        icon.draggable = false;
+        button.append(icon);
+        button.addEventListener('click', () =>
+          onSelectDevelopment(record.development_key),
+        );
+        marker = new maplibregl.Marker({ element: button })
+          .setLngLat([record.position!.longitude, record.position!.latitude])
+          .addTo(instance);
+        developmentMarkers.current.set(record.development_key, marker);
+      }
+      const button = marker.getElement();
+      button.setAttribute('aria-label', `Inspect ${record.name} on map`);
+      button.setAttribute(
+        'aria-pressed',
+        String(record.development_key === selectedDevelopment),
+      );
+      button.title = `${record.name} · ${record.status}`;
+      button.className = `development-marker ${record.development_key === selectedDevelopment ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
+      marker.setLngLat([record.position!.longitude, record.position!.latitude]);
+    }
+  }, [
+    ready,
+    developments,
+    showPlanning,
+    selectedDevelopment,
+    onSelectDevelopment,
+  ]);
+
   const visibleWarnings = useMemo(
     () =>
       showWarnings
@@ -264,16 +327,22 @@ export function CityMap({
       <div
         className="map-canvas"
         ref={container}
-        aria-label="Southbank tram map"
+        aria-label="Southbank city map"
         data-testid="map"
       />
       <div className="map-caption">Southbank CLUE boundary</div>
       {failed && (
         <p className="map-fallback" role="status">
-          Map unavailable. The tram list below has the same observations.
+          Map unavailable. The lists below retain tram observations and
+          development information.
         </p>
       )}
       <div className="map-legend">
+        {showPlanning && developments.length > 0 && (
+          <span data-testid="planning-map-count">
+            {developments.length} developments
+          </span>
+        )}
         {showWarnings && warnings.length > 0 && (
           <span data-testid="warning-map-count">
             {visibleWarnings.length} active warning areas

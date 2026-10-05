@@ -90,3 +90,8 @@ Consecutive disrupted service frames preserve the initial episode ID and effecti
 ## Weather fixture projection
 
 [ADR 0006](../adr/0006-weather-fixture-spatial-and-freshness.md) accepts positive-area polygon overlap for the CITY-02 fixture; edge-only contact is excluded. The [weather contract](weather-fixture-contract.md) adds `weather` / `weather-outage` to the existing area query and a nullable weather section. It preserves source receipt times independently of warning state and uses explicit authored freshness checkpoints. Modelled information never satisfies warning coverage. See the [walkthrough](../demos/city-02.md) for the combined transport/weather timeline.
+
+
+## Planning profile
+
+Under [ADR 0007](../adr/0007-planning-fixture-profile.md), the integrated fixture displays original development status, dataset as-of date and successful capture receipt independently. Include located points covered by the CLUE polygon, including its boundary and without a buffer. Unlocated records remain outside the area count and map. Only a complete successful snapshot removes absent records from the current list; history retains them without implying cancellation/completion. The [planning contract](planning-fixture-contract.md) defines atomic replacement, unknown/empty/failure states and evidence. Planning coverage remains outside current-condition requirements.

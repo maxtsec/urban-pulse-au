@@ -191,3 +191,8 @@ Architecture changes should include an ADR explaining alternatives, consequences
 ### Weather fixture path
 
 CITY-02 retains authored weather payloads alongside the city capture. Application orchestration calls a fixture normalization port, passes published weather CloudEvents to Location Intelligence and evaluates warning polygons through PostGIS. The area API presents independent modelled information, warning lifecycle, source receipt and coverage. [Weather contract](weather-fixture-contract.md) records the boundaries; shared publisher/handler delivery and persisted reconciliation remain CITY-04 work.
+
+
+## Planning fixture profile
+
+CITY-03 extends the retained city bundle with synthetic DAM-shaped complete snapshots. Planning publishes a typed full snapshot; Location Intelligence applies revision receipts and PostGIS point membership, then serves original statuses and source dates separately from current conditions. Partial, rejected and failed attempts cannot clear the profile. Snapshot absence follows [ADR 0007](../adr/0007-planning-fixture-profile.md); [contract](planning-fixture-contract.md) and [demo](../demos/city-03.md) define acceptance. Shared publisher/handler delivery remains CITY-04.

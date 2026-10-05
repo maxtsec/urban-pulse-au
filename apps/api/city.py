@@ -7,6 +7,7 @@ import psycopg
 from fastapi import APIRouter, HTTPException, Query
 
 from urbanpulse.adapters.city_fixture import LocalCityCapture, capture_city
+from urbanpulse.adapters.planning_fixture import FixturePlanningNormalizer
 from urbanpulse.adapters.postgis import PostgisMembership
 from urbanpulse.adapters.weather_fixture import FixtureWeatherNormalizer
 from urbanpulse.application.city import AREA_ID, MAX_SECONDS, CaptureNotFoundError, CityService
@@ -23,6 +24,7 @@ def city_service() -> CityService:
         LocalCityCapture(settings.city_capture_path, capture_id),
         PostgisMembership(settings.database_url),
         FixtureWeatherNormalizer(),
+        FixturePlanningNormalizer(),
     )
 
 
@@ -36,7 +38,8 @@ def area_snapshot(
     area_id: str,
     seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
     scenario: str = Query(
-        default="journey", pattern="^(journey|empty|outage|weather|weather-outage)$"
+        default="journey",
+        pattern="^(journey|empty|outage|weather|weather-outage|city|planning-outage)$",
     ),
 ) -> dict[str, Any]:
     require_area(area_id)
@@ -65,7 +68,8 @@ def fixture_evidence(
     capture_id: str,
     seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
     scenario: str = Query(
-        default="journey", pattern="^(journey|empty|outage|weather|weather-outage)$"
+        default="journey",
+        pattern="^(journey|empty|outage|weather|weather-outage|city|planning-outage)$",
     ),
 ) -> dict[str, Any]:
     try:

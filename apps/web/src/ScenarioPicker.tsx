@@ -1,4 +1,6 @@
 export const scenarios = [
+  { id: 'city', label: 'City overview' },
+  { id: 'planning-outage', label: 'Planning outage' },
   { id: 'weather', label: 'Weather warnings' },
   { id: 'journey', label: 'Tram journey' },
   { id: 'weather-outage', label: 'Weather outage' },
@@ -8,7 +10,7 @@ export const scenarios = [
 
 export function initialScenario() {
   const requested = new URLSearchParams(window.location.search).get('scenario');
-  return scenarios.find((item) => item.id === requested)?.id ?? 'weather';
+  return scenarios.find((item) => item.id === requested)?.id ?? 'city';
 }
 
 export function ScenarioPicker({

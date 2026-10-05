@@ -14,7 +14,7 @@ test('weather lifecycle changes the area view and map with independent coverage'
       external.push(request.url());
   });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/?scenario=weather');
   await page
     .getByRole('group', { name: 'Scenario', exact: true })
     .getByRole('button', { name: 'Weather warnings', exact: true })
@@ -95,7 +95,7 @@ test('weather lifecycle changes the area view and map with independent coverage'
 test('outage keeps received warning and attribution without leaking cancellation', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?scenario=weather');
   await page
     .getByRole('group', { name: 'Scenario', exact: true })
     .getByRole('button', { name: 'Weather outage', exact: true })
@@ -140,7 +140,7 @@ test('weather details are usable on a small screen and replay keeps original rec
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/?scenario=weather');
   await page
     .getByRole('group', { name: 'Scenario', exact: true })
     .getByRole('button', { name: 'Weather warnings', exact: true })
@@ -171,7 +171,7 @@ for (const viewport of [
     page,
   }) => {
     await page.setViewportSize(viewport);
-    await page.goto('/');
+    await page.goto('/?scenario=weather');
     const scenarios = page.getByRole('group', {
       name: 'Scenario',
       exact: true,
@@ -207,7 +207,7 @@ for (const viewport of [
 test('scenario buttons support keyboard selection and preserve the chosen clock', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?scenario=weather');
   await page
     .getByRole('button', { name: '60s · Watch and Act', exact: true })
     .click();
@@ -296,7 +296,7 @@ test('scenario navigation updates shareable URLs and supports browser history', 
 test('scenario transition preserves the map canvas and camera while labelling previous data', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?scenario=weather');
   const canvas = page.locator('.maplibregl-canvas');
   await expect(canvas).toBeVisible();
   const original = await canvas.elementHandle();
@@ -348,7 +348,7 @@ test('scenario transition preserves the map canvas and camera while labelling pr
 test('replay diagnostics separate weather duplicates from transport counts', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?scenario=weather');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   await page.getByLabel('Scenario time', { exact: true }).fill('120');
   await expect(page.getByTestId('clock')).toHaveText('11:02:00');

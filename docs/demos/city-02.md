@@ -2,7 +2,7 @@
 
 ## Run and inspect
 
-Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. The page opens in **Weather warnings** with modelled temperature, rainfall and wind visible above the map. Use the visible scenario buttons to switch views; the active button is highlighted and keyboard accessible. Switching scenarios preserves the replay clock and map camera, pauses playback and updates `?scenario=` for reload/share and browser back/forward. A pending switch labels the previous view until the new snapshot arrives. Shared links select the scenario; a reload starts its clock at zero. The existing tram controls and original transport scenarios remain available.
+Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. Open `/?scenario=weather` or select **Weather warnings** to see modelled temperature, rainfall and wind visible above the map. Use the visible scenario buttons to switch views; the active button is highlighted and keyboard accessible. Switching scenarios preserves the replay clock and map camera, pauses playback and updates `?scenario=` for reload/share and browser back/forward. A pending switch labels the previous view until the new snapshot arrives. Shared links select the scenario; a reload starts its clock at zero. The default City overview also includes the planning profile; this walkthrough isolates the weather slice. The existing tram controls and original transport scenarios remain available.
 
 | Clock | What to inspect |
 | --- | --- |

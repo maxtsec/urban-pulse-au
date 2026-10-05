@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { AREA_ID, displayTime, readJson } from './city';
-import type { Snapshot, Warning } from './city';
+import { AREA_ID, displayTime, displaySourceDate, readJson } from './city';
+import type { Development, Snapshot, Warning } from './city';
 import { CityMap } from './CityMap';
+import { PlanningPanel } from './PlanningPanel';
 import { WeatherPanel } from './WeatherPanel';
 import { WeatherSummary } from './WeatherSummary';
 import { ScenarioPicker, initialScenario, scenarios } from './ScenarioPicker';
@@ -11,12 +12,17 @@ import tramIcon from './assets/tram.svg';
 import type { Boundary } from './CityMap';
 
 const EMPTY_WARNINGS: Warning[] = [];
+const EMPTY_DEVELOPMENTS: Development[] = [];
 
 export function App() {
   const [seconds, setSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [scenario, setScenario] = useState(initialScenario);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedDevelopment, setSelectedDevelopment] = useState<string | null>(
+    null,
+  );
+  const [showPlanning, setShowPlanning] = useState(true);
   const [showVehicles, setShowVehicles] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
   const [showWarnings, setShowWarnings] = useState(true);
@@ -46,12 +52,20 @@ export function App() {
       setScenario(initialScenario());
       setPlaying(false);
       setSelected(null);
+      setSelectedDevelopment(null);
     }
     window.addEventListener('popstate', restoreScenario);
     return () => window.removeEventListener('popstate', restoreScenario);
   }, []);
 
-  const selectVehicle = useCallback((id: string) => setSelected(id), []);
+  const selectVehicle = useCallback((id: string) => {
+    setSelected(id);
+    setSelectedDevelopment(null);
+  }, []);
+  const selectDevelopment = useCallback((id: string) => {
+    setSelectedDevelopment(id);
+    setSelected(null);
+  }, []);
 
   useEffect(() => {
     if (!playing || !snapshot || result.isFetching || seconds >= endSeconds)
@@ -96,6 +110,7 @@ export function App() {
     setScenario(value);
     setPlaying(false);
     setSelected(null);
+    setSelectedDevelopment(null);
   }
 
   function jump(value: number) {
@@ -116,7 +131,7 @@ export function App() {
         <section className="page-heading">
           <div>
             <h1>Southbank</h1>
-            <p className="subtitle">Trams, conditions and area context.</p>
+            <p className="subtitle">Trams, weather and development activity.</p>
           </div>
           <p className="area-caption">City of Melbourne · CLUE area</p>
         </section>
@@ -228,6 +243,18 @@ export function App() {
                     />
                     Tracks (illustrative)
                   </label>
+                  {snapshot.planning.records && (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showPlanning}
+                        onChange={(event) =>
+                          setShowPlanning(event.target.checked)
+                        }
+                      />{' '}
+                      Development sites
+                    </label>
+                  )}
                   {snapshot.weather && (
                     <label>
                       <input
@@ -252,6 +279,12 @@ export function App() {
                     showTracks={showTracks}
                     warnings={snapshot.weather?.warnings ?? EMPTY_WARNINGS}
                     showWarnings={showWarnings}
+                    developments={
+                      snapshot.planning.records ?? EMPTY_DEVELOPMENTS
+                    }
+                    showPlanning={showPlanning}
+                    selectedDevelopment={selectedDevelopment}
+                    onSelectDevelopment={selectDevelopment}
                   />
                 )}
                 {geometry.isPending && (
@@ -274,6 +307,13 @@ export function App() {
               </section>
 
               {snapshot.weather && <WeatherPanel weather={snapshot.weather} />}
+              {snapshot.planning.records && (
+                <PlanningPanel
+                  planning={snapshot.planning}
+                  selected={selectedDevelopment}
+                  onSelect={selectDevelopment}
+                />
+              )}
               <section className="observations-card">
                 <div className="card-heading">
                   <div>
@@ -439,9 +479,34 @@ export function App() {
                 <div className="domain-row">
                   <div>
                     <h3>Planning & infrastructure</h3>
-                    <p>Development data not connected</p>
-                    <p>As of: unknown</p>
+                    {snapshot.planning.records ? (
+                      <>
+                        <p>
+                          {snapshot.planning.records.length} located
+                          developments · Synthetic sample
+                        </p>
+                        <p>
+                          As of {displaySourceDate(snapshot.planning.as_of)}
+                        </p>
+                        {(snapshot.planning.unlocated_records?.length ?? 0) >
+                          0 && (
+                          <p>
+                            {snapshot.planning.unlocated_records!.length} with
+                            unknown location
+                          </p>
+                        )}
+                        <a href="#developments">View development activity</a>
+                      </>
+                    ) : (
+                      <>
+                        <p>Development data not connected</p>
+                        <p>As of: unknown</p>
+                      </>
+                    )}
                   </div>
+                  <span className={`coverage-pill ${snapshot.planning.state}`}>
+                    {snapshot.planning.state}
+                  </span>
                 </div>
                 <a
                   className="evidence-link"
@@ -491,6 +556,29 @@ export function App() {
                     </button>
                   </div>
                 )}
+                {snapshot.planning.records && (
+                  <div className="planning-moments">
+                    <h3>Planning snapshots</h3>
+                    <p>
+                      Authored receipt timeline; source dates advance
+                      separately.
+                    </p>
+                    <div className="moments">
+                      <button onClick={() => jump(120)}>
+                        120s · Partial capture
+                      </button>
+                      <button onClick={() => jump(150)}>
+                        150s · New planning snapshot
+                      </button>
+                      <button onClick={() => jump(240)}>
+                        240s · Planning unavailable
+                      </button>
+                      <button onClick={() => jump(270)}>
+                        270s · Planning recovered
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <details>
                   <summary>Replay diagnostics</summary>
                   <ReplayDiagnostics
@@ -501,6 +589,12 @@ export function App() {
                     <ReplayDiagnostics
                       label="Weather"
                       counts={snapshot.weather.projection}
+                    />
+                  )}
+                  {snapshot.planning.projection && (
+                    <ReplayDiagnostics
+                      label="Planning"
+                      counts={snapshot.planning.projection}
                     />
                   )}
                   <p>Policy: {snapshot.policy_version}</p>

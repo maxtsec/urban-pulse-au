@@ -34,7 +34,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 | ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Reproducible local foundation                                            | Complete: [phase-0 release](https://github.com/maxtsec/urban-pulse-au/releases/tag/phase-0), demo and verified clean checkout |
 | 1     | Area/map foundation and transport fixture slice                          | SRC-01 complete; CITY-01 complete with PostGIS/browser evidence; fixture policy acceptance and phase release remain open                                                           |
-| 2     | Weather + planning + integrated area view using shared in-process events | Planned; [weather-source policy accepted](docs/adr/0005-weather-source-policy.md), live-source gates remain open; phases 1-2 form the city MVP                                                                                         |
+| 2     | Weather + planning + integrated area view using shared in-process events | CITY-02 complete; CITY-03 fixture ready for review; [weather-source policy accepted](docs/adr/0005-weather-source-policy.md), live-source gates remain open; phases 1-2 form the city MVP                                                                                         |
 | 3     | Durable event delivery and recovery                                      | Planned                                                                                                                       |
 | 4     | Full application cloud deployment and operations                         | Planned                                                                                                                       |
 | 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
@@ -42,9 +42,9 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
-The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. The weather scenarios add modelled information and warning lifecycles; planning stays unknown. Live capture and hosted delivery follow the [delivery plan](docs/delivery-plan.md).
+The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. City overview combines modelled weather, warning lifecycles and a planning profile with source dates and building markers. Original single-domain scenarios remain available. Live capture and hosted delivery follow the [delivery plan](docs/delivery-plan.md).
 
-[Run the Southbank demo](docs/demos/city-01.md) | [CITY-01 evidence](docs/evidence/city-01-fixture-map.md) | [Weather demo](docs/demos/city-02.md)
+[Run the Southbank demo](docs/demos/city-01.md) | [CITY-01 evidence](docs/evidence/city-01-fixture-map.md) | [Weather demo](docs/demos/city-02.md) | [Integrated planning demo](docs/demos/city-03.md)
 
 ## Fixture quickstart
 
