@@ -1,58 +1,71 @@
 # DEMO-01 managed deployment resource plan
 
-Decision basis: [ADR 0010](../adr/0010-hosted-fixture-demo.md). Progress: [delivery plan](../delivery-plan.md). This plan separates the accepted hosting design from resource choices awaiting architect selection. No resource apply is part of preparing this plan.
+Decisions: [ADR 0010](../adr/0010-hosted-fixture-demo.md) and [ADR 0012](../adr/0012-managed-demo-resource-profile.md), accepted on 6 October 2026. Progress: [delivery plan](../delivery-plan.md). Apply remains a separate review of the actual resource plan.
 
 ## Resources and ownership
 
-| Component | Intended responsibility | Provisioning boundary |
+| Component | Responsibility | Boundary |
 | --- | --- | --- |
-| Existing bootstrap | Artifact Registry, builder identity and GitHub provider | Adopt existing outputs; no replacement or builder-policy changes |
-| Demo foundation | Regional Cloud SQL/PostGIS, database, separate runtime/migration/import identities and secret containers | New Terraform root with separate state; operator-reviewed plan before apply |
-| Serving revision | Compiled Caddy ingress and API sidecar, one IAP-protected origin | Deploy recorded image digests after database, roles, secret versions and import are verified |
-| Migration and import Jobs | Private, explicit schema upgrade and fixture initialization | Separate database roles and service identities; one task, bounded timeout, no automatic retries |
-| Durable fixture worker | Explicit bounded administration/recovery execution | Define completion and timeout semantics before hosting; never place a poll loop inside the request-serving API |
-| Deployment workflow | Candidate checks, explicit promotion, deployment record and compatible rollback | Separate deployer identity and reviewed trust; builder never gains deployment permissions |
+| Existing bootstrap | Artifact Registry, builder identity and GitHub provider | Reuse outputs; no replacement or builder-policy changes |
+| [Demo foundation](../../infra/demo-foundation) | Regional Cloud SQL, database, runtime/migration/import/worker identities and empty secret containers | Separate Terraform root/state; no secret values, SQL users, serving revisions or job executions |
+| Serving revision | Caddy ingress and API sidecar on one IAP-protected origin | Recorded image digests, verified DB roles/secret versions/import and bounded connections first |
+| Migration/import Jobs | Explicit private schema upgrade and fixture initialization | Separate roles and identities; bounded locks/execution, successful completion before promotion |
+| Fixture worker Job | Manually invoked durable fixture processing | One task, finite deadline, no scheduler/pool/continuous poller attached to the API |
+| Deployment workflow | Candidate checks, promotion, deployment record and compatible rollback | Separate deployer identity/trust; builder never gains deploy authority |
 
-The foundation owns no current image pointer or traffic promotion. Image records come from the [publishing workflow](../runbooks/image-publishing.md); serving and job configuration must use immutable digests. Do not implement registry cleanup, dependency update automation or builder trust hardening in this work: these remain issues [#30](https://github.com/maxtsec/urban-pulse-au/issues/30), [#29](https://github.com/maxtsec/urban-pulse-au/issues/29) and [#28](https://github.com/maxtsec/urban-pulse-au/issues/28).
+This work does not implement builder hardening [#28](https://github.com/maxtsec/urban-pulse-au/issues/28), dependency updates [#29](https://github.com/maxtsec/urban-pulse-au/issues/29) or image retention [#30](https://github.com/maxtsec/urban-pulse-au/issues/30).
 
-## Pending resource choices
+## Selected database and recovery profile
 
-| Choice | Proposed starting point | Alternative / trade-off |
-| --- | --- | --- |
-| Region and database | Melbourne; PostgreSQL 17, Enterprise edition, zonal, 10 GiB SSD; `db-g1-small` shared core | `db-f1-micro` uses less memory and has less headroom; dedicated core offers more predictable capacity. None is a measured capacity result or HA guarantee. |
-| SQL connectivity | Managed Cloud SQL Auth Proxy through a Unix socket; public address with connector enforcement and no authorized direct-client networks | Private IP plus VPC requires additional network resources and review. Do not enable unrestricted direct database access. |
-| Recovery | Seven daily retained backups, seven days of PITR logs, Terraform and API deletion protection | Daily backups without PITR reduce retained logs but cannot recover to an arbitrary point between backups. Restore testing is required in either case. |
+Melbourne, PostgreSQL 17, Enterprise edition, zonal `db-g1-small`, 10 GiB SSD. Shared-core and single-zone configurations have **no Cloud SQL SLA**. The documented small-instance connection default is **50**, compared with 25 for the tiny tier; the foundation explicitly retains 50. This is a connection ceiling, not a throughput or memory-capacity guarantee. [SLA](https://cloud.google.com/sql/sla), [database flags](https://docs.cloud.google.com/sql/docs/postgres/flags).
 
-These choices are proposed, not accepted by merging unrelated ADRs. Terraform resources that encode them wait for the architect's selection. Storage growth limits, service concurrency/instance limits and the total database connection allowance also need an explicit resource plan before apply; shared-core capacity must be validated with the actual workload.
+Require the managed connector for every connection, encryption and no direct-client IP allowlist. The public address does not authorize unauthenticated/direct SQL access. Backups run daily at 16:00 UTC, retain seven successful backups and seven days of PITR logs, with deletion protection at both Terraform and API layers. Database removal from state uses `ABANDON`; protected secret containers and retained backups need an explicit decommission plan. Prove restore separately.
+
+Disk auto-growth is disabled to keep the initial footprint explicit. Check utilization before imports; add a storage alert before ongoing demo use and resize through review before headroom is exhausted. Fixed storage is a capacity limit, not protection against a full disk. The Sunday 17:00 UTC maintenance window and zonal design allow interruptions.
+
+## Connection envelope
+
+The foundation exports this deployment contract. Serving/job implementation must consume and verify it; **the current API is not yet connection-bounded to this profile**. Its SQLAlchemy defaults allow 5 pooled connections plus 10 overflow per engine, while PostGIS and readiness open separate direct connections. Counting only the pool would understate usage.
+
+| Consumer | Required configuration | Planned maximum connections |
+| --- | --- | ---: |
+| API | Max 2 instances, 1 process each, shared pool size 2, overflow 0; budget 2 revisions plus 2 replacement instances | `(2 x 2 + 2) x 1 x (2 + 0) = 12` |
+| Migration | One execution/task, main transaction plus any separate lock/control session | 2 |
+| Import | One execution/task, pool at most 2 plus one spatial/bootstrap connection | 3 |
+| Worker | One execution/task, pool at most 2 plus one spatial connection and one execution-lock session | 4 |
+| Client role caps combined | Separate non-superuser login roles, capped across all executions/instances | **21** |
+| Platform reservations and operator access | Combined planning allowance; verify actual reserved settings and baseline use | **10** |
+| Unallocated headroom | `50 - 21 - 10` | **19** |
+
+Keep Cloud Run min instances at 0, service and revision max at 2, request concurrency at 4 and one Uvicorn process. Runtime work must put **all API database access, including PostGIS and health checks, through that one bounded pool**, with finite checkout waits and controlled unavailable responses. Do not simply set one engine's pool size or multiply workers without revisiting the calculation.
+
+The two replacement slots are a planning allowance, **not a guaranteed Cloud Run overshoot bound**. Cloud Run may exceed max instances, and tagged candidates/old revisions can coexist. Enforce PostgreSQL login-role connection limits of runtime 12, migration 2, import 3 and worker 4; no login role may be a superuser or gain equivalent administrative membership. These caps protect shared headroom but can make excess work fail or wait; they do not guarantee every request succeeds. Bound retries, observe active connections and rehearse controlled saturation instead of increasing `max_connections`. [Cloud Run scaling behavior](https://docs.cloud.google.com/run/docs/about-instance-autoscaling).
+
+The envelope conservatively adds all job types even though migration/import/worker operations that affect the same data must serialize. A Job's `parallelism = 1` does not prevent two separate executions. The worker needs an application/database execution lock, and deployment must reject overlapping migrations/imports. Verify each role's total connections, including lock sessions and health checks, during overlap and recovery.
+
+Before allowing deployment, record `SHOW max_connections`, `SHOW superuser_reserved_connections`, `SHOW reserved_connections`, application role attributes/limits and `pg_stat_activity` by role. Stop if actual reserved/operator demand exceeds the 10-slot allowance or if the measured workload violates its assigned envelope. Do not assume the documented default is the live value.
 
 ## Database and secret prerequisites
 
-The API, migration and import identities are separate. Create secret containers and secret-level IAM without embedding secret values in Terraform, images, logs, variables examples or public documentation. Add database users/roles and secret versions through a reviewed private bootstrap procedure. The API database role must not own schema or write fixture inputs; import can update its owned inputs; migration owns DDL. Verify actual privileges with each role, including denied cross-role operations.
+The foundation grants `roles/cloudsql.client` at project scope: it permits connector access within the project, not SQL privileges or per-instance query authorization. Each of the four service identities can read only its own database-URL secret container. No image-publisher, deployer, IAM administration, broad secret-reader role or user-managed key is added. PostgreSQL privileges provide the separate application-data boundary.
 
-Cloud SQL extension support does not install PostGIS automatically for the application database. Record `PostGIS_Full_Version()` and verify the project's spatial queries after the bootstrap operator enables the extension. Use PostgreSQL 17 to stay aligned with local tests, and record the actual managed PostGIS version rather than inferring it from the local image tag.
+Privately bootstrap non-superuser database roles: runtime reads published fixture data; import writes owned fixture inputs; worker writes its delivery/checkpoint state; migration owns application DDL. Do not run the app as the operator or a default administrative database user. Set the connection limits above, verify actual and default table/sequence privileges, and test denied cross-role writes. Secret values/passwords and user setup remain outside Terraform; create numbered secret versions before serving/jobs reference them.
 
-Current `urbanpulse.adapters.city_store migrate` is an explicit entry point but lacks the deployment migration lock required by ADR 0010. Add and test bounded lock acquisition, failure/no-promotion behavior and schema verification in the migration Job implementation. Do not claim an ordinary successful local migration establishes hosted migration safety.
+Enable PostGIS explicitly in the application database as the bootstrap operator, then record `PostGIS_Full_Version()` and run the existing spatial integration cases against the managed instance. Cloud SQL's extension support does not install it or prove local/managed equivalence. [Managed PostGIS support](https://docs.cloud.google.com/sql/docs/postgres/extensions).
 
-## Serving and IAP prerequisites
+## Audience and worker execution
 
-Use the existing compiled serving image and localhost API proxy. Apply the accepted explicit no-cache mode, startup ordering and health probes; the image includes fixture inputs and migrations, while imported domain history remains in PostgreSQL. Do not expose database, worker or administration ports.
+Initial IAP access is an **explicit allowlist of organization accounts/groups**, not every organization member. Use Google-managed OAuth; do not create an external client or consent screen in this stage. Keep reviewer identities in ignored private configuration and grant access only after the candidate passes database/city checks. Verify anonymous/unlisted/external accounts are denied and default/tagged URLs do not bypass IAP. [IAP guidance](https://docs.cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run).
 
-The current project has a Google organization. Google-managed IAP OAuth supports organization users; external reviewers require the separate custom OAuth setup. Keep reviewer identities in private configuration and withhold access until the candidate's city, database and authentication checks pass. Verify anonymous/unlisted-user denial and the default and tagged URLs; readiness alone does not establish three-domain fixture acceptance.
+The worker is manually triggered as a Cloud Run Job: one task, parallelism one, retries zero and a 600-second task timeout, with one active execution enforced separately. Its future runner must take an explicit fixture run/target, drain work until that target reaches a verified terminal result, release locks and exit zero only on success. Failures, dead letters or deadline expiry must produce a nonzero result with redacted diagnostics. The current single-sweep `--once` is **not** a completion criterion. No scheduler, worker pool or always-on service is selected.
 
-## Review and apply sequence
+Migration/import Jobs also need bounded deadlines and serialization. Current `city_store migrate` lacks the deployment migration lock required by ADR 0010; add bounded lock acquisition, schema verification and failure/no-promotion tests before creating a runnable Job. Never run migrations on API startup.
 
-1. Select the pending resource choices and produce credential-free Terraform validation and mocked plan tests. Review the exact planned creates, IAM members and deletion protections; stop for unexpected replacement of bootstrap resources.
-2. Approve/apply the foundation separately. Enable PostGIS, establish database roles and privately supply pinned secret versions. Verify backup settings and restore to a separate target.
-3. Implement bounded migration/import Jobs and their tests. Wait for executions to succeed and verify schema/import identity before creating a serving candidate.
-4. Deploy and test an IAP-protected candidate using the verified API/web digests; then explicitly promote and rehearse compatible rollback. Preserve fixture inputs, durable delivery state and previous deployment records.
+## Implementation and apply sequence
 
-This foundation does not deploy live collection or resolve A-06. Initial fixture serving remains part of Phase 4 and is not production V1.
+1. Review the foundation and its credential-free mocked tests. Use the [foundation runbook](../runbooks/demo-foundation.md) to prepare an actual plan; apply only after that plan is approved.
+2. Bootstrap PostGIS, database roles and secret versions privately; verify backups and restore to a separate target. Check actual database settings against the connection envelope.
+3. Implement and test shared API pooling, bounded migration/import/worker runners and their deployed limits. No serving/job resources exist in the foundation, so its outputs cannot accidentally deploy the current unbounded entry points.
+4. Deploy an IAP-protected candidate with verified image digests, execute initialization Jobs, then test and explicitly promote it. Preserve the previous deployment, schema compatibility and retained fixture/delivery state for rollback.
 
-## Provider references
-
-- [Cloud SQL machine types](https://docs.cloud.google.com/sql/docs/postgres/machine-series-overview)
-- [Managed PostGIS support](https://docs.cloud.google.com/sql/docs/postgres/extensions)
-- [Cloud Run SQL connectivity](https://docs.cloud.google.com/sql/docs/postgres/connect-run)
-- [Cloud SQL PITR configuration](https://docs.cloud.google.com/sql/docs/postgres/backup-recovery/configure-pitr)
-- [Cloud SQL Terraform controls](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/sql_database_instance)
-- [Direct Cloud Run IAP and external access](https://docs.cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run)
+Live collection and A-06 remain separate; this fixture environment is not production V1.

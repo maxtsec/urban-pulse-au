@@ -61,10 +61,13 @@ jobs:
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: 1.16.4
-      # Static validation only: no cloud credentials, backend or plan in CI.
+      # Validation and mocked plans only: no cloud credentials, remote backend or apply.
       - run: terraform fmt -check -recursive infra
       - run: terraform -chdir=infra/bootstrap init -backend=false -input=false
       - run: terraform -chdir=infra/bootstrap validate
+      - run: terraform -chdir=infra/demo-foundation init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=infra/demo-foundation validate
+      - run: terraform -chdir=infra/demo-foundation test
 
   compose:
     runs-on: ubuntu-latest
