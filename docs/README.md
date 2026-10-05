@@ -89,4 +89,4 @@ For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For 
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
-Label fixture/live inputs and preserve the scope of dated evidence. Document version is v1; record software release tags separately.
+Label fixture/live inputs and preserve the scope of dated evidence. The project brief uses revision numbers; software releases use version tags such as `v1.0.0`.

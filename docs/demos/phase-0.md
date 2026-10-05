@@ -85,4 +85,4 @@ If live presentation setup fails, show a previously recorded walkthrough tied to
 
 ## Phase completion
 
-The existing `phase-0` tag preserves this historical demonstration. For subsequent phases, use the exit criteria and commit-based evidence in the [delivery plan](../delivery-plan.md#milestones-and-exit-evidence); the [release policy](../delivery-plan.md#release-policy) reserves the next release for production `v1.0.0`.
+The existing `phase-0` tag preserves this historical demonstration. For subsequent phases, use the exit criteria and commit-based evidence in the [delivery plan](../delivery-plan.md#milestones-and-exit-evidence); the [release policy](../delivery-plan.md#release-policy) uses commit SHA and image digests for demo deployments, with the first production release tagged `v1.0.0`.

@@ -1,6 +1,6 @@
 # Phase 3: Durable event reliability acceptance
 
-Date: 5 October 2026. Integrated in [PR #17](https://github.com/maxtsec/urban-pulse-au/pull/17) at `a9359d0d1d9107413db4b4b6fc3cc42378537524`; [reviewed revision CI](https://github.com/maxtsec/urban-pulse-au/actions/runs/37277052373) passed, including browser and Compose checks. Progress and release readiness are maintained in the [delivery plan](../delivery-plan.md).
+Date: 5 October 2026. Integrated in [PR #17](https://github.com/maxtsec/urban-pulse-au/pull/17) at `a9359d0d1d9107413db4b4b6fc3cc42378537524`; [merged-commit CI](https://github.com/maxtsec/urban-pulse-au/actions/runs/37277546614) passed, including browser and Compose checks. Progress and release readiness are maintained in the [delivery plan](../delivery-plan.md).
 
 ## Acceptance map
 
@@ -39,7 +39,7 @@ python -O scripts/compose_smoke.py
 
 The Compose check owns a uniquely named stack and volume; it builds the app, verifies initializer/readiness/proxy behavior, replays across workers, reconstructs city checkpoints across warning expiry, calls city metrics, restarts its database and cleans up its own stack. Provider keys and cloud resources are not used.
 
-Local verification on 5 October 2026: Ruff lint/format and mypy passed; 409 unit/API tests and 142 PostGIS integration tests passed. The initial city-metrics revision also passed isolated Compose smoke under `python -O`, including the city metrics command and database restart recovery, then removed its stack and volume. Browser code is unchanged; this local verification did not rerun Playwright. The linked PR CI also passed browser and Compose checks on the reviewed revision. Production release requires CI at its selected commit.
+Local verification on 5 October 2026: Ruff lint/format and mypy passed; 409 unit/API tests and 142 PostGIS integration tests passed. The initial city-metrics revision also passed isolated Compose smoke under `python -O`, including the city metrics command and database restart recovery, then removed its stack and volume. Browser code is unchanged; this local verification did not rerun Playwright. The linked main-branch CI also passed browser and Compose checks on the exact merged commit above. Production release requires CI at its selected commit.
 
 ## Demonstration
 
