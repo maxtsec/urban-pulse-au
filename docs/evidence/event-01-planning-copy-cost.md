@@ -6,7 +6,7 @@ Progress: [delivery plan](../delivery-plan.md). Reproduction and measurement lim
 
 Every handler attempt still deep-copies its candidate projection and swaps it into place only after successful handling. Planning now retains accepted historical envelopes as immutable JSON strings. The history list, snapshot index, receipts, counters and latest model remain independently copied; copying a string cannot share mutable optional fields between candidates.
 
-The public history/snapshot inspection properties return detached typed views. Profile construction decodes already validated retained envelopes into plain values, reconstructing typed historical records only for the removed-record view. It preserves original optional fields, source dates, statuses and event identities. Snapshot reuse compares the JSON state, preserving equivalent numeric spelling and the wire meaning of Python tuple extras after JSON serialization.
+`history_events()` and `snapshot_states()` explicitly decode and validate all retained/indexed payloads into detached typed views on each call. Their cost scales with total payload size; call once outside loops and reuse the returned view. Profile construction decodes already validated retained envelopes into plain values, reconstructing typed historical records only for the removed-record view. It preserves original optional fields, source dates, statuses and event identities. Snapshot reuse compares the JSON state, preserving equivalent numeric spelling and the wire meaning of Python tuple extras after JSON serialization.
 
 This is an internal in-memory representation change: persisted inputs, migrations, event contracts, retry behavior and HTTP responses stay unchanged. Request-local reconstruction still runs every prior transition clock. This does not introduce shared projections, a cache or incremental replay.
 
@@ -50,3 +50,5 @@ Verification passed:
 - 406 unit/API tests and 138 real PostGIS integration tests, including persisted replay and durable checkpoint equivalence.
 - New regressions cover three consecutive failures after candidate mutation, successful retry without duplicate effects, nested optional fields, detached history/snapshot views, snapshot identity conflicts, numeric/tuple wire equivalence and removed-record provenance.
 - All six benchmark cases retained identical output fingerprints for load, single snapshot and composed replay.
+
+Repeated profile parsing and possible incremental summaries are tracked in [issue #16](https://github.com/maxtsec/urban-pulse-au/issues/16); measure attribution before changing retained derived state.

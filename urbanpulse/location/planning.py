@@ -29,13 +29,18 @@ class PlanningProjection:
         self._snapshots: dict[str, str] = {}
         self.outcomes = {outcome.value: 0 for outcome in RevisionOutcome}
 
-    @property
-    def history(self) -> list[PlanningSnapshotPublished]:
-        """Detached views of accepted envelopes; retained JSON is immutable."""
+    def history_events(self) -> list[PlanningSnapshotPublished]:
+        """Decode and validate all retained envelopes into detached views.
+
+        Every call costs O(total retained payload size); call once outside loops.
+        """
         return [PlanningSnapshotPublished.model_validate_json(wire) for wire in self._history]
 
-    @property
-    def snapshots(self) -> dict[str, PlanningSnapshot]:
+    def snapshot_states(self) -> dict[str, PlanningSnapshot]:
+        """Decode and validate every indexed snapshot into detached state.
+
+        Every call costs O(total indexed payload size); call once outside loops.
+        """
         return {
             identity: PlanningSnapshotPublished.model_validate_json(wire).data.state
             for identity, wire in self._snapshots.items()

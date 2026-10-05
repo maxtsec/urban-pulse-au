@@ -26,8 +26,10 @@ def events(tmp_path):
 def observable(state):
     return {
         "latest": state.latest.model_dump(mode="json") if state.latest else None,
-        "history": [item.model_dump(mode="json") for item in state.history],
-        "snapshots": {key: value.model_dump(mode="json") for key, value in state.snapshots.items()},
+        "history": [item.model_dump(mode="json") for item in state.history_events()],
+        "snapshots": {
+            key: value.model_dump(mode="json") for key, value in state.snapshot_states().items()
+        },
         "receipts": dict(state.receipts),
         "outcomes": dict(state.outcomes),
     }
@@ -41,8 +43,10 @@ def test_failed_candidate_cannot_change_nested_extras_history_or_receipts(events
 
     def fail(candidate, incoming):
         candidate.latest.data.state.records[0].model_extra["audit"]["notes"].append("changed")
-        candidate.history[0].data.state.records[0].model_extra["audit"]["notes"].append("history")
-        candidate.snapshots[initial.data.state.snapshot_id].records[0].model_extra["audit"][
+        candidate.history_events()[0].data.state.records[0].model_extra["audit"]["notes"].append(
+            "history"
+        )
+        candidate.snapshot_states()[initial.data.state.snapshot_id].records[0].model_extra["audit"][
             "notes"
         ].append("snapshot")
         candidate.consume(incoming)
@@ -59,7 +63,7 @@ def test_failed_candidate_cannot_change_nested_extras_history_or_receipts(events
     handler.apply = PlanningProjection.consume
     assert handler.handle(updated.model_dump_json()).outcome == "applied"
     assert handler.state.outcomes["apply"] == 2
-    assert len(handler.state.history) == len(handler.state.receipts) == 2
+    assert len(handler.state.history_events()) == len(handler.state.receipts) == 2
     assert observable(projection) == before
 
 
@@ -70,14 +74,16 @@ def test_copy_and_detached_history_views_do_not_share_mutable_extras(events):
     before = observable(projection)
     cloned = deepcopy(projection)
     cloned.latest.data.state.records[0].model_extra["audit"]["notes"].append("copy")
-    cloned.history[0].data.state.records[0].model_extra["audit"]["notes"].append("view")
-    cloned.snapshots[events[0].data.state.snapshot_id].records[0].model_extra["audit"][
+    cloned.history_events()[0].data.state.records[0].model_extra["audit"]["notes"].append("view")
+    cloned.snapshot_states()[events[0].data.state.snapshot_id].records[0].model_extra["audit"][
         "notes"
     ].append("view")
     cloned.receipts.clear()
     cloned.outcomes["apply"] = 99
     assert observable(projection) == before
-    assert projection.history[0].model_dump(mode="json") == events[0].model_dump(mode="json")
+    assert projection.history_events()[0].model_dump(mode="json") == events[0].model_dump(
+        mode="json"
+    )
 
 
 def test_snapshot_reuse_preserves_json_numeric_equivalence_and_detects_change(events):
@@ -91,7 +97,7 @@ def test_snapshot_reuse_preserves_json_numeric_equivalence_and_detects_change(ev
     wire["data"]["revision"] += 1
     wire["data"]["state"]["records"][0]["audit"]["notes"].append("changed")
     assert projection.consume(PlanningSnapshotPublished.model_validate(wire)) == "conflict"
-    assert len(projection.history) == 1
+    assert len(projection.history_events()) == 1
 
 
 def test_python_tuple_extra_retries_keep_the_same_wire_meaning(events):

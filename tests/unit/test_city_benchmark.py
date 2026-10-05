@@ -45,7 +45,7 @@ def test_history_is_deterministic_accepted_and_preserves_base(base, snapshots, r
         assert step.event.time <= started + timedelta(seconds=step.frame["at_seconds"])
         assert len(step.event.data.state.records) == records
         assert projection.consume(step.event) == RevisionOutcome.APPLY
-    assert len(projection.history) == snapshots
+    assert len(projection.history_events()) == snapshots
     assert len(projection.latest.data.state.records) == records
     assert len({step.frame["at_seconds"] for step in steps}) == snapshots
 
@@ -89,7 +89,7 @@ def test_copy_instrumentation_restores_handler_and_preserves_results(base):
         )
         for step in steps:
             handler.handle(step.event.model_dump_json())
-        return [event.id for event in handler.state.history]
+        return [event.id for event in handler.state.history_events()]
 
     from urbanpulse.application import delivery
 
