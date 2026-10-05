@@ -89,7 +89,11 @@ def weather_steps(
             raise ValueError("fixture capture timestamps cannot reveal future data")
         candidates: list[tuple[str, WeatherWarningChanged]] = []
         try:
+            if not isinstance(payload, list):
+                raise ValueError("warning payload must be an array")
             for raw in payload:
+                if not isinstance(raw, dict):
+                    raise ValueError("warning record must be an object")
                 digest = payload_hash(raw)
                 event = normalized.get(digest)
                 candidates.append(

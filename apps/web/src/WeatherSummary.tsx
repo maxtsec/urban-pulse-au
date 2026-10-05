@@ -46,6 +46,10 @@ export function WeatherSummary({
             separate from warning coverage.
           </p>
         </>
+      ) : weather ? (
+        <p className="weather-summary-empty">
+          No modelled weather reading received at this scenario time.
+        </p>
       ) : (
         <div className="weather-summary-empty">
           <p>Weather information is not included in this transport scenario.</p>

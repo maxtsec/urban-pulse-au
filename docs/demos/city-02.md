@@ -2,7 +2,7 @@
 
 ## Run and inspect
 
-Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. The page opens in **Weather warnings** with modelled temperature, rainfall and wind visible above the map. Use the visible scenario buttons to switch views; the active button is highlighted and keyboard accessible. The existing tram controls and original transport scenarios remain available.
+Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. The page opens in **Weather warnings** with modelled temperature, rainfall and wind visible above the map. Use the visible scenario buttons to switch views; the active button is highlighted and keyboard accessible. Switching scenarios preserves the replay clock and map camera, pauses playback and updates `?scenario=` for reload/share and browser back/forward. A pending switch labels the previous view until the new snapshot arrives. Shared links select the scenario; a reload starts its clock at zero. The existing tram controls and original transport scenarios remain available.
 
 | Clock | What to inspect |
 | --- | --- |
@@ -18,6 +18,8 @@ Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the AP
 | 270s | A new complete capture restores current coverage and Normal. |
 | 300/330s | Unrecognised severity and missing geometry prevent a complete assessment. |
 | 360s | Those warnings expire, but incomplete coverage does not repair itself. |
+
+Open **Replay diagnostics** at 120s to inspect separate Transport and Weather counts; Weather reports two duplicates. If a weather scenario has no modelled reading yet, its summary says so while warning details remain available.
 
 The desktop map and context panels stack independently with compact spacing. On mobile, the weather summary remains above the map. Toggle **Warning areas** without removing the accessible warning list. Rewind to 30s: the original Advice state and receipt time return without later cancellation information.
 

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AREA_ID, displayTime, readJson } from './city';
 import type { Snapshot, Warning } from './city';
 import { CityMap } from './CityMap';
 import { WeatherPanel } from './WeatherPanel';
 import { WeatherSummary } from './WeatherSummary';
-import { ScenarioPicker, initialScenario } from './ScenarioPicker';
+import { ScenarioPicker, initialScenario, scenarios } from './ScenarioPicker';
+import { ReplayDiagnostics } from './ReplayDiagnostics';
 import tramIcon from './assets/tram.svg';
 import type { Boundary } from './CityMap';
 
@@ -28,8 +29,7 @@ export function App() {
         signal,
       ),
     retry: false,
-    placeholderData: (previous) =>
-      previous?.scenario === scenario ? previous : undefined,
+    placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
   });
   const snapshot = result.data;
@@ -41,6 +41,16 @@ export function App() {
     staleTime: Infinity,
     retry: false,
   });
+  useEffect(() => {
+    function restoreScenario() {
+      setScenario(initialScenario());
+      setPlaying(false);
+      setSelected(null);
+    }
+    window.addEventListener('popstate', restoreScenario);
+    return () => window.removeEventListener('popstate', restoreScenario);
+  }, []);
+
   const selectVehicle = useCallback((id: string) => setSelected(id), []);
 
   useEffect(() => {
@@ -78,6 +88,11 @@ export function App() {
     .join('; ');
 
   function changeScenario(value: string) {
+    if (value !== scenario) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('scenario', value);
+      window.history.pushState(null, '', url);
+    }
     setScenario(value);
     setPlaying(false);
     setSelected(null);
@@ -106,6 +121,12 @@ export function App() {
           <p className="area-caption">City of Melbourne · CLUE area</p>
         </section>
         <ScenarioPicker value={scenario} onChange={changeScenario} />
+        {snapshot && snapshot.scenario !== scenario && (
+          <div className="notice" role="status">
+            Loading scenario… Still showing{' '}
+            {scenarios.find((item) => item.id === snapshot.scenario)?.label}.
+          </div>
+        )}
         {snapshot && !result.isError && (
           <WeatherSummary
             weather={snapshot.weather}
@@ -131,7 +152,7 @@ export function App() {
                   setPlaying((value) => !value);
                 }
               }}
-              disabled={result.isError || !snapshot}
+              disabled={result.isError || result.isPlaceholderData || !snapshot}
             >
               {playing && seconds < endSeconds ? 'Pause' : 'Play scenario'}
             </button>
@@ -166,7 +187,7 @@ export function App() {
           </div>
         )}
         {snapshot && !result.isError && (
-          <div className="city-grid">
+          <div className="city-grid" aria-busy={result.isPlaceholderData}>
             <div className="main-column">
               <section className="map-card">
                 <div className="card-heading">
@@ -472,13 +493,16 @@ export function App() {
                 )}
                 <details>
                   <summary>Replay diagnostics</summary>
-                  <p>
-                    Applied {snapshot.projection.apply} · Duplicates{' '}
-                    {snapshot.projection.duplicate} · Superseded{' '}
-                    {snapshot.projection.superseded} · Conflicts{' '}
-                    {snapshot.projection.conflict} · Invalid{' '}
-                    {snapshot.projection.rejected}
-                  </p>
+                  <ReplayDiagnostics
+                    label="Transport"
+                    counts={snapshot.projection}
+                  />
+                  {snapshot.weather && (
+                    <ReplayDiagnostics
+                      label="Weather"
+                      counts={snapshot.weather.projection}
+                    />
+                  )}
                   <p>Policy: {snapshot.policy_version}</p>
                 </details>
               </section>

@@ -232,3 +232,153 @@ test('scenario buttons support keyboard selection and preserve the chosen clock'
   ).toContainText('18 °C');
   await expect(page.getByTestId('clock')).toHaveText('11:01:00');
 });
+
+for (const scenario of ['weather', 'weather-outage']) {
+  test(`${scenario} with no reading keeps weather context`, async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/areas/*?*', async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      data.weather.reading = null;
+      await route.fulfill({ response, json: data });
+    });
+    await page.goto(`/?scenario=${scenario}`);
+    const summary = page.getByRole('region', { name: 'Weather summary' });
+    await expect(summary).toContainText('No modelled weather reading received');
+    await expect(summary).not.toContainText('transport scenario');
+    await expect(
+      summary.getByRole('button', { name: 'Show weather' }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('region', { name: 'Weather details' }),
+    ).toBeVisible();
+  });
+}
+
+test('scenario navigation updates shareable URLs and supports browser history', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=weather&example=keep#demo');
+  await expect(
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('18 °C');
+  const scenarios = page.getByRole('group', { name: 'Scenario', exact: true });
+  await scenarios
+    .getByRole('button', { name: 'Tram journey', exact: true })
+    .click();
+  await expect(page).toHaveURL(/scenario=journey&example=keep#demo$/);
+  await expect(
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('transport scenario');
+  await page.goBack();
+  await expect(
+    scenarios.getByRole('button', { name: 'Weather warnings', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('18 °C');
+  await page.goForward();
+  await expect(
+    scenarios.getByRole('button', { name: 'Tram journey', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(
+    scenarios.getByRole('button', { name: 'Tram journey', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('transport scenario');
+  await page.getByRole('button', { name: 'Show weather', exact: true }).click();
+  await expect(page).toHaveURL(/scenario=weather&example=keep#demo$/);
+});
+
+test('scenario transition preserves the map canvas and camera while labelling previous data', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const canvas = page.locator('.maplibregl-canvas');
+  await expect(canvas).toBeVisible();
+  const original = await canvas.elementHandle();
+  const marker = page.locator('.maplibregl-marker').first();
+  await expect(marker).toBeVisible();
+  const initial = await marker.getAttribute('style');
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await expect(marker).not.toHaveAttribute('style', initial!);
+  const bounds = await canvas.boundingBox();
+  await page.mouse.move(
+    bounds!.x + bounds!.width / 2,
+    bounds!.y + bounds!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds!.x + bounds!.width / 2 + 30,
+    bounds!.y + bounds!.height / 2 + 20,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+  // Allow the zoom and drag inertia animations to settle before comparing camera position.
+  await page.waitForTimeout(1000);
+  const cameraPosition = await marker.getAttribute('style');
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/v1/areas/*?*scenario=journey', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Tram journey', exact: true }).click();
+  await expect(
+    page.getByText('Loading scenario… Still showing Weather warnings.'),
+  ).toBeVisible();
+  expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(
+    page.getByRole('button', { name: 'Play scenario', exact: true }),
+  ).toBeDisabled();
+  release();
+  await expect(
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('transport scenario');
+  await expect(page.getByText(/Loading scenario…/)).toHaveCount(0);
+  expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(marker).toHaveAttribute('style', cameraPosition!);
+});
+
+test('replay diagnostics separate weather duplicates from transport counts', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByTestId('clock')).toHaveText('11:00:00');
+  await page.getByLabel('Scenario time', { exact: true }).fill('120');
+  await expect(page.getByTestId('clock')).toHaveText('11:02:00');
+  await page.getByText('Replay diagnostics', { exact: true }).click();
+  await expect(
+    page.getByRole('group', {
+      name: 'Weather replay diagnostics',
+      exact: true,
+    }),
+  ).toContainText('Duplicates 2');
+  await expect(
+    page.getByRole('group', {
+      name: 'Transport replay diagnostics',
+      exact: true,
+    }),
+  ).toContainText('Applied');
+  await page.getByRole('button', { name: 'Tram journey', exact: true }).click();
+  await expect(
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('transport scenario');
+  await expect(
+    page.getByRole('group', {
+      name: 'Weather replay diagnostics',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('group', {
+      name: 'Transport replay diagnostics',
+      exact: true,
+    }),
+  ).toBeVisible();
+});
