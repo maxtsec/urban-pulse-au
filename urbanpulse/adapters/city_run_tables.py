@@ -19,7 +19,6 @@ runs = Table(
     Column("last_result_publication", String(36)),
     Column("area_events", Text),
     Column("semantic", Text),
-    Column("publications", Text),
 )
 checkpoints = Table(
     "event01_city_checkpoints",
