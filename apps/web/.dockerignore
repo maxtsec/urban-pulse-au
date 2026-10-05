@@ -1,2 +1,15 @@
 node_modules
 dist
+
+# Local credentials and agent instructions never belong in build contexts.
+**/.env
+**/.env.*
+**/.npmrc
+**/*.pem
+**/*.key
+**/AGENTS.md
+**/CLAUDE.md
+**/agent.md
+**/claude.md
+**/.local
+**/.git

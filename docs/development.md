@@ -155,3 +155,19 @@ The optional development container command is `docker compose --profile app up -
 After updating fixture data on an existing stack, rerun `docker compose --profile app run --rm city-init`. It atomically selects the new complete import, visible to subsequent requests. API container recreation needs no reimport when the selected history remains in PostgreSQL. Apply migrations explicitly before host-based development as described above.
 
 For isolated container validation, run `uv run --locked python scripts/compose_smoke.py`. This builds API/UI images, uses a unique Compose project and database volume with random loopback API/UI ports, verifies cold readiness and city 503 before setup, starts the full app profile, tests city/boundary/evidence through the API and UI proxy, recreates the API, and repeats initialization. It removes only that test stack and volume; logs remain in `.local/compose-smoke/`. CI runs the same script in its Compose job. Results and measured limits are in [Compose follow-up evidence](evidence/city-04-compose.md).
+
+
+## Static web packaging for the demo
+
+The web Dockerfile has separate `development` (default), `build` and `assets` targets. Existing Compose still starts the development server. Export the compiled SPA from the repository root:
+
+```powershell
+docker build --target assets --output type=local,dest=.local/web-assets apps/web
+python -O scripts/web_build_smoke.py
+```
+
+`assets` contains only the built site; it is not an HTTP server. Hosting, HTTPS, access policy and registry-digest promotion remain in the [DEMO-01 design review](https://github.com/maxtsec/urban-pulse-au/pull/19). The target avoids choosing a server before that review.
+
+Web and API build contexts exclude local environment files, npm credentials, private key files and agent instructions. Build-time public configuration must be passed through a separately reviewed interface; copying `.env` into a frontend image is unsupported.
+
+The smoke copies tracked web files from the current working tree into an isolated context, adds synthetic private-file probes, builds the real image, checks those probes are absent from the source-containing build stage, and verifies the static export has compiled assets without the Vite development entrypoint. It uses no provider keys, runs in CI and retains its log/context/assets under `.local/web-build-smoke/`; it removes only its uniquely tagged smoke image. Stage new web source files before running it so they are included. It verifies packaging, not browser behavior or a hosted deployment. See [web packaging evidence](evidence/demo-01-web-build.md).

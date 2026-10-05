@@ -49,9 +49,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python -O scripts/web_build_smoke.py
       - run: python scripts/compose_smoke.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: compose-smoke-evidence
-          path: .local/compose-smoke/
+          path: |
+            .local/compose-smoke/
+            .local/web-build-smoke/*/docker.log
