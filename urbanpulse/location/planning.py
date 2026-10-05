@@ -1,9 +1,19 @@
 """Location-owned planning profile with atomic snapshot replacement and audit history."""
 
+import json
+from datetime import datetime
 from typing import Any, Protocol
 
 from urbanpulse.contracts.events import EventReceipt, RevisionOutcome, compare_revision
-from urbanpulse.contracts.planning import PlanningSnapshot, PlanningSnapshotPublished
+from urbanpulse.contracts.planning import (
+    PlanningRecord,
+    PlanningSnapshot,
+    PlanningSnapshotPublished,
+)
+
+
+def source_time(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value is not None else None
 
 
 class PlanningMembership(Protocol):
@@ -13,11 +23,23 @@ class PlanningMembership(Protocol):
 class PlanningProjection:
     def __init__(self) -> None:
         self.latest: PlanningSnapshotPublished | None = None
-        self.history: list[PlanningSnapshotPublished] = []
+        self._history: list[str] = []
         self._latest_receipt: EventReceipt | None = None
         self.receipts: dict[tuple[str, str], EventReceipt] = {}
-        self.snapshots: dict[str, PlanningSnapshot] = {}
+        self._snapshots: dict[str, str] = {}
         self.outcomes = {outcome.value: 0 for outcome in RevisionOutcome}
+
+    @property
+    def history(self) -> list[PlanningSnapshotPublished]:
+        """Detached views of accepted envelopes; retained JSON is immutable."""
+        return [PlanningSnapshotPublished.model_validate_json(wire) for wire in self._history]
+
+    @property
+    def snapshots(self) -> dict[str, PlanningSnapshot]:
+        return {
+            identity: PlanningSnapshotPublished.model_validate_json(wire).data.state
+            for identity, wire in self._snapshots.items()
+        }
 
     def consume(self, event: PlanningSnapshotPublished) -> RevisionOutcome:
         receipt = EventReceipt.from_event(event)
@@ -26,9 +48,11 @@ class PlanningProjection:
             self._latest_receipt,
             prior_receipt=self.receipts.get((event.source, event.id)),
         )
-        prior_snapshot = self.snapshots.get(event.data.state.snapshot_id)
-        if prior_snapshot is not None and prior_snapshot != event.data.state:
-            outcome = RevisionOutcome.CONFLICT
+        prior_wire = self._snapshots.get(event.data.state.snapshot_id)
+        if prior_wire is not None:
+            prior_state = json.loads(prior_wire)["data"]["state"]
+            if prior_state != event.data.state.model_dump(mode="json"):
+                outcome = RevisionOutcome.CONFLICT
         if outcome == RevisionOutcome.APPLY and self.latest:
             before, after = self.latest.data.state, event.data.state
             if before.as_of is not None and (
@@ -41,8 +65,11 @@ class PlanningProjection:
         if outcome == RevisionOutcome.APPLY:
             self.latest = event
             self._latest_receipt = receipt
-            self.history.append(event)
-            self.snapshots[event.data.state.snapshot_id] = event.data.state
+            # Deep-copying a candidate retains these immutable strings instead of
+            # recursively copying every historical record and its optional extras.
+            wire = event.model_dump_json()
+            self._history.append(wire)
+            self._snapshots[event.data.state.snapshot_id] = wire
         if outcome != RevisionOutcome.CONFLICT:
             self.receipts[(event.source, event.id)] = receipt
         return outcome
@@ -52,11 +79,18 @@ class PlanningProjection:
             return {"records": [], "unlocated_records": [], "removed_records": [], "snapshots": []}
         current = {r.development_key: r for r in self.latest.data.state.records}
         removed = {}
-        for event in self.history[:-1]:
-            for record in event.data.state.records:
-                if record.development_key not in current:
-                    removed[record.development_key] = (record, event.data.state.as_of)
-        candidates = [*current.values(), *(item[0] for item in removed.values())]
+        # These envelopes were validated at acceptance. Decode plain
+        # values once; rebuild typed records only when the removed-record view needs them.
+        history = [json.loads(wire) for wire in self._history]
+        for previous in history[:-1]:
+            snapshot = previous["data"]["state"]
+            for record in snapshot["records"]:
+                if record["development_key"] not in current:
+                    removed[record["development_key"]] = (record, source_time(snapshot["as_of"]))
+        candidates = [
+            *current.values(),
+            *(PlanningRecord.model_validate(item[0]) for item in removed.values()),
+        ]
         located = [record for record in candidates if record.position is not None]
         membership = (
             spatial.covers(
@@ -86,7 +120,11 @@ class PlanningProjection:
             "unlocated_records": sorted(unlocated, key=lambda r: r["development_key"]),
             "removed_records": sorted(removed_records, key=lambda r: r["development_key"]),
             "snapshots": [
-                {"id": e.data.state.snapshot_id, "as_of": e.data.state.as_of, "event_id": e.id}
-                for e in self.history
+                {
+                    "id": item["data"]["state"]["snapshot_id"],
+                    "as_of": source_time(item["data"]["state"]["as_of"]),
+                    "event_id": item["id"],
+                }
+                for item in history
             ],
         }
