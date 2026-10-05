@@ -17,7 +17,23 @@ The bootstrap operator runs it with their own Google account. CI never runs `pla
 
 The claim values live in [`github-oidc-policy.json`](../../infra/bootstrap/github-oidc-policy.json). Terraform turns each section into exact-match CEL: the `provider` section becomes the provider's attribute condition, and the `image_builder` section sets the `attribute.image_builder` mapping to `allowed` only when every claim matches. The builder binding trusts only `attribute.image_builder/allowed`. [Policy tests](../../tests/unit/test_github_oidc_policy.py) evaluate the same file against push, pull-request, pull-request-target, dispatch, branch, tag, workflow and repository variants. Change the workflow file name or allowed event only by editing that file and its tests together.
 
-Anyone who can push to `main`, or merge a change to the image workflow, can publish images. Protect the branch (pull requests and passing checks before merge) before adding the image workflow. Deployment remains a separate identity and workflow, added in a later reviewed change.
+Anyone who can push to `main`, or merge a change to the image workflow, can publish images. The branch rules below protect that publication boundary before the image workflow is added. Deployment remains a separate identity and workflow, added in a later reviewed change.
+
+## Main branch rules
+
+Read-only verified on 6 October 2026: repository ruleset [main, ID 24537367](https://github.com/maxtsec/urban-pulse-au/rules/24537367) is **active**, targets `~DEFAULT_BRANCH` (currently `main`) with no exclusions, and has no bypass actors.
+
+| Rule | Enforced setting |
+| --- | --- |
+| Pull requests | Required; allowed merge method is rebase only |
+| Required approvals | 0 in GitHub configuration; this does not imply that a PR has been reviewed |
+| History | Linear history; force pushes and branch deletion blocked |
+| Required checks | Exact contexts **`checks`**, **`terraform`**, **`compose`**, from GitHub Actions (integration ID `15368`) |
+| Up-to-date requirement | Strict: the PR branch must be up to date before the required checks permit merging |
+
+All three contexts are jobs in [`check.yml`](../../.github/workflows/check.yml). Treat their job/display names as an interface with this ruleset. Before renaming or removing one, coordinate the ruleset change, confirm the replacement context actually runs on the PR head, and retain the old context until the transition is ready. A successful differently named job does not satisfy an old required name; a skipped workflow can leave the required check pending.
+
+To diagnose a blocked PR, compare its head's check contexts/results with the active ruleset and the effective rules returned by `GET /repos/maxtsec/urban-pulse-au/rules/branches/main`. Record deliberate ruleset changes here. This verification establishes branch enforcement only; successful and denied federated publishing still need the image-workflow acceptance described below.
 
 ## Apply
 

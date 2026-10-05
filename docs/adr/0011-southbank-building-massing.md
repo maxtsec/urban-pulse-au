@@ -109,7 +109,7 @@ The legend states that animated tram positions are shown 30 seconds behind the s
 
 #### MAP-02 animation inputs
 
-The current area API exposes only the latest position per vehicle. The [proposed animation input contract](../architecture/tram-animation-input-contract.md) specifies original receipt/observation times, bounded historical samples, pinned trip/shape linkage and deterministic direct-seek reconstruction. It recommends an additive projection in the same area snapshot, capped at three observations per included vehicle. API placement and those proposed bounds await architect review before MAP-02 implementation; the display-delay and truthful-animation rules above remain accepted.
+The current area API exposes only the latest position per vehicle, and the transport event/fixture has no trip identity. MAP-02 first requires an accepted public transport-contract change and trip-complete fixtures linked to a verified GTFS release. The [input proposal](../architecture/tram-animation-input-contract.md) covers that prerequisite, continuous scenario-clock playback over complete bounded windows, display-time trip transitions, revision acceptance and API-placement choices with [payload estimates](../evidence/map-02-animation-payload.md). The clock/query protocol, field format and bounds remain Proposed; merging the document does not accept them. Option B would also require approval to amend this ADR's unchanged-request rule for view toggles. The first-observation static exception above refers to the vehicle's first observation, not each new trip; observed fallbacks retain their actual timestamp label.
 
 #### Weather gating
 
@@ -133,7 +133,7 @@ Interpolation, track matching and these display windows are presentation rules o
 | ID | Scope | Additional prerequisite |
 | --- | --- | --- |
 | MAP-01 | deck.gl overlay, 3D view control, transparent massing, legend and credits | Building fixture |
-| MAP-02 | 3D tram model and interpolation along GTFS shapes | GTFS shapes fixture; tram model asset licence; [animation input contract acceptance](../architecture/tram-animation-input-contract.md) |
+| MAP-02 | 3D tram model and interpolation along GTFS shapes | Accepted transport event/trip metadata and updated fixture; verified GTFS shapes; tram model asset licence; [playback/API contract acceptance](../architecture/tram-animation-input-contract.md) |
 | MAP-03 | Weather particles and warning pulse | None beyond existing fixtures |
 | MAP-04 | Construction models at DAM points | Model asset licence |
 | MAP-05 | Simulated traffic trails | Road-line fixture |
