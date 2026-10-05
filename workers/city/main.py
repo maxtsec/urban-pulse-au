@@ -34,12 +34,16 @@ def main() -> int:
     inspect.add_argument("--seconds", type=int)
     run = commands.add_parser("run")
     run.add_argument("--once", action="store_true")
+    commands.add_parser("metrics", help="read input/result consumer backlog and failure counts")
     args = parser.parse_args()
     engine = None
     try:
         url = Settings().database_url
         engine = engine_for(url)
         queue = PostgresRecoveryStore(engine)
+        if args.command == "metrics":
+            emit({"consumers": [queue.metrics(name) for name in (CONSUMER, RESULT_CONSUMER)]})
+            return 0
         inputs = CityInputStore(engine)
         city = PostgresCityRuns(queue, inputs, PostgisMembership(url))
         if args.command == "create":

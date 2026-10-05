@@ -41,6 +41,32 @@ The producer prepares only missing checkpoints after the completed clock, reusin
 
 Both input and result deliveries have per-consumer predecessor dependencies. A pending, leased or dead-lettered predecessor prevents claiming its successor without consuming retry attempts. Other consumers and runs continue. This is ordered delivery within an explicit lane, not global queue ordering.
 
+## Monitor both city consumers
+
+```powershell
+uv run --locked python -m workers.city.main metrics
+```
+
+For the container installation:
+
+```powershell
+docker compose run --rm --no-deps city-worker /app/.venv/bin/python -m workers.city.main metrics
+```
+
+The read-only command returns `consumers`, containing `city-location-v1` (domain inputs) and `city-results-v1` (derived area events). It requires the queue schema but no active fixture import, run or spatial reconstruction. Database/schema failure returns exit code 2 and a sanitized error, never a partial or all-zero success report.
+
+Each consumer uses the existing queue metric definitions:
+
+| Field | Interpretation |
+| --- | --- |
+| `counts` | Current delivery counts by status; absent statuses have zero deliveries |
+| `backlog_count` | Pending, leased and retry deliveries across all runs for this consumer |
+| `backlog_age_seconds` | Age of the oldest original delivery still in that backlog; zero when empty; replay retains original age |
+| `retry_count` | Deliveries currently waiting in retry, not cumulative attempts |
+| `dead_letter_count` | Deliveries currently dead-lettered; inspect/replay using the existing operator commands |
+
+These are separate consumer reads, not one atomic cross-consumer snapshot. No run/event IDs become metric dimensions. Zero backlog does not mean a run is complete: dead letters are reported separately, and future scheduled checkpoints have not yet published deliveries. Check `inspect <run-id>` for checkpoint errors, blocked publications, target and completed clocks. Result delivery may lag an already completed checkpoint.
+
 ## Restart across warning expiry
 
 Create a fresh run with `--scenario weather-outage`, advance to 239 and let it complete. Stop the worker, advance to 240, then recreate/start the worker. The persisted timer checkpoint changes Degraded to Unknown after the warning expires, even though no new weather capture arrives. Unknown remains explainable through missing current coverage.
