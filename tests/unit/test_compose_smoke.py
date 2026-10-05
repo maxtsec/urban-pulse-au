@@ -177,7 +177,7 @@ def test_cleanup_enables_every_profile_and_checks_all_resource_types(monkeypatch
     assert cleanup[down - 2 : down] == ["--profile", "*"]
     assert cleanup[down:] == ["down", "--volumes", "--remove-orphans"]
     project = cleanup[cleanup.index("--project-name") + 1]
-    assert [q[1] for q in queried] == ["container", "network", "volume"]
+    assert [q[1] for q in queried[-3:]] == ["container", "network", "volume"]
     assert "--all" in queried[0]
     assert all(q[-1] == f"label=com.docker.compose.project={project}" for q in queried)
 
@@ -187,9 +187,11 @@ def test_cleanup_reports_surviving_resources(monkeypatch, resource):
     monkeypatch.setattr(
         compose_smoke.subprocess,
         "check_output",
-        lambda command, **kwargs: "leftover\n" if command[1] == resource else "",
+        lambda command, **kwargs: (
+            "[]" if "inspect" in command else "leftover\n" if command[1] == resource else ""
+        ),
     )
-    with pytest.raises(RuntimeError, match=f"labelled resources:.*{resource}.*leftover"):
+    with pytest.raises(RuntimeError, match=f"left resources:.*{resource}.*leftover"):
         compose_smoke.cleanup_stack("urbanpulse-smoke-0123456789ab", MagicMock())
 
 
@@ -216,9 +218,122 @@ def test_leftovers_do_not_hide_an_earlier_smoke_failure(monkeypatch, smoke):
 
     monkeypatch.setattr(compose_smoke.subprocess, "run", run)
     monkeypatch.setattr(
-        compose_smoke.subprocess, "check_output", lambda *args, **kwargs: "leftover\n"
+        compose_smoke.subprocess,
+        "check_output",
+        lambda command, **kwargs: "[]" if "inspect" in command else "leftover\n",
     )
     with pytest.raises(RuntimeError, match="original build failure") as caught:
         compose_smoke.main()
     assert caught.value is original
-    assert "labelled resources" in original.__notes__[0]
+    assert "left resources" in original.__notes__[0]
+
+
+PROJECT = "urbanpulse-smoke-0123456789ab"
+
+
+def test_mount_inventory_includes_anonymous_and_named_volumes_but_not_binds(monkeypatch):
+    commands = []
+
+    def output(command, **kwargs):
+        commands.append(command)
+        if "inspect" not in command:
+            return "redis-container\npostgres-container\n"
+        if command[-1] == "redis-container":
+            return json.dumps(
+                [
+                    {"Type": "volume", "Name": "anonymous-redis"},
+                    {"Type": "bind", "Source": "/local/config"},
+                ]
+            )
+        return json.dumps([{"Type": "volume", "Name": "named-postgres"}])
+
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", output)
+    assert compose_smoke.project_volumes(PROJECT) == {"anonymous-redis", "named-postgres"}
+    assert commands[0][-1] == f"label=com.docker.compose.project={PROJECT}"
+    assert "--all" in commands[0]
+    assert all(command[-2] == "{{json .Mounts}}" for command in commands[1:])
+
+
+@pytest.mark.parametrize("survives", [False, True])
+def test_cleanup_checks_unlabelled_mounts_without_touching_unrelated_volumes(monkeypatch, survives):
+    monkeypatch.setattr(compose_smoke, "project_volumes", lambda project: {"anonymous-redis"})
+
+    def output(command, **kwargs):
+        if command == ["docker", "volume", "ls", "--quiet"]:
+            return "unrelated-volume\n" + ("anonymous-redis\n" if survives else "")
+        return ""
+
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", output)
+    run = MagicMock()
+    if survives:
+        with pytest.raises(RuntimeError, match="recorded volume mounts.*anonymous-redis"):
+            compose_smoke.cleanup_stack(PROJECT, run)
+    else:
+        compose_smoke.cleanup_stack(PROJECT, run)
+    run.assert_called_once_with("down", "--volumes", "--remove-orphans", all_profiles=True)
+
+
+def test_remembers_mount_after_owning_container_is_removed(monkeypatch, smoke):
+    mounted = {"old-redis-anonymous"}
+    monkeypatch.setattr(compose_smoke, "project_volumes", lambda project: set(mounted))
+    original = compose_smoke.subprocess.check_output
+
+    def output(command, **kwargs):
+        if command == ["docker", "volume", "ls", "--quiet"]:
+            return "old-redis-anonymous\n"
+        return original(command, **kwargs)
+
+    def remove_redis(base, run, *args):
+        # Model a faulty removal: the mount disappears from the project's containers,
+        # but its anonymous volume survives without a project label.
+        run("rm", "-f", "redis")
+        mounted.clear()
+
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", output)
+    monkeypatch.setattr(compose_smoke, "verify_cache_modes", remove_redis)
+    with pytest.raises(RuntimeError, match="recorded volume mounts.*old-redis-anonymous"):
+        compose_smoke.main()
+
+
+@pytest.mark.parametrize("down_fails", [False, True])
+def test_inventory_failure_still_attempts_teardown_and_never_claims_success(
+    monkeypatch, down_fails
+):
+    def fail(project):
+        raise OSError("Docker inspection unavailable")
+
+    monkeypatch.setattr(compose_smoke, "project_volumes", fail)
+    run = MagicMock(side_effect=RuntimeError("down failed") if down_fails else None)
+    with pytest.raises(RuntimeError) as caught:
+        compose_smoke.cleanup_stack(PROJECT, run)
+    run.assert_called_once_with("down", "--volumes", "--remove-orphans", all_profiles=True)
+    if down_fails:
+        assert "down failed" in str(caught.value)
+        assert "Docker inspection unavailable" in caught.value.__notes__[0]
+    else:
+        assert "Cannot verify cleanup" in str(caught.value)
+        assert isinstance(caught.value.__cause__, OSError)
+
+
+def test_cache_transition_removes_old_redis_volume_before_creating_replacement(monkeypatch):
+    old_volume_exists = True
+    cache_enabled = True
+    healthy = {"status": "ok", "postgis": "ok", "redis": "ok", "mode": "fixture"}
+    view = {"city": "fixture"}
+
+    def run(*args, no_cache=False):
+        nonlocal old_volume_exists, cache_enabled
+        if args[0] == "rm":
+            old_volume_exists = "-v" not in args
+        if args[0] == "up":
+            cache_enabled = not no_cache
+            # Check the leak at the point when Compose no longer owns the old volume.
+            assert not old_volume_exists
+
+    def read(endpoint, expected=200):
+        if endpoint.endswith("/health/ready") and expected == 200:
+            return {**healthy, "redis": "ok" if cache_enabled else "disabled"}
+        return view
+
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", lambda *args, **kwargs: "")
+    compose_smoke.verify_cache_modes([], run, read, lambda *args: "http://api", "/city", view)

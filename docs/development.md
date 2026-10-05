@@ -176,7 +176,7 @@ For isolated container validation, run `uv run --locked python scripts/compose_s
 
 ## Isolated smoke cleanup
 
-`python -O scripts/compose_smoke.py` owns a uniquely named `urbanpulse-smoke-<12 hex digits>` project. Teardown enables all profiles so stopped recovery/city workers are included, then removes that project's containers, networks and volumes. It queries each resource type by exact Compose project label and reports success only when all are absent. A cleanup error fails an otherwise successful run; when the smoke already failed, cleanup details are attached without hiding the original error.
+`python -O scripts/compose_smoke.py` owns a uniquely named `urbanpulse-smoke-<12 hex digits>` project. Teardown enables all profiles so stopped recovery/city workers are included, then removes that project's containers, networks and volumes. It queries each resource type by exact Compose project label. Before container recreation/removal and final teardown, it also records mounted volume names; all must disappear, including anonymous volumes without project labels. The cache transition removes Redis with `rm -f -v redis`. An inventory failure still attempts teardown and prevents a successful cleanup report. A cleanup error fails an otherwise successful run; when the smoke already failed, cleanup details are attached without hiding the original error.
 
 The normal development project and its database volume are outside this cleanup scope. [Cleanup evidence](evidence/compose-smoke-cleanup.md) records verification and the corrected historical limitation.
 
