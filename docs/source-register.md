@@ -15,6 +15,7 @@ The architect selected **Southbank CLUE** and **Yarra Trams positions, trip upda
 | Planning & Infrastructure | [City of Melbourne Development Activity Monitor](https://data.melbourne.vic.gov.au/explore/dataset/development-activity-monitor/)                                                | Public API, CC BY 4.0, monthly cadence; 128 Southbank records; all pilot points matched named polygons in the inspected snapshot                                              | Accept this planning slice and retention duration; define identity/change/deletion handling and attribution; verify capture/retrieval                                        |
 | Spatial foundation        | [CLUE small areas](https://data.melbourne.vic.gov.au/explore/dataset/small-areas-for-census-of-land-use-and-employment-clue/)                                                    | Southbank selected; CC BY 4.0; boundary geometry and publication timestamps inspected                                                                                         | AREA-01 defines internal ID, version/hash, coordinate validation, boundary-edge and catchment rules                                                                          |
 | Road incidents/works      | Additional official source to evaluate separately                                                                                                                                | GTFS and DAM do not establish comprehensive road incident or works coverage                                                                                                   | Verify access, spatial/temporal fields and ownership before adding a road layer                                                                                              |
+| Map context (proposed) | [City of Melbourne 2023 Building Footprints](https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/) | CC BY 4.0; stacked footprints with AHD elevations and heights; 1,189 polygons intersect Southbank (6 October 2026) | Architect acceptance of [ADR 0011](adr/0011-southbank-building-massing.md); retained-fixture manifest, attribution and recent-construction limitation |
 
 The candidate warning scope includes severe weather, severe thunderstorm, riverine flood and flash flood. Riverine flooding is relevant to the Southbank/Yarra pilot; inclusion as a candidate does not prove local applicability or complete feed coverage. Verify and enable each product independently. Heat and station observations require separate product evaluation. The provider category `Met` is not an accepted substitute for that evaluation. Fire, hazmat and road incidents are outside this slice. Preserve official severity and source links; an application status is not official emergency guidance.
 
@@ -62,6 +63,23 @@ Verify whether VicEmergency exposes a feed-level generation timestamp and what i
 ### Modelled weather access
 
 Open-Meteo service access and data licensing are separate considerations. Verify current request accounting/limits for the selected query, application eligibility, required credits and stored-output use against its official terms. Keep model identity, units and effective times; receiving model data cannot make warning coverage current. Follow ADR 0005 for informational readings and warning severity; do not apply VicEmergency levels to BOM.
+
+## Building massing context
+
+Status: proposed in [ADR 0011](adr/0011-southbank-building-massing.md); not enabled.
+
+| Field | Record |
+| --- | --- |
+| Product | City of Melbourne **2023 Building Footprints**, dataset ID `2023-building-footprints`, [catalogue page](https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/) |
+| Access | Public Opendatasoft API; no credentials. Exports filtered with `intersects(geo_shape, …)` against the retained Southbank boundary |
+| Licence and attribution | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Credit City of Melbourne and the dataset, link the licence, and state the modifications (filtered to Southbank, `Structure` only, properties reduced, heights converted to relative values, coordinates rounded) |
+| Content | Footprint polygons where walls meet the ground or podium, stacked for podiums, towers and setbacks. Fields used: `structure_id`, `footprint_type`, `footprint_min_elevation`, `footprint_max_elevation`, `structure_min_elevation`, `date_captured`. Elevations use the Australian Height Datum |
+| Time semantics | Catalogue metadata modified 10 April 2024; polygon `date_captured` ranges from 28 May 2018 to 11 May 2023. Neither date is an observation of current construction; DAM developments completed after capture can be absent |
+| Southbank coverage (6 October 2026) | 1,189 intersecting polygons for 387 structures: Structure 1,108, Tram Stop 34, Bridge 30, Jetty 15, Toilet 1, Tunnel 1. No missing heights. Unfiltered export about 1.49 MB |
+| Use | Visual context only. Never an input to area membership, conditions, coverage, warning applicability, planning matching or routing |
+| Retention | Static fixture retained in the repository with its manifest. Refresh only through a reviewed change; no polling or live capture |
+
+Retained fixtures record the export query, retrieval date, source response SHA-256, fixture SHA-256, included and rejected counts and the modification note. Recheck the licence and field definitions when refreshing the fixture.
 
 ## Common geography and time
 
