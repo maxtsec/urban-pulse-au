@@ -50,7 +50,7 @@ Measured on 6 October 2026 through the dataset's public API, using the retained 
 | --- | --- |
 | Intersecting footprint polygons | 1,189 (387 distinct structures; 209 structures have stacked components) |
 | Footprint types | Structure 1,108; Tram Stop 34; Bridge 30; Jetty 15; Toilet 1; Tunnel 1 |
-| Polygon `date_captured` | 907 from 2018-05-28, 185 from 2022-01-20, 95 from 2023-05-11 |
+| Polygon `date_captured` | 907 from 2018-05-28, 2 from 2020-05-15, 185 from 2022-01-20, 95 from 2023-05-11 |
 | Structure height (`structure_extrusion`) | Median 16.9 m; maximum 316.5 m; no missing values |
 | Unfiltered GeoJSON export | About 1.49 MB, about 30,300 vertices |
 
@@ -107,6 +107,10 @@ Let *t* be the scenario clock. The 3D tram layer may use only position observati
 
 The legend states that animated tram positions are shown 30 seconds behind the scenario clock. The tram list, selection details and API keep showing the latest received observation at *t*. Changing *D* is a versioned presentation change.
 
+#### MAP-02 animation inputs
+
+The current area API exposes only the latest position per vehicle. The [proposed animation input contract](../architecture/tram-animation-input-contract.md) specifies original receipt/observation times, bounded historical samples, pinned trip/shape linkage and deterministic direct-seek reconstruction. It recommends an additive projection in the same area snapshot, capped at three observations per included vehicle. API placement and those proposed bounds await architect review before MAP-02 implementation; the display-delay and truthful-animation rules above remain accepted.
+
 #### Weather gating
 
 Rain and warning animation use different inputs and fail independently. Warning-feed coverage (`weather.coverage`) never switches rain on or off.
@@ -129,7 +133,7 @@ Interpolation, track matching and these display windows are presentation rules o
 | ID | Scope | Additional prerequisite |
 | --- | --- | --- |
 | MAP-01 | deck.gl overlay, 3D view control, transparent massing, legend and credits | Building fixture |
-| MAP-02 | 3D tram model and interpolation along GTFS shapes | GTFS shapes fixture; tram model asset licence |
+| MAP-02 | 3D tram model and interpolation along GTFS shapes | GTFS shapes fixture; tram model asset licence; [animation input contract acceptance](../architecture/tram-animation-input-contract.md) |
 | MAP-03 | Weather particles and warning pulse | None beyond existing fixtures |
 | MAP-04 | Construction models at DAM points | Model asset licence |
 | MAP-05 | Simulated traffic trails | Road-line fixture |
