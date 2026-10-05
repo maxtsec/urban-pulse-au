@@ -19,6 +19,51 @@ from urbanpulse.application.durable_delivery import (
 
 
 class PostgresRecoveryStore(PostgresEventStore):
+    def release_infrastructure(self, claim: DeliveryClaim) -> str:
+        with self.transaction() as transaction:
+            connection = transaction.connection
+            row = (
+                connection.execute(
+                    select(deliveries, publications.c.context)
+                    .join(publications)
+                    .where(deliveries.c.id == claim.delivery_id)
+                    .with_for_update(of=deliveries)
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if (
+                row is None
+                or row["generation"] != claim.generation
+                or row["context"] != claim.context
+                or row["consumer"] != claim.consumer
+            ):
+                raise StaleClaim("infrastructure claim was replaced or does not exist")
+            # A lost commit acknowledgement may hide a successful completion or failure record.
+            if row["status"] != "leased":
+                return str(row["outcome"] or row["status"])
+            now = clock(connection)
+            connection.execute(
+                update(deliveries)
+                .where(deliveries.c.id == claim.delivery_id)
+                .values(
+                    status="retry",
+                    outcome="infrastructure-error",
+                    lease_until=None,
+                    attempt_count=row["attempt_count"] - 1,
+                    available_at=now + timedelta(seconds=1),
+                )
+            )
+            connection.execute(
+                update(attempts)
+                .where(
+                    attempts.c.delivery_id == claim.delivery_id,
+                    attempts.c.generation == claim.generation,
+                )
+                .values(ended_at=now, outcome="infrastructure-error")
+            )
+        return "infrastructure-error"
+
     def fail(self, claim: DeliveryClaim, category: FailureCategory) -> str:
         category = FailureCategory(category)
         with self.transaction() as transaction:
@@ -129,25 +174,32 @@ class PostgresRecoveryStore(PostgresEventStore):
                 )
                 if row is None:
                     raise LookupError("unknown delivery")
-                return {
-                    **dict(row),
-                    "attempts": [
-                        dict(item)
-                        for item in connection.execute(
-                            select(attempts)
-                            .where(attempts.c.delivery_id == delivery_id)
-                            .order_by(attempts.c.generation)
-                        ).mappings()
-                    ],
-                    "replays": [
-                        dict(item)
-                        for item in connection.execute(
-                            select(replays)
-                            .where(replays.c.delivery_id == delivery_id)
-                            .order_by(replays.c.generation)
-                        ).mappings()
-                    ],
-                }
+                history = [
+                    dict(item)
+                    for item in connection.execute(
+                        select(replays)
+                        .where(replays.c.delivery_id == delivery_id)
+                        .order_by(replays.c.generation)
+                    ).mappings()
+                ]
+                attempted = [
+                    dict(item)
+                    for item in connection.execute(
+                        select(attempts)
+                        .where(attempts.c.delivery_id == delivery_id)
+                        .order_by(attempts.c.generation)
+                    ).mappings()
+                ]
+                for attempt in attempted:
+                    attempt["replay_generation"] = max(
+                        (
+                            replay["generation"]
+                            for replay in history
+                            if replay["generation"] <= attempt["generation"]
+                        ),
+                        default=None,
+                    )
+                return {**dict(row), "attempts": attempted, "replays": history}
 
     def list_deliveries(self, context: str, *, limit: int = 100) -> list[dict[str, Any]]:
         validate_key(context)

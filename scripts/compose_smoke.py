@@ -4,8 +4,10 @@ import json
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,6 +17,52 @@ ROOT = Path(__file__).resolve().parents[1]
 def require_equal(actual: object, expected: object, context: str) -> None:
     if actual != expected:
         raise RuntimeError(f"{context}: city response changed")
+
+
+def verify_database_restart(
+    base: list[str],
+    run: Callable[..., None],
+    recovery: Callable[..., object],
+) -> None:
+    """Restart only the generated smoke project's database and keep its worker alive."""
+    run("up", "-d", "--no-deps", "recovery-worker")
+    container = subprocess.check_output(
+        [*base, "ps", "-q", "recovery-worker"], cwd=ROOT, text=True
+    ).strip()
+
+    def incarnation() -> str:
+        return subprocess.check_output(
+            ["docker", "inspect", "--format", "{{.State.StartedAt}} {{.RestartCount}}", container],
+            cwd=ROOT,
+            text=True,
+        ).strip()
+
+    before = incarnation()
+    run("stop", "postgres")
+    deadline = time.monotonic() + 30
+    while True:
+        logs = subprocess.check_output(
+            [*base, "logs", "--no-color", "recovery-worker"],
+            cwd=ROOT,
+            text=True,
+        )
+        if '"error": "database-unavailable"' in logs:
+            break
+        if time.monotonic() >= deadline:
+            raise RuntimeError("worker did not report the database outage")
+        time.sleep(0.25)
+    run("up", "-d", "--wait", "postgres")
+    recovery("seed-probe", "--context", "compose-after-db-restart")
+    deadline = time.monotonic() + 75
+    while True:
+        rows = recovery("list", "--context", "compose-after-db-restart")
+        if isinstance(rows, list) and rows and rows[0].get("status") == "complete":
+            break
+        if time.monotonic() >= deadline:
+            raise RuntimeError("worker did not resume after database restart")
+        time.sleep(0.5)
+    require_equal(incarnation(), before, "Worker survived database restart")
+    run("stop", "recovery-worker")
 
 
 def main() -> None:
@@ -138,9 +186,12 @@ def main() -> None:
                 raise RuntimeError("recovery replay must return a result")
             require_equal(repeated["status"], "duplicate", "Recovery replay")
             require_equal(read(api + route), view, "Recovery worker isolation")
+            print("Restarting isolated database while worker stays running", flush=True)
+            verify_database_restart(base, run, recovery)
+            require_equal(read(api + route), view, "Database restart isolation")
             print(
                 "Compose smoke passed: cold readiness, initializer, city/boundary/evidence, "
-                "proxy, recreation and independent worker replay",
+                "proxy, recreation, worker replay and database restart recovery",
                 flush=True,
             )
         finally:

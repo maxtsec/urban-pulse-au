@@ -10,12 +10,14 @@ Separate Python processes are terminated after a claim, after an uncommitted eff
 
 Diagnostics tests ensure exception text and database passwords do not appear in persisted failure records or CLI output. Migration checks preserve existing work and refuse downgrade when it would erase retry/replay/probe data. No cleanup command deletes production delivery history.
 
+Review regressions create a real two-transaction deadlock, raise PostgreSQL serialization failures, and terminate each test connection after a local effect. Recognized database failures roll back and retain infrastructure attempts without consuming the handler budget; successful retry writes once. Tests also cover delayed reconciliation, lost commit acknowledgement, idempotent refunds, stale fences, capped/resettable polling backoff and consecutive replay generations with audit links.
+
 ## Check results
 
 - Ruff lint/format and mypy passed; frontend lint/format and production build passed.
-- Unit/API suite: 377 passed.
-- Real PostgreSQL/PostGIS integration suite: 92 passed, including 16 worker/recovery cases and the existing 25 ledger cases.
-- Actual Compose smoke passed under `python -O`: cold readiness, migration/import, city/boundary/evidence, proxy, API recreation, repeated initialization, independent worker execution and replay. Its isolated stack and volume were removed afterward.
+- Unit/API suite: 380 passed.
+- Real PostgreSQL/PostGIS integration suite: 98 passed, including 22 worker/recovery cases and the existing 25 ledger cases.
+- Actual Compose smoke passed under `python -O`: cold readiness, migration/import, city/boundary/evidence, proxy, API recreation, repeated initialization, independent worker execution and replay, plus recovery by the same continuous worker after its isolated PostgreSQL container restarts. Its isolated stack and volume were removed afterward.
 - Browser code is unchanged; this checkpoint verifies the UI production build and Compose proxy, with browser e2e also configured in CI.
 
 ## Remaining evidence

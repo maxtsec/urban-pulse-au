@@ -66,7 +66,7 @@ services:
     command: [/app/.venv/bin/python, -m, workers.events.main, run]
     depends_on:
       postgres: {condition: service_healthy}
-    restart: "no"
+    restart: on-failure
   web:
     profiles: [app]
     build:

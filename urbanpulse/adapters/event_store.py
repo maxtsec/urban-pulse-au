@@ -13,8 +13,17 @@ from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 
-from urbanpulse.adapters.event_tables import attempts, cursors, deliveries, publications, receipts
+from urbanpulse.adapters.event_tables import (
+    attempts,
+    cursors,
+    deliveries,
+    publications,
+    receipts,
+    replays,
+)
 from urbanpulse.application.durable_delivery import (
     MAX_ATTEMPTS,
     DeliveryClaim,
@@ -22,6 +31,7 @@ from urbanpulse.application.durable_delivery import (
     InvalidPublication,
     PublicationConflict,
     StaleClaim,
+    StorageUnavailable,
     TransactionAborted,
     receipt_from_wire,
     retry_delay,
@@ -194,14 +204,19 @@ class PostgresEventStore:
 
     @contextmanager
     def transaction(self) -> Iterator[PostgresEventTransaction]:
-        with self.engine.connect().execution_options(
-            isolation_level="READ COMMITTED"
-        ) as connection:
-            with connection.begin():
-                transaction = PostgresEventTransaction(connection)
-                yield transaction
-                if transaction.failed:
-                    raise TransactionAborted("a failed event operation aborted this transaction")
+        try:
+            with self.engine.connect().execution_options(
+                isolation_level="READ COMMITTED"
+            ) as connection:
+                with connection.begin():
+                    transaction = PostgresEventTransaction(connection)
+                    yield transaction
+                    if transaction.failed:
+                        raise TransactionAborted(
+                            "a failed event operation aborted this transaction"
+                        )
+        except (DBAPIError, PoolTimeout) as error:
+            raise StorageUnavailable("database transaction unavailable") from error
 
     def claim(
         self, consumer: str, *, limit: int = 1, lease_seconds: float = 30
@@ -273,6 +288,22 @@ class PostgresEventStore:
                     if due > now:
                         continue
                 generation = row["generation"] + 1
+                if row["status"] == "pending" and row["generation"] > 0:
+                    # Replay reserves the next fence; its first claim uses that same generation.
+                    reserved = connection.execute(
+                        select(replays.c.generation).where(
+                            replays.c.delivery_id == row["id"],
+                            replays.c.generation == row["generation"],
+                            ~select(attempts.c.generation)
+                            .where(
+                                attempts.c.delivery_id == row["id"],
+                                attempts.c.generation == row["generation"],
+                            )
+                            .exists(),
+                        )
+                    ).scalar_one_or_none()
+                    if reserved is not None:
+                        generation = reserved
                 deadline = now + timedelta(seconds=lease_seconds)
                 connection.execute(
                     update(deliveries)
