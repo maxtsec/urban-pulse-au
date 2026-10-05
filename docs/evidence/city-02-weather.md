@@ -9,12 +9,13 @@ Date: 2026-10-05. Scope: synthetic Southbank weather replay on Windows, local Po
 - At the expiry boundary, stale or error coverage leaves Unknown. Source outage suppresses future cancellation/captures while preserving effective known warnings.
 - Identical payload recapture advances original receipt evidence without changing warning issue/update time, revision or event provenance. Malformed captures cannot partially apply or advance receipt time.
 - Unknown severity/geometry, partial product scope and unresolved omission prevent complete coverage. Expiry alone cannot repair it.
+- Evidence regression tests distinguish missing capture IDs from corrupt references, verify matching snapshot/evidence timelines and prohibit projection/database work on the evidence path. Complete pilot coverage accepts additional declared products.
 - Real PostGIS verifies positive-area overlap, containment, edge/vertex exclusion, holes, disconnected polygons and invalid geometry. Spatial memoization follows both geometries.
 - Chromium verifies the map/list lifecycle, two-domain reasons, warning-layer visibility, original receipt date/timezone, credits, mobile width and no external fixture requests. Additional UI checks verify weather visibility without scrolling at desktop/mobile sizes, compact independent panel stacks and keyboard scenario selection with clock preservation. Desktop/mobile screenshots were inspected and are available in the CI city-browser-evidence artifact.
 
 ## Checks
 
-Local checks: 222 unit/API tests, 19 real PostGIS integration tests and 19 Chromium end-to-end tests. Ruff lint/format, strict mypy, ESLint, Prettier and production build pass. The feature PR links its independent CI run. Run `scripts/check.ps1` and `scripts/check-city.ps1` from the repository root. No dependencies or migrations are added.
+Local checks: 236 unit/API tests, 19 real PostGIS integration tests and 19 Chromium end-to-end tests. Ruff lint/format, strict mypy, ESLint, Prettier and production build pass. The feature PR links its independent CI run. Run `scripts/check.ps1` and `scripts/check-city.ps1` from the repository root. No dependencies or migrations are added.
 
 ## Limits
 

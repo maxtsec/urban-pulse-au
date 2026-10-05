@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     AfterValidator,
@@ -240,7 +240,7 @@ class EventReceipt:
     fingerprint: str
 
     @classmethod
-    def from_event[Payload: WireModel](cls, event: CloudEvent[Payload]) -> "EventReceipt":
+    def from_event(cls, event: CloudEvent[Any]) -> "EventReceipt":
         serialized = json.dumps(
             # Delivery tracing can change without changing the published event.
             normalize_numbers(event.model_dump(mode="json", exclude={"traceparent", "tracestate"})),

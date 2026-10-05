@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
@@ -236,11 +236,15 @@ export function CityMap({
     showTracks,
   ]);
 
-  const visibleWarnings = showWarnings
-    ? warnings.filter(
-        (warning) => warning.lifecycle === 'active' && warning.geometry,
-      )
-    : [];
+  const visibleWarnings = useMemo(
+    () =>
+      showWarnings
+        ? warnings.filter(
+            (warning) => warning.lifecycle === 'active' && warning.geometry,
+          )
+        : [],
+    [showWarnings, warnings],
+  );
   useEffect(() => {
     const instance = map.current;
     if (!instance || ready !== instance) return;

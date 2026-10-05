@@ -260,21 +260,31 @@ def test_unknown_geometry_keeps_known_adverse_facts_with_incomplete_coverage(cap
     assert sum(r["input_id"] == "weather_warnings" for r in result["assessment"]["reasons"]) == 1
 
 
-def test_warning_evidence_spatial_failure_returns_503_without_internal_details(
-    captured, monkeypatch
-):
+def test_weather_evidence_does_not_require_spatial_service_or_projections(captured, monkeypatch):
     import psycopg
 
     class Broken(Spatial):
         def overlaps(self, area, warning):
             raise psycopg.OperationalError("private details")
 
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service(captured, Broken()))
+    city = service(captured, Broken())
+    monkeypatch.setattr("apps.api.city.city_service", lambda: city)
     with TestClient(app) as client:
+        area = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=60")
+        assert area.status_code == 503 and "private" not in area.text
+        monkeypatch.setattr(city, "snapshot", lambda *a, **k: pytest.fail("snapshot replay"))
+        monkeypatch.setattr(
+            "urbanpulse.location.city.PositionProjection.consume",
+            lambda *a, **k: pytest.fail("transport projection"),
+        )
+        monkeypatch.setattr(
+            WeatherProjection, "consume", lambda *a, **k: pytest.fail("weather projection")
+        )
         response = client.get(
             f"/api/v1/fixture/captures/{captured.capture_id}?scenario=weather&seconds=60"
         )
-    assert response.status_code == 503 and "private" not in response.text
+    assert response.status_code == 200
+    assert any(e["kind"] == "warning-capture" for e in response.json()["events"])
 
 
 @pytest.mark.parametrize("field", ["reading_id", "kind", "temperature_c", "valid_at"])
@@ -291,3 +301,47 @@ def test_modelled_contract_rejects_identity_kind_numbers_and_future_time(capture
     raw["state"][field] = values[field]
     with pytest.raises(ValidationError):
         reading_event(raw)
+
+
+@pytest.mark.parametrize(
+    "broken", ["payload-reference", "redelivery-reference", "transport-reference"]
+)
+def test_broken_fixture_references_are_503_but_unknown_capture_is_404(
+    captured, monkeypatch, broken
+):
+    if broken == "payload-reference":
+        captured.weather["frames"][0]["payload_id"] = "private-missing-payload"
+    elif broken == "redelivery-reference":
+        captured.weather["frames"][3]["event_id"] = "private-missing-event"
+    else:
+        del captured.scenario["service_stop"]
+    monkeypatch.setattr("apps.api.city.city_service", lambda: service(captured))
+    with TestClient(app) as client:
+        area = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=120")
+        evidence = client.get(
+            f"/api/v1/fixture/captures/{captured.capture_id}?scenario=weather&seconds=120"
+        )
+        missing = client.get("/api/v1/fixture/captures/not-present?scenario=weather&seconds=120")
+    assert area.status_code == evidence.status_code == 503
+    assert "private" not in area.text and "private" not in evidence.text
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "Unknown fixture capture"
+
+
+def test_declared_extra_products_do_not_invalidate_complete_pilot_coverage(captured):
+    captured.weather["frames"][1]["products"].append("additional-product")
+    result = service(captured).snapshot(30, "weather")
+    assert result["weather"]["coverage"] == "current"
+    assert result["assessment"]["condition"] == "normal"
+
+
+@pytest.mark.parametrize("scenario", ["weather", "weather-outage"])
+@pytest.mark.parametrize("seconds", [0, 60, 120, 150, 360])
+def test_dedicated_weather_evidence_matches_snapshot_and_replay_clock(captured, scenario, seconds):
+    city = service(captured)
+    expected = city.snapshot(seconds, scenario)["weather"]["evidence"]
+    ids = {e["id"] for e in expected}
+    records = city.evidence(captured.capture_id, seconds, scenario)["events"]
+    actual = [e for e in records if e["id"] in ids]
+    assert actual == sorted(expected, key=lambda e: (e["at_seconds"], e["id"]))
+    assert all(e["at_seconds"] <= seconds for e in actual)

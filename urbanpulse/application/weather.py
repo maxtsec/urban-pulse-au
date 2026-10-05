@@ -1,27 +1,13 @@
 """Replay retained weather captures through normalization and published contracts."""
 
-import hashlib
-import json
-from datetime import datetime, timedelta
-from typing import Any, Protocol
+from datetime import datetime
+from typing import Any
 
-from pydantic import ValidationError
-
+from urbanpulse.application.weather_replay import WeatherNormalizer, weather_steps
 from urbanpulse.contracts.events import RevisionOutcome
-from urbanpulse.contracts.weather import PRODUCTS, ModelledReadingChanged, WeatherWarningChanged
+from urbanpulse.contracts.weather import PRODUCTS, ModelledReadingChanged
 from urbanpulse.location.status import AdverseFact, CoverageState
 from urbanpulse.location.weather import WarningMembership, WeatherProjection
-
-
-class WeatherNormalizer(Protocol):
-    def warning(self, raw: dict[str, Any], capture: dict[str, Any]) -> WeatherWarningChanged: ...
-    def reading(self, raw: dict[str, Any]) -> ModelledReadingChanged: ...
-
-
-def payload_hash(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-    ).hexdigest()
 
 
 def replay_weather(
@@ -34,8 +20,6 @@ def replay_weather(
     normalizer: WeatherNormalizer,
 ) -> tuple[dict[str, Any], tuple[AdverseFact, ...], CoverageState]:
     projection = WeatherProjection()
-    normalized: dict[str, WeatherWarningChanged] = {}
-    sent: dict[str, WeatherWarningChanged] = {}
     evidence: list[dict[str, Any]] = []
     rejected = 0
     last_received = None
@@ -45,88 +29,38 @@ def replay_weather(
     snapshot_valid = False
     outage_at = bundle["outage_at_seconds"]
     reading = None
-    for raw in sorted(bundle["readings"], key=lambda item: item["at_seconds"]):
-        if raw["at_seconds"] > seconds:
+    for step in weather_steps(bundle, seconds, at, outage, normalizer):
+        frame = step.frame
+        evidence.append(step.evidence)
+        outcomes = [projection.consume(event) for event in step.events]
+        if frame["kind"] == "reading":
+            event = step.events[0]
+            assert isinstance(event, ModelledReadingChanged)
+            if outcomes[0] == RevisionOutcome.APPLY:
+                reading = {
+                    **event.data.state.model_dump(mode="json"),
+                    "received_at": frame["received_at"],
+                    "provenance": event.data.provenance.model_dump(mode="json"),
+                }
             continue
-        reading_event = normalizer.reading(raw)
-        if (
-            reading_event.time != at + timedelta(seconds=raw["at_seconds"] - seconds)
-            or reading_event.data.state.valid_at > reading_event.time
-        ):
-            raise ValueError("fixture reading cannot reveal a future observation")
-        outcome = projection.consume(reading_event)
-        if outcome == RevisionOutcome.APPLY:
-            reading = {
-                **reading_event.data.state.model_dump(mode="json"),
-                "received_at": raw["received_at"],
-                "provenance": reading_event.data.provenance.model_dump(mode="json"),
-            }
-        evidence.append(
-            {
-                "id": raw["capture_id"],
-                "kind": "modelled-reading-capture",
-                "at_seconds": raw["at_seconds"],
-                "received_at": raw["received_at"],
-                "payload_sha256": payload_hash(raw["state"]),
-                "event_ids": [reading_event.id],
-            }
-        )
-    for frame in sorted(bundle["frames"], key=lambda item: item["at_seconds"]):
-        if frame["at_seconds"] > seconds or (outage and frame["at_seconds"] >= outage_at):
-            continue
-        kind = frame["kind"]
-        if kind == "coverage":
+        if frame["kind"] == "coverage":
             state = CoverageState(frame["state"])
-            if state == CoverageState.CURRENT:
-                raise ValueError("a coverage checkpoint cannot assert a successful fresh snapshot")
-            evidence.append({**frame, "kind": "authored-coverage-checkpoint"})
             continue
-        if kind == "redelivery":
-            event = sent[frame["event_id"]]
-            projection.consume(event)
-            evidence.append({**frame, "kind": "event-redelivery"})
+        if frame["kind"] == "redelivery":
             continue
-        payload = bundle["payloads"][frame["payload_id"]]
-        received = datetime.fromisoformat(frame["received_at"])
-        source_time = datetime.fromisoformat(frame["source_generated_at"])
-        if (
-            received != at + timedelta(seconds=frame["at_seconds"] - seconds)
-            or source_time > received
-        ):
-            raise ValueError("fixture capture timestamps cannot reveal future data")
-        events: list[str] = []
-        snapshot_valid = frame["complete"] and frozenset(frame.get("products", [])) == PRODUCTS
-        snapshot_ids = set()
-        candidates: list[tuple[str, WeatherWarningChanged]] = []
-        try:
-            for raw in payload:
-                digest = payload_hash(raw)
-                candidate = normalized.get(digest)
-                if candidate is None:
-                    candidate = normalizer.warning(raw, frame)
-                candidates.append((digest, candidate))
-        except (ValidationError, KeyError, ValueError):
+        if frame["kind"] == "rejected":
             rejected += 1
             state = CoverageState.UNKNOWN
             snapshot_valid = False
-            evidence.append(
-                {
-                    "id": frame["id"],
-                    "kind": "rejected-capture",
-                    "at_seconds": frame["at_seconds"],
-                    "payload_sha256": payload_hash(payload),
-                }
-            )
             continue
-        for digest, event in candidates:
-            if digest not in normalized:
-                normalized[digest] = event
-                outcome = projection.consume(event)
-                if outcome.value == "conflict":
-                    snapshot_valid = False
-                sent.setdefault(event.id, event)
-                events.append(event.id)
-            snapshot_ids.add(event.subject)
+        received = datetime.fromisoformat(frame["received_at"])
+        snapshot_valid = (
+            frame["complete"]
+            and PRODUCTS <= frozenset(frame.get("products", []))
+            and RevisionOutcome.CONFLICT not in outcomes
+        )
+        snapshot_ids = {event.subject for event in step.warning_records}
+        for event in step.warning_records:
             current = projection.events.get((event.source, event.subject))
             if current is None or current.id != event.id or current.data != event.data:
                 snapshot_valid = False
@@ -138,18 +72,6 @@ def replay_weather(
         last_received = frame["received_at"]
         last_source_time = frame["source_generated_at"]
         state = CoverageState.CURRENT if snapshot_valid else CoverageState.UNKNOWN
-        evidence.append(
-            {
-                "id": frame["id"],
-                "kind": "warning-capture",
-                "at_seconds": frame["at_seconds"],
-                "received_at": last_received,
-                "source_generated_at": last_source_time,
-                "complete": frame["complete"],
-                "payload_sha256": payload_hash(payload),
-                "event_ids": events,
-            }
-        )
     if outage and seconds >= outage_at:
         state = CoverageState.ERROR
     warnings, facts, understood = projection.warnings(at, area, spatial)
