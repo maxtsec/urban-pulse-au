@@ -34,7 +34,7 @@ For replay performance: [bounded history measurements and reproduction](evidence
 
 For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For production V1: [release policy](delivery-plan.md#release-policy).
 
-For the hosted fixture demo: [DEMO-01 hosting and deployment proposal](adr/0010-hosted-fixture-demo.md).
+For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md).
 
 ## Document responsibilities
 
@@ -46,7 +46,7 @@ For the hosted fixture demo: [DEMO-01 hosting and deployment proposal](adr/0010-
 | [ADR 0001](adr/0001-city-intelligence-scope.md)          | Accepted integrated product scope and consequences                 | A later decision supersedes it                          |
 | [ADR 0002](adr/0002-southbank-tram-pilot.md)             | Accepted Southbank CLUE pilot and initial tram scope               | The architect changes the pilot or transport scope      |
 | [ADR 0003](adr/0003-cloudevents-and-area-conditions.md) | Accepted CloudEvents format and separate condition/coverage principle | A later decision supersedes either principle |
-| [ADR 0004](adr/0004-southbank-fixture-map.md) | Proposed fixture identity, point membership, local map and age policy | The architect accepts or revises the proposal |
+| [ADR 0004](adr/0004-southbank-fixture-map.md) | Accepted fixture identity, point membership, local map and age policy | Fixture rules change through architect review |
 | [CITY-01 walkthrough](demos/city-01.md) | Feature scope, acceptance cases, local replay and query details | Fixture behavior or reproduction steps change |
 | [CITY-01 evidence](evidence/city-01-fixture-map.md) | Dated spatial/browser results and verification limits | A new checkpoint is verified |
 | [ADR 0005](adr/0005-weather-source-policy.md) | Accepted weather-source roles, warning severity/coverage and provider evolution | Source scope or assessment policy changes |
@@ -87,7 +87,7 @@ For the hosted fixture demo: [DEMO-01 hosting and deployment proposal](adr/0010-
 | [City checkpoint evidence](evidence/event-01-city-checkpoints.md) | City equivalence, ordered barriers, process crashes and Compose expiry | A city recovery checkpoint is verified |
 | [EVENT-01 performance evidence](evidence/event-01-performance.md) | Reproducible history workloads, timing samples, copy profiling and optimization priorities | Replay implementation or verified measurements change |
 | [Planning copy evidence](evidence/event-01-planning-copy-cost.md) | Immutable retained history, rollback guarantees and before/after measurements | Planning representation or verified performance changes |
-| [ADR 0010: hosted fixture demo](adr/0010-hosted-fixture-demo.md) | Hosting/access alternatives, image identity, deployment and rollback acceptance | The architect selects demo topology or deployment requirements change |
+| [ADR 0010: hosted fixture demo](adr/0010-hosted-fixture-demo.md) | Accepted managed hosting/IAP, image identity, deployment and rollback acceptance | Accepted topology or deployment requirements change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.

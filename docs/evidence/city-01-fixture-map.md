@@ -24,7 +24,7 @@ PostGIS coverage includes actual Southbank inside/edge/outside membership, inval
 
 Use the [CITY-01 walkthrough](../demos/city-01.md). Screenshots are generated under ignored `.local/city01/`, and browser failure traces under `apps/web/test-results/`. CI provisions PostGIS and uploads these browser artifacts.
 
-The geometry is an attributed extract from the City of Melbourne CLUE small-area dataset. All transport events and stop/service facts are synthetic; no Transport Victoria key or live API was used. No cloud resources, numeric area-health score, production retention policy or persistent consumer ledger are established by these checks. ADR 0004 remains Proposed pending explicit architect acceptance.
+The geometry is an attributed extract from the City of Melbourne CLUE small-area dataset. All transport events and stop/service facts are synthetic; no Transport Victoria key or live API was used. No cloud resources, numeric area-health score, production retention policy or persistent consumer ledger are established by these checks. The fixture policy was subsequently accepted on 2026-10-05 in [ADR 0004](../adr/0004-southbank-fixture-map.md); acceptance does not expand these test results to live sources.
 
 Two non-failing tooling notices remain: the existing Starlette/httpx test-client deprecation and Vite's large-chunk warning for the map bundle (about 365 kB gzipped for the main JavaScript asset, plus the local worker). This evidence does not measure production network performance or establish complete accessibility conformance.
 

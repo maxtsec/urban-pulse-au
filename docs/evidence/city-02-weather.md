@@ -19,4 +19,4 @@ Local checks: 250 unit/API tests, 19 real PostGIS integration tests and 24 Chrom
 
 ## Limits
 
-These are authored records, geometries and complete-snapshot assertions, not verified Open-Meteo/VicEmergency responses. No live provider, cloud capture, hosted deployment or numerical freshness TTL is enabled. Shared in-process delivery and persistent cross-domain reconciliation remain CITY-04 work. The warning geometry policy does not accept the unrelated ADR 0004 proposal. Existing MapLibre bundle-size and Starlette/httpx deprecation warnings remain non-fatal.
+These are authored records, geometries and complete-snapshot assertions, not verified Open-Meteo/VicEmergency responses. No live provider, cloud capture, hosted deployment or numerical freshness TTL is enabled. Shared in-process delivery and persistent cross-domain reconciliation remain CITY-04 work. The warning geometry policy is independent of [ADR 0004](../adr/0004-southbank-fixture-map.md). Existing MapLibre bundle-size and Starlette/httpx deprecation warnings remain non-fatal.

@@ -20,4 +20,4 @@ Keep source as-of time independent from capture receipt time and completion year
 
 The implementation publishes a bounded complete snapshot atomically so missing-record handling cannot act on partially accepted rows. The [fixture contract](../architecture/planning-fixture-contract.md) defines its executable payload and acceptance cases. Publication/handler wiring remains CITY-04; this fixture does not introduce a live source contract or durable delivery.
 
-This decision accepts planning point membership only. It does not accept the unrelated transport freshness/map proposals in ADR 0004 or define a live planning TTL.
+This decision accepts planning point membership only. Transport freshness/map policy is independently recorded in [ADR 0004](0004-southbank-fixture-map.md); this planning decision does not change it or define a live planning TTL.
