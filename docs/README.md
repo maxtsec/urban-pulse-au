@@ -30,6 +30,8 @@ For durable delivery design: [ADR 0009 options](adr/0009-durable-event-delivery.
 
 For worker operations: [recovery runbook](runbooks/event-recovery.md) and [process/database evidence](evidence/event-01-worker-recovery.md). For the integrated city worker, use the [checkpoint walkthrough](runbooks/city-checkpoints.md).
 
+For replay performance: [bounded history measurements and reproduction](evidence/event-01-performance.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -79,6 +81,7 @@ For worker operations: [recovery runbook](runbooks/event-recovery.md) and [proce
 | [Worker recovery evidence](evidence/event-01-worker-recovery.md) | Process-kill, scheduling and operator verification | A recovery checkpoint is verified |
 | [City checkpoint runbook](runbooks/city-checkpoints.md) | Durable run commands, clock/result semantics, migration and recovery | City worker operations change |
 | [City checkpoint evidence](evidence/event-01-city-checkpoints.md) | City equivalence, ordered barriers, process crashes and Compose expiry | A city recovery checkpoint is verified |
+| [EVENT-01 performance evidence](evidence/event-01-performance.md) | Reproducible history workloads, timing samples, copy profiling and optimization priorities | Replay implementation or verified measurements change |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
