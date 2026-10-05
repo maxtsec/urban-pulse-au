@@ -1,0 +1,11 @@
+{
+  "provider": {
+    "repository_id": "1404249334",
+    "repository_owner_id": "98444048"
+  },
+  "image_builder": {
+    "event_name": "push",
+    "ref": "refs/heads/main",
+    "workflow_ref": "maxtsec/urban-pulse-au/.github/workflows/images.yml@refs/heads/main"
+  }
+}

@@ -11,11 +11,13 @@ The bootstrap operator runs it with their own Google account. CI never runs `pla
 | Element | Restriction |
 | --- | --- |
 | Federation provider | Accepts only tokens whose numeric GitHub repository and owner IDs match this repository. Forks and renamed lookalike repositories are rejected. |
-| `ci-builder` impersonation | Only workflows on `refs/heads/main`. Pull-request refs and other branches cannot obtain it. |
+| `ci-builder` impersonation | Only a `push` event running `.github/workflows/images.yml` from `refs/heads/main`. `pull_request`, `pull_request_target` (which reports the base `refs/heads/main` ref), `workflow_dispatch`, schedules, tags, other branches and other workflows are denied. |
 | `ci-builder` permissions | `roles/artifactregistry.writer` on the `urbanpulse` repository only. No deployment, IAM, Secret Manager or project-wide roles. |
 | Credentials | Short-lived federated tokens only. Do not create or download service-account keys. |
 
-Anyone who can push to `main` can publish images. Protect the branch (pull requests and passing checks before merge) before adding the image workflow. Deployment remains a separate identity and workflow, added in a later reviewed change.
+The claim values live in [`github-oidc-policy.json`](../../infra/bootstrap/github-oidc-policy.json). Terraform turns each section into exact-match CEL: the `provider` section becomes the provider's attribute condition, and the `image_builder` section sets the `attribute.image_builder` mapping to `allowed` only when every claim matches. The builder binding trusts only `attribute.image_builder/allowed`. [Policy tests](../../tests/unit/test_github_oidc_policy.py) evaluate the same file against push, pull-request, pull-request-target, dispatch, branch, tag, workflow and repository variants. Change the workflow file name or allowed event only by editing that file and its tests together.
+
+Anyone who can push to `main`, or merge a change to the image workflow, can publish images. Protect the branch (pull requests and passing checks before merge) before adding the image workflow. Deployment remains a separate identity and workflow, added in a later reviewed change.
 
 ## Apply
 
@@ -64,13 +66,13 @@ Workload Identity pools and providers are soft-deleted for 30 days after deletio
 
 ## Verify
 
-After applying, these read-only checks confirm the boundary:
+After applying, these read-only checks confirm the boundary. Every command names the project explicitly, so the result does not depend on the active `gcloud` configuration. Replace `<project-id>` with the `project_id` in `terraform.tfvars` and `<region>` with the Terraform `region` (default `australia-southeast2`).
 
 ```powershell
-gcloud.cmd iam workload-identity-pools providers describe urban-pulse-au --location=global --workload-identity-pool=github --format="value(attributeCondition)"
-gcloud.cmd iam service-accounts get-iam-policy ci-builder@<project-id>.iam.gserviceaccount.com
-gcloud.cmd artifacts repositories get-iam-policy urbanpulse --location=australia-southeast2
-gcloud.cmd iam service-accounts keys list --iam-account=ci-builder@<project-id>.iam.gserviceaccount.com --managed-by=user
+gcloud.cmd iam workload-identity-pools providers describe urban-pulse-au --project=<project-id> --location=global --workload-identity-pool=github --format="yaml(attributeCondition,attributeMapping)"
+gcloud.cmd iam service-accounts get-iam-policy ci-builder@<project-id>.iam.gserviceaccount.com --project=<project-id>
+gcloud.cmd artifacts repositories get-iam-policy urbanpulse --project=<project-id> --location=<region>
+gcloud.cmd iam service-accounts keys list --iam-account=ci-builder@<project-id>.iam.gserviceaccount.com --project=<project-id> --managed-by=user
 ```
 
-The condition names the numeric repository and owner IDs, the only `workloadIdentityUser` member ends in `:refs/heads/main`, the repository grants only `artifactregistry.writer` to `ci-builder`, and the key list is empty. A successful federated publish from `main`, and a rejected attempt from a pull request, are verified when the image workflow is added.
+Expect the condition to name the numeric repository and owner IDs, and `attribute.image_builder` to require `push`, `refs/heads/main` and the `images.yml` workflow. The only `workloadIdentityUser` member should end in `/attribute.image_builder/allowed`, the repository should grant only `artifactregistry.writer` to `ci-builder`, and the key list should be empty. A successful federated publish from a `main` push, and rejected attempts from `pull_request` and `pull_request_target` runs, are verified when the image workflow is added.
