@@ -14,7 +14,7 @@ test('map and keyboard list select the same moving tram without external request
     )
       external.push(request.url());
   });
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(
     page.getByRole('heading', { name: 'Southbank', level: 1 }),
   ).toBeVisible();
@@ -89,7 +89,7 @@ test('map and keyboard list select the same moving tram without external request
 test('playback, stale/expired positions and missing domains remain truthful', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map' }),
   ).toBeVisible();
@@ -121,13 +121,19 @@ test('playback, stale/expired positions and missing domains remain truthful', as
 });
 
 test('empty, outage and error recovery are distinct', async ({ page }) => {
-  await page.goto('/');
-  await page.getByLabel('Scenario', { exact: true }).selectOption('empty');
+  await page.goto('/?scenario=journey');
+  await page
+    .getByRole('group', { name: 'Scenario', exact: true })
+    .getByRole('button', { name: 'Empty transport', exact: true })
+    .click();
   await expect(
     page.getByText('No tram observations in this fixture view.'),
   ).toBeVisible();
   await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
-  await page.getByLabel('Scenario', { exact: true }).selectOption('outage');
+  await page
+    .getByRole('group', { name: 'Scenario', exact: true })
+    .getByRole('button', { name: 'Transport outage', exact: true })
+    .click();
   await page.getByRole('button', { name: '150s · Stale position' }).click();
   await expect(page.getByText('Source unavailable · fixture')).toBeVisible();
   await expect(page.getByText('Degraded', { exact: true })).toBeVisible();
@@ -150,7 +156,7 @@ test('boundary failure preserves the accessible observations', async ({
   await page.route('**/boundaries/*', (route) =>
     route.fulfill({ status: 503, body: '{}' }),
   );
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(page.getByRole('alert')).toContainText('Boundary unavailable');
   await page.getByRole('button', { name: 'Select Tram 01 in list' }).click();
   await expect(page.getByText('Tram 01 selected')).toBeVisible();
@@ -160,7 +166,7 @@ test('mobile layout fits and keeps the area overview usable', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map' }),
   ).toBeVisible();
@@ -180,7 +186,7 @@ test('mobile layout fits and keeps the area overview usable', async ({
 test('service replay reveals only received facts and outage cannot resolve them', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await page
     .getByRole('button', { name: '60s · Service interruption' })
     .click();
@@ -189,7 +195,10 @@ test('service replay reveals only received facts and outage cannot resolve them'
     page.getByText('Resolution not yet observed', { exact: false }),
   ).toBeVisible();
   await expect(page.locator('.reason')).not.toContainText('11:03');
-  await page.getByLabel('Scenario', { exact: true }).selectOption('outage');
+  await page
+    .getByRole('group', { name: 'Scenario', exact: true })
+    .getByRole('button', { name: 'Transport outage', exact: true })
+    .click();
   await page.getByRole('button', { name: '330s · Last known only' }).click();
   await expect(page.getByTestId('clock')).toHaveText('11:05:30');
   await expect(page.getByText('Degraded', { exact: true })).toBeVisible();
@@ -197,7 +206,10 @@ test('service replay reveals only received facts and outage cannot resolve them'
   await expect(
     page.getByText('Resolution not yet observed', { exact: false }),
   ).toBeVisible();
-  await page.getByLabel('Scenario', { exact: true }).selectOption('journey');
+  await page
+    .getByRole('group', { name: 'Scenario', exact: true })
+    .getByRole('button', { name: 'Tram journey', exact: true })
+    .click();
   await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
   await expect(page.locator('.reason')).toHaveCount(0);
 });
@@ -217,7 +229,7 @@ test('unknown explanation identifies every missing required input', async ({
     ];
     await route.fulfill({ response, json: data });
   });
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(page.getByText('Unknown', { exact: true })).toBeVisible();
   await expect(page.locator('.condition-explanation')).toContainText(
     'Transport service unavailable',
@@ -240,7 +252,7 @@ test('playback and moment jumps respect the API clock limit', async ({
     data.clock.end_seconds = 75;
     await route.fulfill({ response, json: data });
   });
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(
     page.getByLabel('Scenario time', { exact: true }),
   ).toHaveAttribute('max', '75');
@@ -273,7 +285,7 @@ for (const state of ['current', 'stale', 'error', 'unsupported']) {
       data.assessment.condition = state === 'current' ? 'normal' : 'unknown';
       await route.fulfill({ response, json: data });
     });
-    await page.goto('/');
+    await page.goto('/?scenario=journey');
     const weather = page.locator('.domain-row').filter({
       has: page.getByRole('heading', { name: 'Weather & hazards' }),
     });
@@ -294,7 +306,7 @@ test('slider keyboard movement requests 15-second increments', async ({
     )
       requested.push(Number(url.searchParams.get('seconds')));
   });
-  await page.goto('/');
+  await page.goto('/?scenario=journey');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   const slider = page.getByLabel('Scenario time', { exact: true });
   await expect(slider).toHaveAttribute('step', '15');

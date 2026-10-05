@@ -2,33 +2,12 @@ import { displayDateTime } from './city';
 import type { WeatherSnapshot } from './city';
 
 export function WeatherPanel({ weather }: { weather: WeatherSnapshot }) {
-  const reading = weather.reading;
   return (
     <section className="weather-card" aria-label="Weather details">
       <div className="card-heading">
-        <h2>Weather & warnings</h2>
+        <h2>Weather warnings</h2>
         <span className="count-chip">Synthetic fixture</span>
       </div>
-      {reading && (
-        <div className="weather-reading">
-          <h3>Modelled weather information</h3>
-          <p className="weather-values">
-            {reading.temperature_c} °C{' '}
-            <span>
-              Rain {reading.precipitation_mm} mm · Wind {reading.wind_kmh} km/h
-            </span>
-          </p>
-          <p>
-            Modelled for {displayDateTime(reading.valid_at)} · {reading.model}
-          </p>
-          <p>
-            Informational only; does not change area conditions or warning
-            coverage.
-          </p>
-          <a href={reading.source_url}>Open-Meteo</a> · Synthetic readings, not
-          provider observations
-        </div>
-      )}
       <div className="warning-heading">
         <h3>Warning coverage</h3>
         <span className={`coverage-pill ${weather.coverage}`}>

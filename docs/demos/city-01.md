@@ -22,7 +22,7 @@ In a second terminal:
 npm.cmd --prefix apps/web run dev
 ```
 
-Open [UrbanPulse](http://127.0.0.1:5173). No provider key is required. The API also initializes the same content-addressed bundle on first use if the worker step is omitted. Restart the API after changing fixture files.
+Open [UrbanPulse](http://127.0.0.1:5173/?scenario=journey), or press the **Tram journey** scenario button. No provider key is required. The API also initializes the same content-addressed bundle on first use if the worker step is omitted. Restart the API after changing fixture files.
 
 ## Walkthrough
 

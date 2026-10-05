@@ -2,7 +2,7 @@
 
 ## Run and inspect
 
-Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. Select **Weather warnings** in the Scenario control. The existing tram controls and original transport scenarios remain available.
+Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. The page opens in **Weather warnings** with modelled temperature, rainfall and wind visible above the map. Use the visible scenario buttons to switch views; the active button is highlighted and keyboard accessible. The existing tram controls and original transport scenarios remain available.
 
 | Clock | What to inspect |
 | --- | --- |
@@ -19,9 +19,9 @@ Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the AP
 | 300/330s | Unrecognised severity and missing geometry prevent a complete assessment. |
 | 360s | Those warnings expire, but incomplete coverage does not repair itself. |
 
-Toggle **Warning areas** without removing the accessible warning list. Rewind to 30s: the original Advice state and receipt time return without later cancellation information.
+The desktop map and context panels stack independently with compact spacing. On mobile, the weather summary remains above the map. Toggle **Warning areas** without removing the accessible warning list. Rewind to 30s: the original Advice state and receipt time return without later cancellation information.
 
-Select **Weather outage**. The warning feed becomes unavailable at 90s; later captures, cancellation and coverage recovery are not received. The last known Watch and Act remains effective until 240s. It then expires, leaving Unknown with error coverage. Modelled readings cannot fill that gap. Attribution and the 60s receipt time remain visible.
+Press the **Weather outage** scenario button. The warning feed becomes unavailable at 90s; later captures, cancellation and coverage recovery are not received. The last known Watch and Act remains effective until 240s. It then expires, leaving Unknown with error coverage. Modelled readings cannot fill that gap. Attribution and the 60s receipt time remain visible.
 
 The grey rectangles are authored warning polygons. Positive-area overlap establishes applicability, not an observed storm/flood footprint. Boundary-only contact is excluded under [ADR 0006](../adr/0006-weather-fixture-spatial-and-freshness.md).
 
