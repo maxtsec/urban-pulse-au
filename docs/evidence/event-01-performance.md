@@ -56,6 +56,8 @@ Harness SHA-256:
 
 ## Interpretation and next change
 
+See the [follow-up planning copy comparison](event-01-planning-copy-cost.md) for the targeted change and new clean-tree measurements.
+
 The larger history spends substantial time rebuilding earlier clocks and copying retained planning projections. A first performance PR should reduce historical-object copying while preserving atomic candidate-state rollback, receipts and duplicate/conflict outcomes. Compare it with this baseline and include failure-injection tests proving the original projection is untouched when a handler fails.
 
 Incremental reconstruction and input caching are separate candidates. Any cache must preserve import/version invalidation, clock/scenario isolation and explicit database-unavailability behavior. Replacing reconstruction with shared mutable state would require a separate architectural decision. This measurement change adds no production cache, persistent model or delivery behavior.
