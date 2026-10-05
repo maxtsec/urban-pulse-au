@@ -4,7 +4,7 @@ CloudEvents 1.0 is accepted in [ADR 0003](../adr/0003-cloudevents-and-area-condi
 
 ## Weather provider boundary
 
-[ADR 0005](../adr/0005-weather-source-policy.md) requires capture before provider-specific normalisation and replay from retained payloads/manifests. Weather & Hazards publishes domain facts through this envelope for Location Intelligence; provider wire formats and database tables do not cross that boundary. Modelled readings, forecasts and station observations retain distinct meaning. Warning identity includes its provider/product scope; do not merge identities across providers. Same-provider redelivery and revision rules still apply. Concrete weather payload schemas remain CONTRACT-01 work.
+[ADR 0005](../adr/0005-weather-source-policy.md) requires capture before provider-specific normalisation and replay from retained payloads/manifests. Weather & Hazards publishes domain facts through this envelope for Location Intelligence; provider wire formats and database tables do not cross that boundary. Modelled readings, forecasts and station observations retain distinct meaning. Warning identity includes its provider/product scope; do not merge identities across providers. Same-provider redelivery and revision rules still apply. The [CITY-02 weather fixture contract](weather-fixture-contract.md) defines the initial warning/modelled-reading payloads; live normalization and remaining handler/recovery contracts stay in CONTRACT-01.
 
 ## Separate three identities
 

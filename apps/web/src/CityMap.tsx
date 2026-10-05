@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
-import type { Vehicle } from './city';
+import type { Vehicle, Warning } from './city';
 import tramIcon from './assets/tram.svg';
 import { fixtureTracks } from './fixture-tracks';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -26,6 +26,8 @@ type Props = {
   showVehicles: boolean;
   showBoundary: boolean;
   showTracks: boolean;
+  warnings: Warning[];
+  showWarnings: boolean;
 };
 
 export function CityMap({
@@ -36,6 +38,8 @@ export function CityMap({
   showVehicles,
   showBoundary,
   showTracks,
+  warnings,
+  showWarnings,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -89,6 +93,26 @@ export function CityMap({
             'line-color': '#b5b5b5',
             'line-width': 2,
             'line-dasharray': [3, 2],
+          },
+        });
+        instance.addSource('warnings', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        instance.addLayer({
+          id: 'warning-fill',
+          type: 'fill',
+          source: 'warnings',
+          paint: { 'fill-color': '#666666', 'fill-opacity': 0.16 },
+        });
+        instance.addLayer({
+          id: 'warning-line',
+          type: 'line',
+          source: 'warnings',
+          paint: {
+            'line-color': '#555555',
+            'line-width': 2,
+            'line-dasharray': [2, 2],
           },
         });
         instance.addSource('fixture-tracks', {
@@ -212,6 +236,25 @@ export function CityMap({
     showTracks,
   ]);
 
+  const visibleWarnings = showWarnings
+    ? warnings.filter(
+        (warning) => warning.lifecycle === 'active' && warning.geometry,
+      )
+    : [];
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || ready !== instance) return;
+    const source = instance.getSource('warnings') as maplibregl.GeoJSONSource;
+    source.setData({
+      type: 'FeatureCollection',
+      features: visibleWarnings.map((warning) => ({
+        type: 'Feature',
+        geometry: warning.geometry!,
+        properties: { id: warning.id },
+      })),
+    });
+  }, [ready, visibleWarnings]);
+
   return (
     <div className="map-shell">
       <div
@@ -227,6 +270,11 @@ export function CityMap({
         </p>
       )}
       <div className="map-legend">
+        {showWarnings && warnings.length > 0 && (
+          <span data-testid="warning-map-count">
+            {visibleWarnings.length} active warning areas
+          </span>
+        )}
         {showTracks && (
           <span>
             <i className="legend-track" /> Illustrative tracks

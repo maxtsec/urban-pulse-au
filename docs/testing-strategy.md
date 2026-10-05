@@ -79,3 +79,8 @@ Implement these cases with CITY-02/CITY-04 under [ADR 0005](adr/0005-weather-sou
 - Same-provider duplicate/older updates are idempotent; different-provider warning identities and lifecycles remain independent.
 - Replay retained payloads/manifests with provider network access disabled. Verify published CloudEvents and Location Intelligence output without cross-module table reads.
 - A later BOM adapter passes applicable shared contracts while retaining product-specific meaning, provenance and modelled/forecast/station-observation distinctions. Review its severity and coverage policy separately; test any required migration and outage behavior.
+
+
+## Weather fixture verification
+
+CITY-02 regression cases exercise modelled readings without status effects; Advice and higher-severity mapping; exact cancellation/expiry boundaries; unchanged capture receipt versus original warning update times; duplicate/old/conflicting delivery; missing or invalid geography; product completeness; source outage without false recovery; and isolated rewind from retained captures. PostGIS tests cover containment, boundary/vertex contact, holes, MultiPolygon and invalid topology. Browser checks cover map layers, independent transport/weather reasons, lifecycle controls, credit/receipt display, mobile layout and offline fixture execution. See [dated evidence](evidence/city-02-weather.md).

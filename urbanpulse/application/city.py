@@ -11,14 +11,17 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 
 from urbanpulse.application.city_replay import ServiceFrame, received, service_at
+from urbanpulse.application.weather import WeatherNormalizer, replay_weather
 from urbanpulse.contracts.events import VehiclePositionChanged
 from urbanpulse.location.city import Freshness, PositionProjection, position_freshness
-from urbanpulse.location.status import Coverage, CoverageState, assess_area
+from urbanpulse.location.status import AdverseFact, Coverage, CoverageState, assess_area
+from urbanpulse.location.weather import WarningMembership
 
 AREA_ID = "au-vic-melbourne-clue-southbank"
 POLICY_VERSION = "southbank-fixture-v1"
 MAX_SECONDS = 360
 MAX_VEHICLES = 100
+SCENARIOS = frozenset({"journey", "empty", "outage", "weather", "weather-outage"})
 REQUIRED = frozenset({"transport_service", "weather_warnings"})
 
 
@@ -32,20 +35,27 @@ class CapturedCity:
     capture_id: str
     boundary: dict[str, Any]
     scenario: dict[str, Any]
+    weather: dict[str, Any] | None = None
 
 
 class CityCapture(Protocol):
     def read(self) -> CapturedCity: ...
 
 
-class SpatialMembership(Protocol):
+class SpatialMembership(WarningMembership, Protocol):
     def covers(self, geometry: dict[str, Any], points: list[tuple[float, float]]) -> list[bool]: ...
 
 
 class CityService:
-    def __init__(self, capture: CityCapture, spatial: SpatialMembership) -> None:
+    def __init__(
+        self,
+        capture: CityCapture,
+        spatial: SpatialMembership,
+        weather_normalizer: WeatherNormalizer | None = None,
+    ) -> None:
         self.capture = capture
         self.spatial = spatial
+        self.weather_normalizer = weather_normalizer
 
     @cached_property
     def captured(self) -> CapturedCity:
@@ -84,7 +94,7 @@ class CityService:
         }
 
     def snapshot(self, seconds: int, scenario: str = "journey") -> dict[str, Any]:
-        if seconds < 0 or seconds > MAX_SECONDS or scenario not in {"journey", "empty", "outage"}:
+        if seconds < 0 or seconds > MAX_SECONDS or scenario not in SCENARIOS:
             raise ValueError("invalid fixture scenario or clock")
         captured = self.captured
         boundary = captured.boundary
@@ -142,7 +152,7 @@ class CityService:
         fact, service_evidence = service_at(
             self.service_frames, started_at, seconds, scenario, outage_at
         )
-        facts = (fact,) if fact is not None and membership[-1] else ()
+        facts: tuple[AdverseFact, ...] = (fact,) if fact is not None and membership[-1] else ()
         transport_coverage = (
             CoverageState.ERROR
             if scenario == "outage" and seconds >= outage_at
@@ -150,11 +160,26 @@ class CityService:
             if service_evidence is not None or scenario == "empty"
             else CoverageState.UNKNOWN
         )
+        weather = None
+        weather_coverage = CoverageState.UNKNOWN
+        if scenario in {"weather", "weather-outage"}:
+            if captured.weather is None or self.weather_normalizer is None:
+                raise ValueError("weather fixture adapter is not configured")
+            weather, weather_facts, weather_coverage = replay_weather(
+                captured.weather,
+                seconds,
+                at,
+                scenario == "weather-outage",
+                boundary["geometry"],
+                self.spatial,
+                self.weather_normalizer,
+            )
+            facts += weather_facts
         assessment = assess_area(
             facts=facts,
             coverage=(
                 Coverage("transport_service", transport_coverage),
-                Coverage("weather_warnings", CoverageState.UNKNOWN),
+                Coverage("weather_warnings", weather_coverage),
                 Coverage("planning", CoverageState.UNKNOWN),
             ),
             required_inputs=REQUIRED,
@@ -169,12 +194,13 @@ class CityService:
             "geometry_url": f"/api/v1/areas/{AREA_ID}/boundaries/{revision}",
             "policy_version": POLICY_VERSION,
             "projection_version": hashlib.sha256(
-                f"city-projection-v3:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
+                f"city-projection-v4:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},
             "assessment": asdict(assessment),
             "service_evidence": service_evidence,
+            "weather": weather,
             "planning": {
                 "state": "unknown",
                 "as_of": None,
@@ -193,7 +219,7 @@ class CityService:
         captured = self.captured
         if capture_id != captured.capture_id:
             raise LookupError("Unknown fixture capture")
-        if seconds < 0 or seconds > MAX_SECONDS or scenario not in {"journey", "empty", "outage"}:
+        if seconds < 0 or seconds > MAX_SECONDS or scenario not in SCENARIOS:
             raise ValueError("invalid fixture scenario or clock")
         outage_at = captured.scenario["outage_at_seconds"]
         events = [
@@ -211,6 +237,9 @@ class CityService:
             for frame in self.service_frames
             if received(frame.at_seconds, seconds, scenario, outage_at)
         )
+        if scenario in {"weather", "weather-outage"}:
+            weather = self.snapshot(seconds, scenario)["weather"]
+            events.extend(weather["evidence"])
         return {
             "mode": "fixture",
             "capture_id": capture_id,

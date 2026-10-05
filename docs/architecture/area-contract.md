@@ -85,3 +85,8 @@ The service pins hash-verified bytes and the derived geometry revision on first 
 
 
 Consecutive disrupted service frames preserve the initial episode ID and effective start until a received clear frame; the latest frame owns reason text and observation provenance. Service coverage has no TTL in this fixture: see the [ADR 0004 limitation](../adr/0004-southbank-fixture-map.md#service-freshness-limitation). The position-age policy must not be interpreted as a service freshness rule.
+
+
+## Weather fixture projection
+
+[ADR 0006](../adr/0006-weather-fixture-spatial-and-freshness.md) accepts positive-area polygon overlap for the CITY-02 fixture; edge-only contact is excluded. The [weather contract](weather-fixture-contract.md) adds `weather` / `weather-outage` to the existing area query and a nullable weather section. It preserves source receipt times independently of warning state and uses explicit authored freshness checkpoints. Modelled information never satisfies warning coverage. See the [walkthrough](../demos/city-02.md) for the combined transport/weather timeline.

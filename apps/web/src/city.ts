@@ -1,3 +1,5 @@
+import type { Polygon, MultiPolygon } from 'geojson';
+
 export const AREA_ID = 'au-vic-melbourne-clue-southbank';
 
 export type Vehicle = {
@@ -26,6 +28,8 @@ export type Snapshot = {
     reasons: {
       id: string;
       reason: string;
+      input_id: string;
+      effective_until: string | null;
       effective_from: string;
       resolved_at: string | null;
     }[];
@@ -44,6 +48,7 @@ export type Snapshot = {
     conflict: number;
     rejected: number;
   };
+  weather: WeatherSnapshot | null;
   planning: { state: string; as_of: string | null; description: string };
   evidence_url: string;
 };
@@ -65,5 +70,47 @@ export function displayTime(value: string | null) {
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
+  }).format(new Date(value));
+}
+
+export type Warning = {
+  id: string;
+  level: string;
+  headline: string;
+  description: string;
+  issued_at: string;
+  updated_at: string;
+  effective_from: string;
+  effective_until: string;
+  lifecycle: 'active' | 'scheduled' | 'cancelled' | 'expired';
+  applicable: boolean | null;
+  recognized: boolean;
+  geometry: Polygon | MultiPolygon | null;
+  source_url: string;
+};
+
+export type WeatherSnapshot = {
+  reading: {
+    kind: 'modelled';
+    model: string;
+    valid_at: string;
+    temperature_c: number;
+    precipitation_mm: number;
+    wind_kmh: number;
+    source_url: string;
+  } | null;
+  warnings: Warning[];
+  coverage: string;
+  last_feed_update_received_at: string | null;
+  attribution: { owner: string; notice_url: string };
+  projection: Snapshot['projection'];
+};
+
+export function displayDateTime(value: string | null) {
+  if (!value) return 'No successful receipt';
+  return new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Melbourne',
+    dateStyle: 'medium',
+    timeStyle: 'long',
   }).format(new Date(value));
 }

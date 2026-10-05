@@ -15,6 +15,9 @@ def capture_city(destination: Path) -> str:
             "boundary": json.loads(
                 (ROOT / "tests/fixtures/southbank.geojson").read_text(encoding="utf-8")
             ),
+            "weather": json.loads(
+                (ROOT / "tests/fixtures/weather-scenario.json").read_text(encoding="utf-8")
+            ),
             "scenario": json.loads(
                 (ROOT / "tests/fixtures/city-scenario.json").read_text(encoding="utf-8")
             ),
@@ -45,4 +48,6 @@ class LocalCityCapture:
         if hashlib.sha256(payload).hexdigest() != self.capture_id:
             raise ValueError("fixture capture integrity check failed")
         data: dict[str, Any] = json.loads(payload)
-        return CapturedCity(self.capture_id, data["boundary"], data["scenario"])
+        return CapturedCity(
+            self.capture_id, data["boundary"], data["scenario"], data.get("weather")
+        )

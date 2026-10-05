@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AREA_ID, displayTime, readJson } from './city';
 import type { Snapshot } from './city';
 import { CityMap } from './CityMap';
+import { WeatherPanel } from './WeatherPanel';
 import tramIcon from './assets/tram.svg';
 import type { Boundary } from './CityMap';
 
@@ -13,6 +14,7 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [showVehicles, setShowVehicles] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
+  const [showWarnings, setShowWarnings] = useState(true);
   const [showTracks, setShowTracks] = useState(true);
   const result = useQuery({
     queryKey: ['city', scenario, seconds],
@@ -147,6 +149,8 @@ export function App() {
                 <option value="journey">Tram journey</option>
                 <option value="empty">Empty transport</option>
                 <option value="outage">Transport outage</option>
+                <option value="weather">Weather warnings</option>
+                <option value="weather-outage">Weather outage</option>
               </select>
             </label>
           </div>
@@ -203,6 +207,18 @@ export function App() {
                   />
                   Tracks (illustrative)
                 </label>
+                {snapshot.weather && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showWarnings}
+                      onChange={(event) =>
+                        setShowWarnings(event.target.checked)
+                      }
+                    />{' '}
+                    Warning areas
+                  </label>
+                )}
               </div>
               {geometry.data && (
                 <CityMap
@@ -213,6 +229,8 @@ export function App() {
                   showVehicles={showVehicles}
                   showBoundary={showBoundary}
                   showTracks={showTracks}
+                  warnings={snapshot.weather?.warnings ?? []}
+                  showWarnings={showWarnings}
                 />
               )}
               {geometry.isPending && (
@@ -238,7 +256,11 @@ export function App() {
               <p className="area-description">Southbank · City of Melbourne</p>
               <div className={`condition-box ${condition}`} role="status">
                 <span className="status-symbol">
-                  {condition === 'degraded' ? '!' : '?'}
+                  {condition === 'degraded'
+                    ? '!'
+                    : condition === 'normal'
+                      ? '✓'
+                      : '?'}
                 </span>
                 <div>
                   <p>Current conditions</p>
@@ -253,7 +275,7 @@ export function App() {
               </div>
               <p className="condition-explanation">
                 {snapshot.assessment.reasons.length
-                  ? 'A confirmed transport disruption affects this area.'
+                  ? 'Known transport disruptions or applicable warnings affect this area.'
                   : condition === 'unknown'
                     ? missingCoverage + '. Overall conditions remain unknown.'
                     : 'Required current-condition inputs are complete.'}
@@ -265,7 +287,9 @@ export function App() {
                     Effective {displayTime(reason.effective_from)} ·{' '}
                     {reason.resolved_at
                       ? 'Resolved ' + displayTime(reason.resolved_at)
-                      : 'Resolution not yet observed'}
+                      : reason.effective_until
+                        ? 'Valid until ' + displayTime(reason.effective_until)
+                        : 'Resolution not yet observed'}
                   </span>
                 </div>
               ))}
@@ -275,7 +299,9 @@ export function App() {
                   <p>
                     {coverage('transport_service') === 'error'
                       ? 'Source unavailable · fixture'
-                      : snapshot.assessment.reasons.length
+                      : snapshot.assessment.reasons.some(
+                            (reason) => reason.input_id === 'transport_service',
+                          )
                         ? '1 service disruption · fixture'
                         : 'No active disruption · fixture'}
                   </p>
@@ -291,7 +317,9 @@ export function App() {
                   <h3>Weather & hazards</h3>
                   <p>
                     {coverage('weather_warnings') === 'unknown'
-                      ? 'Warning data not connected'
+                      ? snapshot.weather
+                        ? 'Warning coverage incomplete'
+                        : 'Warning data not connected'
                       : coverage('weather_warnings') === 'error'
                         ? 'Warning source unavailable'
                         : coverage('weather_warnings') === 'stale'
@@ -395,19 +423,44 @@ export function App() {
                 )}
               </div>
             </section>
+            {snapshot.weather && <WeatherPanel weather={snapshot.weather} />}
             <section className="scenario-notes">
               <h2>Demo moments</h2>
               <p>Jump to a change in the six-minute scenario.</p>
-              <div className="moments">
-                <button onClick={() => jump(30)}>30s · Position update</button>
-                <button onClick={() => jump(60)}>
-                  60s · Service interruption
-                </button>
-                <button onClick={() => jump(150)}>150s · Stale position</button>
-                <button onClick={() => jump(330)}>
-                  330s · Last known only
-                </button>
-              </div>
+              {snapshot.weather ? (
+                <div className="moments">
+                  <button onClick={() => jump(30)}>30s · Advice</button>
+                  <button onClick={() => jump(60)}>60s · Watch and Act</button>
+                  <button onClick={() => jump(150)}>150s · Cancelled</button>
+                  <button onClick={() => jump(180)}>
+                    180s · Emergency Warning
+                  </button>
+                  <button onClick={() => jump(240)}>
+                    240s · Expired, coverage stale
+                  </button>
+                  <button onClick={() => jump(270)}>
+                    270s · Coverage restored
+                  </button>
+                  <button onClick={() => jump(330)}>
+                    330s · Incomplete coverage
+                  </button>
+                </div>
+              ) : (
+                <div className="moments">
+                  <button onClick={() => jump(30)}>
+                    30s · Position update
+                  </button>
+                  <button onClick={() => jump(60)}>
+                    60s · Service interruption
+                  </button>
+                  <button onClick={() => jump(150)}>
+                    150s · Stale position
+                  </button>
+                  <button onClick={() => jump(330)}>
+                    330s · Last known only
+                  </button>
+                </div>
+              )}
               <details>
                 <summary>Replay diagnostics</summary>
                 <p>

@@ -20,6 +20,8 @@ For the runnable city view: [CITY-01 walkthrough](demos/city-01.md), [fixture ma
 
 For weather-source evolution: [ADR 0005](adr/0005-weather-source-policy.md) → [source enablement gates](source-register.md#weather-enablement-evidence) → [area weather policy](architecture/area-contract.md#weather-source-policy).
 
+For the integrated weather replay: [CITY-02 walkthrough](demos/city-02.md), [fixture contract](architecture/weather-fixture-contract.md), [ADR 0006](adr/0006-weather-fixture-spatial-and-freshness.md) and [evidence](evidence/city-02-weather.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -34,6 +36,10 @@ For weather-source evolution: [ADR 0005](adr/0005-weather-source-policy.md) → 
 | [CITY-01 walkthrough](demos/city-01.md) | Feature scope, acceptance cases, local replay and query details | Fixture behavior or reproduction steps change |
 | [CITY-01 evidence](evidence/city-01-fixture-map.md) | Dated spatial/browser results and verification limits | A new checkpoint is verified |
 | [ADR 0005](adr/0005-weather-source-policy.md) | Accepted weather-source roles, warning severity/coverage and provider evolution | Source scope or assessment policy changes |
+| [ADR 0006](adr/0006-weather-fixture-spatial-and-freshness.md) | Accepted positive-area warning overlap and authored fixture freshness | Spatial or freshness policy changes |
+| [Weather fixture contract](architecture/weather-fixture-contract.md) | Weather payloads, replay, receipt semantics and API additions | Weather contracts or projection behavior changes |
+| [CITY-02 walkthrough](demos/city-02.md) | Integrated weather demo and acceptance cases | Fixture behavior or reproduction steps change |
+| [CITY-02 evidence](evidence/city-02-weather.md) | Dated weather, spatial and browser verification | A new checkpoint is verified |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |
