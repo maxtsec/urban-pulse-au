@@ -284,7 +284,16 @@ class PostgresEventStore:
             connection = transaction.connection
             row = (
                 connection.execute(
-                    select(deliveries, publications.c.context)
+                    select(
+                        deliveries,
+                        publications.c.context,
+                        publications.c.envelope,
+                        publications.c.source,
+                        publications.c.event_id,
+                        publications.c.subject,
+                        publications.c.revision,
+                        publications.c.fingerprint,
+                    )
                     .join(publications)
                     .where(deliveries.c.id == claim.delivery_id)
                     .with_for_update(of=deliveries)
@@ -299,22 +308,17 @@ class PostgresEventStore:
                 or row["generation"] != claim.generation
             ):
                 raise StaleClaim("delivery claim was replaced or does not exist")
-            if row["status"] == "complete":
+            if row["status"] == "complete" or (
+                row["status"] == "dead-letter" and row["outcome"] == RevisionOutcome.CONFLICT.value
+            ):
                 return RevisionOutcome(row["outcome"])
             if row["status"] != "leased" or row["lease_until"] <= clock(connection):
                 raise StaleClaim("delivery claim is not active")
-            publication = (
-                connection.execute(
-                    select(publications).where(publications.c.id == row["publication_id"])
-                )
-                .mappings()
-                .one()
-            )
-            wire = publication["envelope"]
-            if receipt_from_wire(wire) != receipt(publication):
+            wire = row["envelope"]
+            if receipt_from_wire(wire) != receipt(row):
                 raise ValueError("stored publication integrity mismatch")
             outcome = transaction.consume(
-                publication["context"], row["consumer"], wire, lambda: effect(transaction, wire)
+                row["context"], row["consumer"], wire, lambda: effect(transaction, wire)
             )
             # Work can outlive its lease even while this transaction holds its row lock.
             ended = clock(connection)
