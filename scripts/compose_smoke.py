@@ -234,6 +234,14 @@ def main() -> None:
             require_equal(read(api + route), view, "Recovery worker isolation")
             print("Checking durable city checkpoints and persisted expiry", flush=True)
             verify_city_checkpoints(run, city, read, api)
+            metrics = city("metrics")
+            if not isinstance(metrics, dict) or not isinstance(metrics.get("consumers"), list):
+                raise RuntimeError("city metrics must return registered consumer summaries")
+            require_equal(
+                sorted(item["consumer"] for item in metrics["consumers"]),
+                ["city-location-v1", "city-results-v1"],
+                "City operational metrics",
+            )
             print("Restarting isolated database while worker stays running", flush=True)
             verify_database_restart(base, run, recovery)
             require_equal(read(api + route), view, "Database restart isolation")

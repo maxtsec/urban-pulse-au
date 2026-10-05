@@ -31,6 +31,20 @@ def smoke(monkeypatch, tmp_path):
         commands.append(command)
         if "workers.events.main" in command:
             return subprocess.CompletedProcess(command, 0, json.dumps(next(worker_results)), "")
+        if "workers.city.main" in command:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                json.dumps(
+                    {
+                        "consumers": [
+                            {"consumer": "city-location-v1"},
+                            {"consumer": "city-results-v1"},
+                        ]
+                    }
+                ),
+                "",
+            )
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(compose_smoke.subprocess, "run", run)
