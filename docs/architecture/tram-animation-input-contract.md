@@ -1,89 +1,98 @@
 # MAP-02 tram animation input contract
 
-Date: 6 October 2026. Status: **Proposed for architect review**. [ADR 0011](../adr/0011-southbank-building-massing.md) already accepts the animation classes, receipt cutoff, 30-second display delay and static fallbacks. The API placement, bounded projection and shape-linkage format below need acceptance before MAP-02 implementation. Delivery status remains in the [delivery plan](../delivery-plan.md).
+Date: 6 October 2026. Status: **Proposed for architect review**. [ADR 0011](../adr/0011-southbank-building-massing.md) accepts the rendering stack, truth classes and 30-second display delay. This document proposes the missing transport metadata, playback protocol, API placement and bounds. Merging this proposal does not accept those decisions or authorize their implementation. Progress remains in the [delivery plan](../delivery-plan.md).
 
-## Problem and placement
+## Decisions and implementation prerequisites
 
-The current area snapshot exposes one latest position per vehicle. It has no observation history, original receipt time or trip/shape linkage. A browser cache cannot reconstruct a vehicle's earlier motion after reload or a direct seek.
+The current `VehiclePosition` has only `vehicle_id`, `route_id`, `position` and `observed_at`. Neither the event contract nor retained fixture supplies trip identity or a verified shape link. The current frontend advances 15 scenario seconds after each two-second wait and fetches a snapshot; that produces discrete steps.
 
-| Option | Data path | Trade-off |
+| Decision | Recommended proposal | Alternative and trade-off |
 | --- | --- | --- |
-| **A: additive `tram_animation` in the area snapshot (recommended)** | The existing area request returns current conditions and a bounded animation projection from the same input scope and clock | Atomic alignment and no extra API request when switching 2D/3D; a small bounded addition to every snapshot |
-| B: separate animation endpoint | Fetch a bounded projection alongside every area request, independently of view toggles, and verify matching scope/clock | Keeps the area response smaller; adds a request, response coordination and partial-failure handling |
+| Transport metadata | Review an additive, nullable trip descriptor in the public transport event contract, then update normalization, retained history and the synthetic fixture together | A new event major version gives stricter mandatory metadata, but needs dual-reader/replay compatibility. Keeping the existing contract supports only static markers |
+| Playback | A continuous logical playhead over a complete, bounded playback window, stopping at each data/state boundary | Keep discrete snapshot stepping, explicitly a static replay; it does not deliver MAP-02 moving trams |
+| API placement | Keep A as the compatibility baseline pending payload acceptance; compare measured sizes below before choosing | B can avoid animation downloads in 2D, but needs an explicit amendment to ADR 0011's view-toggle request rule |
 
-Option A keeps the existing `vehicles`, assessment, coverage and counts unchanged. The Location Intelligence application view model prepares animation inputs from accepted transport history and the pinned shape fixture. Routes serialize the result; React/deck.gl render it. Track matching produces presentation metadata, not domain events, area membership or a position observation. Live provider enablement remains SRC-02 work.
+**MAP-02 prerequisites:** accept and implement the public transport-contract change (schema/version compatibility, validation and tests); retain original receipt evidence; author trip-complete synthetic observations; verify static GTFS trip-to-shape mapping and its manifest; accept this playback/API proposal and its bounds. These prerequisites apply to MAP-02 only. MAP-01 building massing can proceed independently after DEMO-01.
+
+The transport proposal needs `trip_id`, service date/start time where required to identify a repeated trip instance, and nullable `direction_id`, alongside the existing route ID. Resolve `shape_id` from that trip in a pinned static GTFS release; do not invent a producer shape ID or guess from route alone. Matching output belongs to the Location Intelligence view model, not a new observed position or domain fact. Old events remain readable and render statically when linkage is missing. Live enablement and provider-field verification remain SRC-02 gates.
+
+## API placement and size
+
+| Option | Data path | Cost and compatibility |
+| --- | --- | --- |
+| A: additive `tram_animation` in the area snapshot | Return the bounded window with the existing area request | Atomic input alignment and ADR 0011's unchanged requests across 2D/3D; 2D also downloads and parses the animation payload |
+| B: separate animation endpoint, requested only for animation | Request the same scenario/time as the area snapshot and verify scope/clock alignment | Avoids animation payloads in static 2D; adds request coordination, buffering and partial failures. Requires architect approval to amend ADR 0011's rule that view toggles do not change API requests |
+
+The [payload estimate](../evidence/map-02-animation-payload.md) measures synthetic JSON for both ordinary and dense windows, including IDs, receipts and matching metadata. It is an encoding estimate, not a network or production benchmark. Both placements carry the same animation content when enabled; B adds alignment fields. No claim that the addition is small is justified before those sizes and the eventual fixture measurements are accepted.
+
+The endpoint/query proposal must also define fractional scenario clocks for seek equivalence before implementation; the current API accepts integer seconds.
+
+The tables below describe A. Under B, only the separate response adds `scope_id` and `clock_at`, which must equal the parent `composition.timeline_id` and `clock.at`. The proposed observation/byte limits and playback rules apply to both.
 
 ## Proposed wire fields
 
-All timestamps use UTC RFC 3339. Coordinates are finite WGS84 longitude/latitude; distances are metres. Identifiers remain source-scoped. The projection's clock is the parent snapshot's clock, never browser wall time.
+Receipt/observation timestamps are UTC RFC 3339. Trip service date/start time retain the GTFS service-calendar convention and source timezone; they are not UTC receipt timestamps. Coordinates are finite WGS84 longitude/latitude; distances are metres. Under A, inherit scope, start clock, vehicle limit/order and truncation from the parent. Do not repeat `scope_id`, `clock_at`, `max_vehicles` or `vehicles_truncated`. The existing area `policy_version` remains separate from the animation policy.
 
 | `tram_animation` field | Meaning |
 | --- | --- |
-| `contract_version` | `tram-animation-input-v1`; version independently of CloudEvents and the software release |
-| `scope_id` | Parent `composition.timeline_id`, identifying the captured inputs, scenario policy, boundary and area policy; animation/shape versions are pinned separately below |
-| `clock_at`, `display_at` | Snapshot time *t* and presentation time *d = t - 30 seconds* |
-| `policy_version` | Accepted `tram-display-delay-v1` |
-| `status`, `reason` | `ready` or `unavailable`, with a nullable diagnostic code; animation-only failures do not change an otherwise valid area result |
-| `position_input` | `{state, received_at, capture_ids}` for the position feed at *t*. State is `available`, `unknown` or `error`; this is independent of transport service-alert coverage and per-vehicle freshness |
-| `max_vehicles`, `vehicles_truncated` | Parent `positions_limit` and `positions_truncated`; currently at most 100 vehicles, in the same order as parent `vehicles` |
-| `max_observations_per_vehicle` | Proposed hard cap of **3**, selected by the rule below; at most 300 observations per response with the current vehicle limit |
-| `shapes` | Null or `{revision, sha256, url}` for a pinned shape manifest, served as an immutable hashed same-origin static asset |
-| `vehicles` | One entry per parent vehicle when ready; empty when unavailable. Each entry has `vehicle_id`, `source`, `latest_observation: {source, event_id}` and `observations` |
+| `contract_version` | `tram-animation-input-v1` |
+| `display_policy_version` | `tram-display-delay-v1`; display time is derived from the playhead minus 30 seconds |
+| `status`, `reason` | `ready` or `unavailable`, with a nullable diagnostic code; an animation failure preserves the valid city view |
+| `window_end` | Exclusive upper bound for this response's complete playback window; start is parent `clock.at` |
+| `position_input` | `{state, received_at, capture_ids}`; `available`, `unknown` or `error`, derived from the position input independently of service-alert coverage |
+| `shapes` | Null or `{revision, sha256, url}` for an immutable same-origin manifest and referenced geometry |
+| `vehicles` | One entry per parent vehicle when ready; empty when unavailable. Each entry has `vehicle_id`, `source`, `latest_observation: {source, event_id}`, nullable `startup_observation` with the same reference format, and `observations` |
 
 Each observation contains:
 
 | Field | Meaning |
 | --- | --- |
-| `source`, `event_id`, `revision` | Original accepted event identity and revision. `(source, event_id)` identifies the sample; vehicle identity matches the parent entry |
-| `capture_ids` | Original capture references, unique and unchanged by redelivery |
-| `observed_at` | Provider observation time, nullable; a missing time disables interpolation |
-| `received_at` | Original successful application receipt time. For fixtures, `started_at + at_seconds` of the first accepted frame under the scenario policy; for live data, retained receipt evidence from the original capture. Never request time, replay execution time or broker retry time |
-| `longitude`, `latitude` | Original observed coordinates; never replaced by the matched track point |
-| `shape_match` | `{status, trip_id, service_date, start_time, route_id, direction_id, shape_id, segment_id, distance_m}`. Status is `matched`, `unmatched` or `ambiguous`; absent identifiers/distances are null |
+| `source`, `event_id`, `revision` | Original accepted event identity/revision; `(source, event_id)` identifies the sample |
+| `capture_ids` | Original unique capture references, unchanged by redelivery |
+| `observed_at` | Provider observation time, nullable; missing time disables interpolation |
+| `received_at` | First successful application receipt. Fixtures use `started_at + at_seconds` of the first accepted frame; live support requires retained original receipt evidence. Never request, replay or retry time |
+| `longitude`, `latitude` | Original observed coordinates |
+| `shape_match` | `{status, trip_id, service_date, start_time, route_id, direction_id, shape_id, segment_id, continuity_id, distance_m}`. Status is `matched`, `unmatched` or `ambiguous`; unavailable values are null |
 
-A matched sample names a shape from `shapes.revision` and records an unambiguous trip instance, directed shape segment and distance along that shape. `service_date`/`start_time` distinguish repeated trip instances where required; their absence cannot bridge an ambiguous trip boundary. Nullable GTFS fields stay null. A route ID alone does not establish a unique shape or direction. The [source register](../source-register.md#tram-track-geometry-map-02) owns GTFS release, field and matching-tolerance verification.
+A matched sample identifies an unambiguous trip instance and directed shape component from `shapes.revision`. Nullable GTFS fields stay null; an absent value cannot bridge an ambiguous trip instance. The [source register](../source-register.md#tram-track-geometry-map-02) owns release, linkage and matching-tolerance verification.
 
-The shape manifest records its source ZIP hash/release, fixture hash, coordinate/distance convention, matching algorithm/version and accepted tolerance, plus included/excluded IDs and counts. Each shape has a stable fixture ID, provider `shape_id` and contiguous components identified by `segment_id`. Each component has ordered vertices and monotonically increasing cumulative metre distances measured from the original shape origin. Preserve original sequence/distance offsets when clipping; excluded spans are not new connecting lines. Missing or ambiguous linkage, an out-of-tolerance point, an unknown shape, or unverifiable manifest keeps the vehicle static at its observed coordinate. Existing illustrative fixture tracks are not matching evidence.
+The manifest records source ZIP/release and fixture hashes, coordinate/distance conventions, matching algorithm/version and accepted tolerance, and included/excluded IDs/counts. Each shape has contiguous components keyed by `segment_id`, with ordered vertices and increasing cumulative metre distances from the original shape origin. Preserve offsets when clipping; never join excluded spans. `continuity_id` identifies an accepted trajectory segment, breaking on trip/direction/shape/component changes, missing time/match, non-increasing observation times or decreasing distances. Derive it from the segment's first accepted event and linkage, so later receipts cannot rename an earlier segment. Illustrative fixture tracks are not verified matching evidence.
 
-For fixtures, `position_input` is derived from the received position-capture prefix and authored outage policy at *t*: no successful input is `unknown`, a successful capture (including empty) is `available`, and an authored failure is `error`. Its receipt/capture references come from that input evidence. Reconstruct this state on seek; do not infer it from service alerts or browser request success. Live source cadence/TTL remains a separately reviewed SRC-02 policy. Motion requires `available` plus valid samples; an outage holds the observed point while freshness continues to age.
+## Continuous clock and complete windows
 
-## Bounded selection and deterministic rendering
+Let **a** be the parent snapshot's clock. The backend supplies a complete interval **[a, b)**, at most 15 scenario seconds. Choose **b** as the earliest of the next 15-second grid boundary, scenario end, or any boundary where API-visible state can change: original input receipt, authored outage, warning/service validity, freshness expiry, membership or vehicle selection. Shorten it further if required by the sample/byte bounds below. Fixtures can determine these boundaries from retained history; do not assume a live feed's next arrival is known.
 
-1. Rebuild the eligible transport prefix for this scope and *t*, using the existing scenario receipt cutoff and revision guard. Include original applied position changes only. Duplicate, conflict, rejected and superseded delivery attempts create no new observation or receipt time; an earlier applied observation remains historical input after a later accepted revision.
-2. Keep a vehicle's latest continuous trajectory segment: same source/vehicle, trip instance, direction, pinned shape and `segment_id`. A change of linkage, missing time/match, non-increasing observation time or decreasing distance ends interpolation continuity. Do not interpolate across the break; static display remains available.
-3. Within that segment, select **A**, the closest observation at or before *d*, and **B**, the closest at or after *d*. Both must have been received by *t*. Include **L**, the latest accepted observation at *t*, for static fallback and freshness consistency. Return the deduplicated union `{A, B, L}` in canonical accepted revision order, at most three records. Include the latest record even when its time or match is unknown.
-4. Equal-time candidates follow accepted revision order, never input-array or request order. An exact observation at *d* needs no interpolation. Otherwise interpolate distance between A and B by observation time only when both belong to the same continuous segment and bracket *d*. Derive position and heading from that pinned shape; never interpolate straight across missing shape spans or invent a connecting segment.
-5. When no valid bracket exists, use ADR 0011's static fallback: before the first observation in the current segment hold that first observation; after the latest, or when time/match is unavailable, hold the latest observed point. Never extrapolate. Use the parent vehicle's freshness at *t*, retaining its stale dimming and expired visibility rule. A failed position input stops its motion independently of service alerts and weather.
-6. Construct this projection from persisted inputs for every requested clock. Do not return full history or require a browser to have visited earlier clocks. The renderer uses the supplied clock/samples and deterministic geometry; it does not read future fixture records, advance receipt times, or animate from wall time.
+All returned observations have `received_at <= a`. Include enough accepted history to evaluate every display time in **[a - 30 s, b - 30 s)**. No future receipt is prefetched into this response. The parent facts, current-position list and membership remain valid until b; relative ages use the playhead, and any freshness category change is a boundary. Selecting all relevant context boundaries is part of the API implementation, not a client-side assessment engine. If that completeness cannot be established, return animation unavailable; do not advertise a window that crosses an unknown change.
 
-The observation cap bounds the response, not server work: MAP-02 must measure historical selection/query cost as well as payload size. The implementation must retrieve the required samples without shipping or revalidating an unbounded archive on each frontend frame.
+Playback uses a monotonic elapsed timer only to advance the explicit logical playhead:
 
-### Clock example
+`p = a + elapsed_seconds * playback_rate`, with proposed `playback_rate = 7.5` (15 scenario seconds per two elapsed seconds).
 
-Assume synthetic observations at 0, 30 and 60 seconds, received at those same times on one verified shape, with increasing distances. These are contract examples, not claims about live cadence.
+At each browser animation frame, render the pure function `frame(p, window)` at **d = p - 30 s**. Meshes never integrate velocity or read wall time directly. This clarifies ADR 0011's scenario-clock rule: elapsed time schedules the scenario playhead; it is not another source of position data. A different frame rate changes which intermediate frames are sampled, not the pose at a given p.
 
-| Clock *t* | Display *d* | Eligible bracket | Frame |
-| --- | --- | --- | --- |
-| 15 s | -15 s | Only observation 0 received | Static observation 0; never read observation 30 |
-| 45 s | 15 s | Observations 0 and 30 | Interpolate halfway by observation time along the shape |
-| 59 s | 29 s | Observations 0 and 30 | Interpolate using those observations; observation 60 is absent |
-| 75 s | 45 s | Observations 30 and 60 | Interpolate halfway; no dependence on earlier browser visits |
+Stop before committing a frame at b, fetch its new snapshot/window and resume only after validation. Show buffering and hold the last valid frame during delay/failure. Pause freezes p; resume anchors a new elapsed timer at that same p. Seek/scenario change cancels obsolete responses, requests the target clock and resets the timer. Direct seek and playback must produce the same tram pose, truth label and visible city state at p even if their request start times differ. Reaching the scenario end renders its final snapshot statically. Hidden-tab resume must not jump across unverified boundaries.
 
-A delayed observation is eligible only after its actual receipt. An unchanged recapture does not make an old position current. A seek to 45 seconds and playback ending at 45 seconds must select identical IDs, receipts, shape references and pose.
+## Selection, discontinuities and delayed delivery
 
-## Shape loading and compatibility
+1. Reconstruct the accepted receipt prefix at a using the existing revision guard. Only original **APPLY** outcomes enter animation history. Duplicate/conflict/rejected/**SUPERSEDED** attempts add no sample. An earlier APPLY remains history after a later accepted revision; that is different from an incoming old revision rejected as SUPERSEDED.
+2. A delayed observation becomes usable after receipt **only if its event is APPLY**. For example, revision 2 arriving after accepted revision 3 is excluded; revision 4 carrying an older observation time can apply but breaks continuity. This proposal does not introduce out-of-order historical ingestion or change `compare_revision`.
+3. Select history around the **display interval**, retaining relevant old and new trip segments. Include the last dated observation at/before its left edge, all observations inside it, the first dated observation at/after its right edge, and the latest accepted observation needed by the parent. Retain continuity markers and any static fallback required by missing timestamps. Deduplicate by `(source, event_id)` and use canonical accepted revision order. Do not select only the latest trip.
+4. For each d, interpolate only between consecutive bracketing observations with the same verified `continuity_id`. Across a trip/shape/gap break, hold the last eligible observed position at/before d; switch to the new segment only when d reaches its first observation. Never substitute the latest trip's first sample for that hold.
+5. ADR 0011's before-first-observation exception applies only to the vehicle's first-ever observation, named by `startup_observation`, not the start of each new trip. That static fallback, a missing-time fallback and unavailable matching are labelled **Observed**, with the actual timestamp or unknown time; the 30-second legend applies to **Interpolated** motion and states that observed fallbacks are exceptions. No interpolation or speed is claimed for a fallback.
+6. Stale/expired rules use p and existing visibility semantics. Unknown/error position input stops motion; other domains do not gate it. A failed shape load/hash verification or animation validation uses the labelled static fallback and preserves the city assessment and accessible list.
 
-The same area query/projection is used in 2D and 3D. View toggles may load local model/shape assets, but do not add or change API requests, clocks or area results. Verify the pinned manifest and matching fixture hash; load only same-origin assets compatible with the ingress CSP. Shape-load or animation-validation failure shows an explicit animation-unavailable/static fallback while preserving the valid city view and accessible list.
+Proposed hard limits: parent vehicle cap (currently 100), **8 observations per vehicle** and **256 KiB of uncompressed compact UTF-8 animation JSON** including metadata. An ordinary 30-second-cadence window often needs only 2-3 samples; dense history can need more. Never drop an interior sample or discontinuity to fit the cap: shorten b deterministically to the earliest point at which another required sample would exceed a bound. If even the requested instant cannot fit, return `unavailable` with `window_limit`. Report the actual b; the frontend never advances past it. Bound historical query/validation cost separately and measure it in MAP-02.
 
-The parent snapshot remains authoritative for area membership, current position/freshness, coverage and counts. Earlier samples may be outside Southbank; they are animation context for a currently included vehicle, not additional area members. Optional trip/shape fields in future transport payloads require their own reviewed contract change; this proposal does not claim they already exist. Clients without `tram_animation` continue to use the existing 2D observations.
+### Acceptance examples
 
-## MAP-02 acceptance cases
+| Case | Expected frame |
+| --- | --- |
+| Observations at 0 and 30, received then; playhead 45 to just before 60 | Display 15 to just before 30, moving smoothly along the same verified shape; receipt 60 is unavailable until the next window |
+| Trip X observation 30, trip Y observation 60; p=75, d=45 | Hold X at observation 30; never draw Y's position 60 under the delayed interpolation label. At p=90/d=60, Y may become the displayed segment |
+| First-ever observation 0; p=15/d=-15 | Static Observed fallback at 0, with its timestamp; no interpolation claim |
+| Revision 2 arrives after revision 3 | SUPERSEDED: never an animation sample, even after its receipt |
+| Window [45,60), dense observations between display times 15 and 30 | Include all required interior samples/breaks, or end the window sooner; a three-sample shortcut cannot silently change the path |
 
-- Direct seek, reload, rewind and playback to the same clock produce identical sample identity/order, timestamps, matches and pose from the same input scope. Later captures and observations are absent before their receipts, including during outage scenarios.
-- Test the clock table, exact observation time, a delayed receipt, missing time, non-increasing times, a trip-instance/direction/shape/segment change and a clipped shape gap. Invalid/ambiguous matching holds the observed point rather than guessing a track.
-- Duplicate and unchanged recapture attempts preserve original sample/receipt identity. Conflict/rejected/superseded attempts never enter the trajectory. Canonical selection is independent of request and input-array order.
-- A long retained history still returns at most three observations per included vehicle and at most the parent vehicle limit, with explicit vehicle truncation. Parent vehicle ordering and latest sample identity remain aligned; samples retained for a bracket cannot be silently removed by a history cutoff.
-- Stale/expired positions, failed position input, missing shape assets, hash mismatch and animation-only failure preserve current area assessment, counts and coverage. Static fallback and keyboard selection remain usable.
-- Switching 2D/3D changes no API query or result. Shape/model requests stay same-origin, satisfy CSP and use immutable manifest revisions. Measure selection cost, response bytes, rendering cost and memory alongside ADR 0011's desktop/mobile checks.
+MAP-02 tests must cover fractional playheads at different frame rates, pause/resume, direct seek/reload/rewind, slow/failed requests, hidden tabs, stale responses after seek, exact receipt/expiry boundaries, trip changes, missing timestamps, clipped gaps, sample/byte overflow and scenario end. Compare arbitrary p inside the window against a fresh snapshot at p (the fixture API will need fractional-clock support or an equivalent reviewed query contract). That public query change is also a prerequisite; rounding p to the existing integer `seconds` API is not an equivalence proof. Verify 2D/3D payload behaviour according to the chosen placement and measure payload, query, parsing, rendering and memory costs. These are implementation acceptance cases, not tests claimed to have run in this documentation PR.
 
-References: [GTFS trips and shapes](https://gtfs.org/documentation/schedule/reference/#shapestxt), [GTFS-Realtime trip descriptors](https://gtfs.org/documentation/realtime/reference/#message-tripdescriptor), [accepted capture/event semantics](capture-event-contract.md).
+References: [GTFS trips and shapes](https://gtfs.org/documentation/schedule/reference/#shapestxt), [GTFS-Realtime trip descriptors](https://gtfs.org/documentation/realtime/reference/#message-tripdescriptor), [capture/event semantics](capture-event-contract.md).
