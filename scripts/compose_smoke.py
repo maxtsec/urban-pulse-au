@@ -135,6 +135,24 @@ def verify_cache_modes(base, run, read, url, route, view):
     require_equal(read(api + route), view, "City after re-enabling cache")
 
 
+def cleanup_stack(project: str, run: Callable[..., None]) -> None:
+    """Remove every profile in this generated project, then verify actual resource removal."""
+    if not re.fullmatch(r"urbanpulse-smoke-[0-9a-f]{12}", project):
+        raise RuntimeError("invalid isolated cleanup target")
+    run("down", "--volumes", "--remove-orphans", all_profiles=True)
+    remaining: dict[str, list[str]] = {}
+    for resource in ("container", "network", "volume"):
+        command = ["docker", resource, "ls", "--quiet"]
+        if resource == "container":
+            command.append("--all")
+        command.extend(["--filter", f"label=com.docker.compose.project={project}"])
+        identifiers = subprocess.check_output(command, cwd=ROOT, text=True, timeout=30).splitlines()
+        if identifiers:
+            remaining[resource] = identifiers
+    if remaining:
+        raise RuntimeError(f"Smoke cleanup left labelled resources: {remaining}")
+
+
 def main() -> None:
     project = "urbanpulse-smoke-" + uuid4().hex[:12]
     folder = ROOT / ".local" / "compose-smoke" / project
@@ -155,10 +173,12 @@ def main() -> None:
 
     with log_path.open("w", encoding="utf-8") as log:
 
-        def run(*args: str, no_cache: bool = False) -> None:
+        def run(*args: str, no_cache: bool = False, all_profiles: bool = False) -> None:
             configuration = [*base]
             if no_cache:
                 configuration.extend(["-f", str(ROOT / "compose.no-cache.yaml")])
+            if all_profiles:
+                configuration.extend(["--profile", "*"])
             result = subprocess.run(
                 [*configuration, *args], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, timeout=900
             )
@@ -292,16 +312,17 @@ def main() -> None:
             primary_error = sys.exception()
             try:
                 # Never target the user's normal compose project or its database volume.
-                if not re.fullmatch(r"urbanpulse-smoke-[0-9a-f]{12}", project):
-                    raise RuntimeError("invalid isolated cleanup target")
-                run("down", "--volumes", "--remove-orphans")
+                cleanup_stack(project, run)
             except Exception as cleanup_error:
                 if primary_error is None:
                     raise
                 primary_error.add_note(f"Cleanup also failed: {cleanup_error}")
                 print(f"Cleanup failed for {project}; inspect {log_path}", file=sys.stderr)
             else:
-                print(f"Removed isolated stack; log: {log_path}", flush=True)
+                print(
+                    f"Verified no isolated containers, networks or volumes remain; log: {log_path}",
+                    flush=True,
+                )
 
 
 if __name__ == "__main__":

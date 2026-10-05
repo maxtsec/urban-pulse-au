@@ -174,6 +174,12 @@ After updating fixture data on an existing stack, rerun `docker compose --profil
 For isolated container validation, run `uv run --locked python scripts/compose_smoke.py`. This builds API/UI images, uses a unique Compose project and database volume with random loopback API/UI ports, verifies cold readiness and city 503 before setup, starts the full app profile, tests city/boundary/evidence through the API and UI proxy, recreates the API, and repeats initialization. It removes only that test stack and volume; logs remain in `.local/compose-smoke/`. CI runs the same script in its Compose job. Results and measured limits are in [Compose follow-up evidence](evidence/city-04-compose.md).
 
 
+## Isolated smoke cleanup
+
+`python -O scripts/compose_smoke.py` owns a uniquely named `urbanpulse-smoke-<12 hex digits>` project. Teardown enables all profiles so stopped recovery/city workers are included, then removes that project's containers, networks and volumes. It queries each resource type by exact Compose project label and reports success only when all are absent. A cleanup error fails an otherwise successful run; when the smoke already failed, cleanup details are attached without hiding the original error.
+
+The normal development project and its database volume are outside this cleanup scope. [Cleanup evidence](evidence/compose-smoke-cleanup.md) records verification and the corrected historical limitation.
+
 ## Static web packaging for the demo
 
 The web Dockerfile has separate `development` (default), `build` and `assets` targets. Existing Compose still starts the development server. Export the compiled SPA from the repository root:

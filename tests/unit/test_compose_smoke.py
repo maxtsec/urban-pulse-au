@@ -49,7 +49,13 @@ def smoke(monkeypatch, tmp_path):
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(compose_smoke.subprocess, "run", run)
-    monkeypatch.setattr(compose_smoke.subprocess, "check_output", lambda *a, **k: "127.0.0.1:8000")
+
+    def output(command, **kwargs):
+        if command[:2] in (["docker", "container"], ["docker", "network"], ["docker", "volume"]):
+            return ""
+        return "127.0.0.1:8000"
+
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", output)
     view = {
         "composition": {"recovery": "persisted-domain-inputs"},
         "geometry_url": "/boundary",
@@ -152,3 +158,67 @@ def test_cache_mode_failure_still_cleans_up(monkeypatch, smoke):
     with pytest.raises(RuntimeError, match="cache mode check failed"):
         compose_smoke.main()
     assert "down" in commands[-1]
+
+
+def test_cleanup_enables_every_profile_and_checks_all_resource_types(monkeypatch, smoke):
+    commands, _ = smoke
+    queried = []
+    original = compose_smoke.subprocess.check_output
+
+    def output(command, **kwargs):
+        if command[:2] in (["docker", "container"], ["docker", "network"], ["docker", "volume"]):
+            queried.append(command)
+        return original(command, **kwargs)
+
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", output)
+    compose_smoke.main()
+    cleanup = commands[-1]
+    down = cleanup.index("down")
+    assert cleanup[down - 2 : down] == ["--profile", "*"]
+    assert cleanup[down:] == ["down", "--volumes", "--remove-orphans"]
+    project = cleanup[cleanup.index("--project-name") + 1]
+    assert [q[1] for q in queried] == ["container", "network", "volume"]
+    assert "--all" in queried[0]
+    assert all(q[-1] == f"label=com.docker.compose.project={project}" for q in queried)
+
+
+@pytest.mark.parametrize("resource", ["container", "network", "volume"])
+def test_cleanup_reports_surviving_resources(monkeypatch, resource):
+    monkeypatch.setattr(
+        compose_smoke.subprocess,
+        "check_output",
+        lambda command, **kwargs: "leftover\n" if command[1] == resource else "",
+    )
+    with pytest.raises(RuntimeError, match=f"labelled resources:.*{resource}.*leftover"):
+        compose_smoke.cleanup_stack("urbanpulse-smoke-0123456789ab", MagicMock())
+
+
+@pytest.mark.parametrize(
+    "project", ["urbanpulse", "urbanpulse-smoke-", "urbanpulse-smoke-0123456789abc"]
+)
+def test_cleanup_refuses_non_smoke_projects_before_running_docker(monkeypatch, project):
+    run, query = MagicMock(), MagicMock()
+    monkeypatch.setattr(compose_smoke.subprocess, "check_output", query)
+    with pytest.raises(RuntimeError, match="invalid isolated cleanup target"):
+        compose_smoke.cleanup_stack(project, run)
+    run.assert_not_called()
+    query.assert_not_called()
+
+
+def test_leftovers_do_not_hide_an_earlier_smoke_failure(monkeypatch, smoke):
+    original = RuntimeError("original build failure")
+    successful_run = compose_smoke.subprocess.run
+
+    def run(command, **kwargs):
+        if "build" in command:
+            raise original
+        return successful_run(command, **kwargs)
+
+    monkeypatch.setattr(compose_smoke.subprocess, "run", run)
+    monkeypatch.setattr(
+        compose_smoke.subprocess, "check_output", lambda *args, **kwargs: "leftover\n"
+    )
+    with pytest.raises(RuntimeError, match="original build failure") as caught:
+        compose_smoke.main()
+    assert caught.value is original
+    assert "labelled resources" in original.__notes__[0]
