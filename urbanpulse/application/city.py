@@ -115,8 +115,8 @@ class CityService:
         outage_at = captured.scenario["outage_at_seconds"]
         projection = PositionProjection()
         rejected = 0
-        for frame in captured.scenario["frames"] if scenario != "empty" else []:
-            if not received(frame["at_seconds"], seconds, scenario, outage_at):
+        for frame in captured.scenario["frames"]:
+            if not received(frame["at_seconds"], seconds, policy, outage_at):
                 continue
             try:
                 event = VehiclePositionChanged.model_validate(frame["event"])
@@ -161,14 +161,14 @@ class CityService:
                 }
             )
         fact, service_evidence = service_at(
-            self.service_frames, started_at, seconds, scenario, outage_at
+            self.service_frames, started_at, seconds, policy, outage_at
         )
         facts: tuple[AdverseFact, ...] = (fact,) if fact is not None and membership[-1] else ()
         transport_coverage = (
             CoverageState.ERROR
-            if scenario == "outage" and seconds >= outage_at
+            if policy.transport_outage and seconds >= outage_at
             else CoverageState.CURRENT
-            if service_evidence is not None or scenario == "empty"
+            if service_evidence is not None or policy.transport_empty
             else CoverageState.UNKNOWN
         )
         weather = None
@@ -255,12 +255,12 @@ class CityService:
                 "capture_ids": frame["event"]["data"]["provenance"]["capture_ids"],
             }
             for frame in captured.scenario["frames"]
-            if received(frame["at_seconds"], seconds, scenario, outage_at)
+            if received(frame["at_seconds"], seconds, policy, outage_at)
         ]
         events.extend(
             {**frame.model_dump(mode="json"), "kind": "service-status"}
             for frame in self.service_frames
-            if received(frame.at_seconds, seconds, scenario, outage_at)
+            if received(frame.at_seconds, seconds, policy, outage_at)
         )
         if policy.weather:
             if captured.weather is None or self.weather_normalizer is None:

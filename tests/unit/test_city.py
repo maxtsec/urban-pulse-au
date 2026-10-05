@@ -324,3 +324,39 @@ def test_disruption_after_received_clear_starts_a_new_episode(captured):
     fact = service.snapshot(240)["assessment"]["reasons"][0]
     assert fact["id"] == "new-episode-240"
     assert fact["effective_from"] == datetime(2026, 10, 4, 0, 4, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("transport_mode", ["empty", "outage"])
+def test_transport_behavior_follows_registry_in_snapshot_and_evidence(
+    captured, monkeypatch, transport_mode
+):
+    from dataclasses import replace
+
+    from urbanpulse.application.scenarios import SCENARIOS, Scenario
+
+    captured.scenario["outage_at_seconds"] = 120
+    city = CityService(MemoryCapture(captured), FixedMembership())
+    expected = city.snapshot(270, transport_mode)
+    expected_evidence = city.evidence(captured.capture_id, 270, transport_mode)["events"]
+    # A different scenario name must inherit all transport behavior from its policy.
+    monkeypatch.setitem(
+        SCENARIOS,
+        Scenario.JOURNEY,
+        replace(
+            SCENARIOS[Scenario.JOURNEY],
+            transport_empty=transport_mode == "empty",
+            transport_outage=transport_mode == "outage",
+        ),
+    )
+    actual = city.snapshot(270, "journey")
+    for field in ("vehicles", "assessment", "service_evidence", "projection"):
+        assert actual[field] == expected[field]
+    evidence = city.evidence(captured.capture_id, 270, "journey")["events"]
+    assert evidence == expected_evidence
+    if transport_mode == "empty":
+        assert actual["vehicles"] == [] and evidence == []
+    else:
+        assert any(
+            reason["input_id"] == "transport_service" for reason in actual["assessment"]["reasons"]
+        )
+        assert all(frame["at_seconds"] < 120 for frame in evidence)

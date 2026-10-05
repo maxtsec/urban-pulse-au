@@ -16,6 +16,8 @@ class Scenario(StrEnum):
 
 @dataclass(frozen=True)
 class ScenarioPolicy:
+    transport_empty: bool = False
+    transport_outage: bool = False
     weather: bool = False
     planning: bool = False
     weather_outage: bool = False
@@ -24,8 +26,8 @@ class ScenarioPolicy:
 
 SCENARIOS = {
     Scenario.JOURNEY: ScenarioPolicy(),
-    Scenario.EMPTY: ScenarioPolicy(),
-    Scenario.OUTAGE: ScenarioPolicy(),
+    Scenario.EMPTY: ScenarioPolicy(transport_empty=True),
+    Scenario.OUTAGE: ScenarioPolicy(transport_outage=True),
     Scenario.WEATHER: ScenarioPolicy(weather=True),
     Scenario.WEATHER_OUTAGE: ScenarioPolicy(weather=True, weather_outage=True),
     Scenario.CITY: ScenarioPolicy(weather=True, planning=True),

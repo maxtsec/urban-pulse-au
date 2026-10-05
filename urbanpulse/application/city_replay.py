@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from urbanpulse.application.scenarios import ScenarioPolicy
 from urbanpulse.contracts.events import Identifier
 from urbanpulse.location.status import AdverseFact
 
@@ -20,11 +21,11 @@ class ServiceFrame(BaseModel):
     reason: str = Field(min_length=1)
 
 
-def received(frame_seconds: int, seconds: int, scenario: str, outage_at: int) -> bool:
+def received(frame_seconds: int, seconds: int, policy: ScenarioPolicy, outage_at: int) -> bool:
     return (
-        scenario != "empty"
+        not policy.transport_empty
         and frame_seconds <= seconds
-        and (scenario != "outage" or frame_seconds < outage_at)
+        and (not policy.transport_outage or frame_seconds < outage_at)
     )
 
 
@@ -32,13 +33,13 @@ def service_at(
     frames: tuple[ServiceFrame, ...],
     started_at: datetime,
     seconds: int,
-    scenario: str,
+    policy: ScenarioPolicy,
     outage_at: int,
 ) -> tuple[AdverseFact | None, dict[str, Any] | None]:
     fact: AdverseFact | None = None
     evidence: dict[str, Any] | None = None
     for frame in frames:
-        if not received(frame.at_seconds, seconds, scenario, outage_at):
+        if not received(frame.at_seconds, seconds, policy, outage_at):
             continue
         observed_at = started_at + timedelta(seconds=frame.at_seconds)
         evidence = {
