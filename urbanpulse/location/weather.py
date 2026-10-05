@@ -27,11 +27,7 @@ class WeatherProjection:
         self.outcomes = {outcome.value: 0 for outcome in RevisionOutcome}
 
     def consume(self, event: WeatherEvent) -> RevisionOutcome:
-        receipt = (
-            EventReceipt.from_event(event)
-            if isinstance(event, WeatherWarningChanged)
-            else EventReceipt.from_event(event)
-        )
+        receipt = EventReceipt.from_event(event)
         key = (event.source, event.subject)
         outcome = compare_revision(
             receipt,

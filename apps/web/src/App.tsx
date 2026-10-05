@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AREA_ID, displayTime, readJson } from './city';
-import type { Snapshot } from './city';
+import type { Snapshot, Warning } from './city';
 import { CityMap } from './CityMap';
 import { WeatherPanel } from './WeatherPanel';
 import { WeatherSummary } from './WeatherSummary';
 import { ScenarioPicker, initialScenario } from './ScenarioPicker';
 import tramIcon from './assets/tram.svg';
 import type { Boundary } from './CityMap';
+
+const EMPTY_WARNINGS: Warning[] = [];
 
 export function App() {
   const [seconds, setSeconds] = useState(0);
@@ -227,7 +229,7 @@ export function App() {
                     showVehicles={showVehicles}
                     showBoundary={showBoundary}
                     showTracks={showTracks}
-                    warnings={snapshot.weather?.warnings ?? []}
+                    warnings={snapshot.weather?.warnings ?? EMPTY_WARNINGS}
                     showWarnings={showWarnings}
                   />
                 )}

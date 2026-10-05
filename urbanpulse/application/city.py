@@ -11,7 +11,8 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 
 from urbanpulse.application.city_replay import ServiceFrame, received, service_at
-from urbanpulse.application.weather import WeatherNormalizer, replay_weather
+from urbanpulse.application.weather import replay_weather
+from urbanpulse.application.weather_replay import WeatherNormalizer, weather_evidence
 from urbanpulse.contracts.events import VehiclePositionChanged
 from urbanpulse.location.city import Freshness, PositionProjection, position_freshness
 from urbanpulse.location.status import AdverseFact, Coverage, CoverageState, assess_area
@@ -28,6 +29,10 @@ REQUIRED = frozenset({"transport_service", "weather_warnings"})
 def geometry_revision(geometry: dict[str, Any]) -> str:
     canonical = json.dumps(geometry, sort_keys=True, separators=(",", ":"), allow_nan=False)
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+class CaptureNotFoundError(Exception):
+    """The requested capture identity is not available in this fixture service."""
 
 
 @dataclass(frozen=True)
@@ -194,7 +199,7 @@ class CityService:
             "geometry_url": f"/api/v1/areas/{AREA_ID}/boundaries/{revision}",
             "policy_version": POLICY_VERSION,
             "projection_version": hashlib.sha256(
-                f"city-projection-v4:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
+                f"city-projection-v5:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},
@@ -218,7 +223,7 @@ class CityService:
     def evidence(self, capture_id: str, seconds: int, scenario: str) -> dict[str, Any]:
         captured = self.captured
         if capture_id != captured.capture_id:
-            raise LookupError("Unknown fixture capture")
+            raise CaptureNotFoundError("Unknown fixture capture")
         if seconds < 0 or seconds > MAX_SECONDS or scenario not in SCENARIOS:
             raise ValueError("invalid fixture scenario or clock")
         outage_at = captured.scenario["outage_at_seconds"]
@@ -238,8 +243,20 @@ class CityService:
             if received(frame.at_seconds, seconds, scenario, outage_at)
         )
         if scenario in {"weather", "weather-outage"}:
-            weather = self.snapshot(seconds, scenario)["weather"]
-            events.extend(weather["evidence"])
+            if captured.weather is None or self.weather_normalizer is None:
+                raise ValueError("weather fixture adapter is not configured")
+            at = datetime.fromisoformat(captured.scenario["started_at"]) + timedelta(
+                seconds=seconds
+            )
+            events.extend(
+                weather_evidence(
+                    captured.weather,
+                    seconds,
+                    at,
+                    scenario == "weather-outage",
+                    self.weather_normalizer,
+                )
+            )
         return {
             "mode": "fixture",
             "capture_id": capture_id,
