@@ -7,5 +7,6 @@ RUN uv sync --locked --no-default-groups
 COPY apps ./apps
 COPY workers ./workers
 COPY urbanpulse ./urbanpulse
+COPY migrations ./migrations
 COPY tests/fixtures ./tests/fixtures
 CMD ["uv", "run", "--no-sync", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

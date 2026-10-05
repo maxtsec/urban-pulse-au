@@ -16,6 +16,7 @@ from sqlalchemy import (
     create_engine,
     select,
 )
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
 
 from urbanpulse.application.capture_replay import payload_hash
@@ -39,6 +40,13 @@ imports = Table(
     Column("metadata_json", Text, nullable=False),
     Column("content_hash", String(64), nullable=False),
 )
+active_imports = Table(
+    "city04_active_imports",
+    metadata,
+    Column("name", String(100), primary_key=True),
+    Column("scope", String(64), ForeignKey("city04_imports.id"), nullable=False),
+)
+
 revisions = {}
 observations = {}
 for owner in ("transport", "weather", "planning"):
@@ -212,7 +220,13 @@ class CityInputStore:
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
-    def save(self, captured: CapturedCity, rows: dict[str, list[dict[str, Any]]]) -> str:
+    def save(
+        self,
+        captured: CapturedCity,
+        rows: dict[str, list[dict[str, Any]]],
+        *,
+        activate: str | None = None,
+    ) -> str:
         scope = payload_hash([captured.capture_id, NORMALIZER_VERSION])
         info = {
             "boundary": captured.boundary,
@@ -251,6 +265,8 @@ class CityInputStore:
             if existing is not None:
                 if existing != digest:
                     raise ValueError("existing import differs; bump normalizer version")
+                if activate is not None:
+                    self._activate(connection, activate, scope)
                 return scope
             connection.execute(
                 imports.insert().values(
@@ -263,7 +279,32 @@ class CityInputStore:
             )
             for owner in ("transport", "weather", "planning"):
                 DomainExport(owner).write(connection, scope, rows[owner])
+            if activate is not None:
+                self._activate(connection, activate, scope)
         return scope
+
+    @staticmethod
+    def _activate(connection: Connection, name: str, scope: str) -> None:
+        statement = pg_insert(active_imports).values(name=name, scope=scope)
+        connection.execute(
+            statement.on_conflict_do_update(
+                index_elements=[active_imports.c.name], set_={"scope": scope}
+            )
+        )
+
+    def active_scope(self, name: str = "city-fixture") -> str:
+        with self.engine.connect() as connection:
+            scope = connection.execute(
+                select(active_imports.c.scope)
+                .join(imports, imports.c.id == active_imports.c.scope)
+                .where(
+                    active_imports.c.name == name,
+                    imports.c.normalizer_version == NORMALIZER_VERSION,
+                )
+            ).scalar_one_or_none()
+        if scope is None:
+            raise ValueError("city inputs not selected; run migrations and fixture import")
+        return str(scope)
 
     def load(self, scope: str) -> CityInputs:
         with self.engine.connect() as connection, connection.begin():

@@ -57,11 +57,13 @@ uv run --locked python -m urbanpulse.adapters.city_store migrate
 uv run --locked python -m workers.ingestion.main --city-fixture
 ```
 
-The import normalizes the retained synthetic bundle once, atomically saves owned domain history in PostgreSQL, and writes an ignored `current-import.json` pointer under the city capture directory. Repeating the import verifies the same content and reuses its scope. Reimport after changing fixture data or the normalizer version. A GET request performs neither migration nor import.
+The import normalizes the retained synthetic bundle once, atomically saves owned domain history in PostgreSQL, and selects that complete import in `city04_active_imports` in the same transaction. Repeating the import verifies the same content and selects the same scope. A failed import preserves the previously selected scope; unrelated unselected imports cannot switch the served city. Reimport after changing fixture data or the normalizer version. A GET request performs neither migration nor import.
 
-The city API reads a consistent persisted export and reconstructs request-local projections. Restart requires PostgreSQL and the pointer, not the original fixture payload or normalizers. Missing schema/imports return 503 with setup guidance; database failure never becomes a successful empty city. Retain complete fixture scopes; selective history pruning is unsupported. Alembic downgrade removes the CITY-04 tables and should only be used when intentionally resetting local fixture state.
+The city API reads a consistent persisted export and reconstructs request-local projections. Restart requires PostgreSQL and its selected import, not local pointer files, the original fixture payload or normalizers. Old `current-import.json` files are ignored. Missing schema/imports make city endpoints return 503 with setup guidance; database failure never becomes a successful empty city. Retain complete fixture scopes; selective history pruning is unsupported. Alembic downgrade removes the CITY-04 tables and should only be used when intentionally resetting local fixture state.
 
-Read [CITY-04](demos/city-04.md) for event/restart verification. Redis remains outside the city query path.
+`/health/ready` checks PostGIS and Redis only, without reading city history. It may return 200 before migration/import while city endpoints return 503. Redis remains outside the city query path.
+
+Read [CITY-04](demos/city-04.md) for event/restart verification.
 
 ## Configuration boundaries
 
@@ -144,4 +146,8 @@ Stop foreground API, Vite and Dagster processes with Ctrl+C in their terminals. 
 | Python environment mismatch         | Select the root `.venv` interpreter and rerun `uv sync --locked`                                        |
 | dbt cannot find project/credentials | Use shell environment variables for dbt and distinguish offline parsing from cloud execution            |
 
-The optional development container command is `docker compose --profile app up -d --build --wait`. Its application image builds are not yet verified. Stop host servers first. The current profile has dependency healthchecks but no API/UI readiness healthchecks; use HTTP checks after startup rather than treating `--wait` as an application acceptance test.
+The optional development container command is `docker compose --profile app up -d --build --wait`. Stop host API/UI servers first to release ports 8000/5173. The image includes migrations; the one-shot `city-init` service migrates and imports before API startup. Initialization failure prevents dependent API startup. The initializer and API share PostgreSQL, not local files or a raw-data volume. API healthchecks use dependency readiness; verify city responses as well.
+
+After updating fixture data on an existing stack, rerun `docker compose --profile app run --rm city-init`. It atomically selects the new complete import, visible to subsequent requests. API container recreation needs no reimport when the selected history remains in PostgreSQL. Apply migrations explicitly before host-based development as described above.
+
+For isolated container validation, run `uv run --locked python scripts/compose_smoke.py`. This builds API/UI images, uses a unique Compose project and database volume with random loopback API/UI ports, verifies cold readiness and city 503 before setup, starts the full app profile, tests city/boundary/evidence through the API and UI proxy, recreates the API, and repeats initialization. It removes only that test stack and volume; logs remain in `.local/compose-smoke/`. CI runs the same script in its Compose job. Results and measured limits are in [Compose follow-up evidence](evidence/city-04-compose.md).

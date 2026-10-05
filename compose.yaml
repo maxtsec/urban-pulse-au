@@ -21,6 +21,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+  city-init:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://urbanpulse:urbanpulse_local@postgres:5432/urbanpulse
+    command:
+      - /bin/sh
+      - -ec
+      - uv run --no-sync python -m urbanpulse.adapters.city_store migrate && uv run --no-sync python -m workers.ingestion.main --city-fixture
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
   api:
     profiles: [app]
     build:
@@ -33,6 +47,12 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
+      city-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "uv", "run", "--no-sync", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   web:
     profiles: [app]
     build:

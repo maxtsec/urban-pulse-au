@@ -157,54 +157,28 @@ def test_coverage_refresh_keeps_original_observation_identity(inputs):
     assert before["composition"]["area_events"] == after["composition"]["area_events"]
 
 
-def test_missing_database_or_import_returns_unavailable_without_implicit_setup(monkeypatch):
-    from sqlalchemy.exc import OperationalError
-
+def test_missing_selected_import_is_503_without_implicit_setup(monkeypatch):
     class Store:
+        def active_scope(self):
+            raise ValueError("city inputs not selected")
+
         def load(self, scope):
-            raise OperationalError("read", {}, Exception("database unavailable"))
+            pytest.fail("missing selection must not load history")
 
     monkeypatch.setattr("apps.api.city.input_store", lambda: Store())
-
-    class Settings:
-        from pathlib import Path
-
-        city_capture_path = Path("does-not-exist")
-
-    monkeypatch.setattr("apps.api.city.Settings", Settings)
     with TestClient(app) as client:
-        assert client.get(f"/api/v1/areas/{AREA_ID}").status_code == 503
-    assert not Settings.city_capture_path.exists()
+        response = client.get(f"/api/v1/areas/{AREA_ID}")
+    assert response.status_code == 503
+    assert "assessment" not in response.json()
 
 
-@pytest.mark.parametrize("pointer", ["null", "[]", '{"scope":42}'])
-def test_invalid_import_pointer_is_503_without_attempting_database(pointer, tmp_path, monkeypatch):
-    (tmp_path / "current-import.json").write_text(pointer)
-
-    class Settings:
-        city_capture_path = tmp_path
-
-    monkeypatch.setattr("apps.api.city.Settings", Settings)
-    monkeypatch.setattr(
-        "apps.api.city.input_store", lambda: pytest.fail("invalid pointer must not query database")
-    )
-    with TestClient(app) as client:
-        assert client.get(f"/api/v1/areas/{AREA_ID}").status_code == 503
-
-
-def test_database_unavailability_is_503_without_empty_fixture_fallback(tmp_path, monkeypatch):
+def test_database_unavailability_is_503_without_empty_fixture_fallback(monkeypatch):
     from sqlalchemy.exc import OperationalError
 
-    (tmp_path / "current-import.json").write_text('{"scope":"unavailable-import"}')
-
-    class Settings:
-        city_capture_path = tmp_path
-
     class Store:
-        def load(self, scope):
+        def active_scope(self):
             raise OperationalError("read", {}, Exception("database unavailable"))
 
-    monkeypatch.setattr("apps.api.city.Settings", Settings)
     monkeypatch.setattr("apps.api.city.input_store", lambda: Store())
     with TestClient(app) as client:
         response = client.get(f"/api/v1/areas/{AREA_ID}")

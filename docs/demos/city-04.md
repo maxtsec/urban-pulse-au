@@ -12,9 +12,9 @@ Use the [city setup](city-01.md#run): start PostGIS, migrate, explicitly import 
 
 ## Restart
 
-At a selected clock, record the assessment, coverage events and area-event IDs. Stop only the API process, start it again using the setup command, then request the same URL. Reconstruction uses the selected normalized PostgreSQL import and produces the same result. The API needs the ignored `current-import.json` pointer; it does not need raw payload files or call fixture normalizers during recovery.
+At a selected clock, record the assessment, coverage events and area-event IDs. Stop only the API process, start it again using the setup command, then request the same URL. Reconstruction uses the selected normalized PostgreSQL import and produces the same result. The selected import is stored in PostgreSQL; the API needs no local pointer or raw payload files and does not call fixture normalizers during recovery.
 
-A stopped/unavailable database or missing migration/import produces 503, preserving the UI's existing unavailable/retry flow. Restore the dependency, then retry. Do not remove shared local tables to simulate a failure.
+City endpoints return 503 for an unavailable database or missing migration/import, preserving the UI's existing unavailable/retry flow. Restore the dependency, then retry. Do not remove shared local tables to simulate a failure.
 
 ## Automated failure evidence
 
@@ -26,3 +26,5 @@ uv run --locked pytest tests/integration/test_city_inputs.py -m integration -q
 Tests inject a transient failure after candidate mutation, assert rollback of effect/receipt, and verify bounded retry without rerunning successful handlers. Integration tests interrupt an import, reimport concurrently, check corrupt-history rejection and start a fresh Python process after persistence but before dispatch. The fresh process forbids raw fixture reads and normalizer calls.
 
 The dispatcher has no external side effects or durable queue. Restart repairs the city view from inputs; it does not establish delivery of every notification. The [evidence record](../evidence/city-04-composition.md) owns measured results and [ADR 0008](../adr/0008-in-process-city-composition.md) owns the decision.
+
+For the equivalent container checks, use the [Compose setup and isolated smoke command](../development.md) and its [evidence](../evidence/city-04-compose.md). Basic `/health/ready` checks PostGIS/Redis rather than city import completeness.
