@@ -32,7 +32,7 @@ For worker operations: [recovery runbook](runbooks/event-recovery.md) and [proce
 
 For replay performance: [bounded history measurements and reproduction](evidence/event-01-performance.md) and [planning copy comparison](evidence/event-01-planning-copy-cost.md).
 
-For Phase 3 review: [acceptance map and release procedure](evidence/phase-3-acceptance.md).
+For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For production V1: [release policy](delivery-plan.md#release-policy).
 
 ## Document responsibilities
 
@@ -85,7 +85,7 @@ For Phase 3 review: [acceptance map and release procedure](evidence/phase-3-acce
 | [City checkpoint evidence](evidence/event-01-city-checkpoints.md) | City equivalence, ordered barriers, process crashes and Compose expiry | A city recovery checkpoint is verified |
 | [EVENT-01 performance evidence](evidence/event-01-performance.md) | Reproducible history workloads, timing samples, copy profiling and optimization priorities | Replay implementation or verified measurements change |
 | [Planning copy evidence](evidence/event-01-planning-copy-cost.md) | Immutable retained history, rollback guarantees and before/after measurements | Planning representation or verified performance changes |
-| [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and release procedure | Phase acceptance evidence or operational commands change |
+| [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 

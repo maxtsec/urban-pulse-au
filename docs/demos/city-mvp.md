@@ -35,7 +35,7 @@ In phase 5, use captures retained since phases 1-2 to inspect a historical time 
 
 ## Recording evidence
 
-Record the source commit/release, fixture or live mode, selected geography, source permissions, input identities/times, approved status rule version, test results and known limitations. Tie each completed phase demonstration to its Git tag. For reliability extensions, add event IDs, consumer attempts, failure injection, observed recovery and cleanup.
+Record the source commit/release, fixture or live mode, selected geography, source permissions, input identities/times, approved status rule version, test results and known limitations. Tie each completed phase demonstration to its reviewed commit SHA and CI run; use the production tag when demonstrating a released version. For reliability extensions, add event IDs, consumer attempts, failure injection, observed recovery and cleanup.
 
 Label the demonstration mode and use the city MVP exit criteria in the delivery plan.
 

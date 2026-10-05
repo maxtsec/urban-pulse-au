@@ -1,6 +1,6 @@
 # Phase 3: Durable event reliability acceptance
 
-Date: 5 October 2026. Candidate based on merged `62c253ea049ed1514dc5119f0296a82bd4d7a65d`, with the city metrics command and container check in this change. Progress and release readiness are maintained in the [delivery plan](../delivery-plan.md).
+Date: 5 October 2026. Integrated in [PR #17](https://github.com/maxtsec/urban-pulse-au/pull/17) at `a9359d0d1d9107413db4b4b6fc3cc42378537524`; [reviewed revision CI](https://github.com/maxtsec/urban-pulse-au/actions/runs/37277052373) passed, including browser and Compose checks. Progress and release readiness are maintained in the [delivery plan](../delivery-plan.md).
 
 ## Acceptance map
 
@@ -39,7 +39,7 @@ python -O scripts/compose_smoke.py
 
 The Compose check owns a uniquely named stack and volume; it builds the app, verifies initializer/readiness/proxy behavior, replays across workers, reconstructs city checkpoints across warning expiry, calls city metrics, restarts its database and cleans up its own stack. Provider keys and cloud resources are not used.
 
-Local verification on 5 October 2026: Ruff lint/format and mypy passed; 409 unit/API tests and 142 PostGIS integration tests passed. The initial city-metrics revision also passed isolated Compose smoke under `python -O`, including the city metrics command and database restart recovery, then removed its stack and volume. Browser code is unchanged; this local verification did not rerun Playwright. PR CI verifies the reviewed revision with both browser and Compose checks before merge; release also requires CI at its selected baseline.
+Local verification on 5 October 2026: Ruff lint/format and mypy passed; 409 unit/API tests and 142 PostGIS integration tests passed. The initial city-metrics revision also passed isolated Compose smoke under `python -O`, including the city metrics command and database restart recovery, then removed its stack and volume. Browser code is unchanged; this local verification did not rerun Playwright. The linked PR CI also passed browser and Compose checks on the reviewed revision. Production release requires CI at its selected commit.
 
 ## Demonstration
 
@@ -49,12 +49,6 @@ Read-only inspection of the existing local retained fixture run reported 39 comp
 
 ## Release and deferred boundaries
 
-Merge approval for this change does not authorize skipping earlier phase baselines or accept an outstanding architectural decision. Apply the release gates in order:
-
-1. Phase 1: obtain the architect's explicit acceptance of [ADR 0004](../adr/0004-southbank-fixture-map.md), including any required corrections. Select and verify the exact baseline commit, attach its successful CI run, [demo](../demos/city-01.md) and [evidence](city-01-fixture-map.md), then publish `phase-1` and release notes.
-2. Phase 2: verify its city MVP exit criteria and exact baseline commit, then publish `phase-2` with successful CI, the [integrated demo](../demos/city-04.md), [composition evidence](city-04-composition.md) and release notes. Link the Phase 1 baseline.
-3. Phase 3: only after both preceding tags/releases exist with their acceptance records, verify CI on the intended Phase 3 commit and publish `phase-3`. Link this evidence, the actual successful CI run, both operator walkthroughs and the Phase 2 baseline.
-
-Use distinct, reviewed milestone commits that contain the accepted behavior and are in ancestor order; record their SHAs and actual acceptance dates. Do not retrospectively claim a proposed policy was accepted at an earlier commit, or place all tags on the latest main merely to fill gaps. If a historical candidate lacks required fixes or cannot be verified, prepare a corrected baseline and its evidence before releasing it. Keep existing published tags immutable. Code merge and phase release are separate steps; no phase tag is created by this PR.
+Phase 3 is recorded by its merged commit, CI, demonstrations and this evidence. It does not require a phase tag or earlier phase releases. Follow the [production V1 release policy](../delivery-plan.md#release-policy) for `v1.0.0`; outstanding policy decisions and the complete city release criteria still apply before production.
 
 [Issue #16](https://github.com/maxtsec/urban-pulse-au/issues/16) records repeated planning profile parsing and is deferred; it is not a Phase 3 exit gate. Live source authorization/retention (SRC-02), early collection (CLOUD-01), cloud deployment/telemetry (Phase 4) remain separately scoped. This acceptance does not change their decisions or describe the synthetic city as live.
