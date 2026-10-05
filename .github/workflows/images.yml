@@ -114,7 +114,7 @@ jobs:
           pattern: image-record-*-${{ github.run_id }}-${{ github.run_attempt }}
           path: .local/image-publication
           merge-multiple: true
-      - name: Require both verified images from this source and attempt
+      - name: Require both verified images and summarize their digests
         run: python -m scripts.image_publication assemble
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -123,6 +123,3 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 90
-      - name: Summarize publication
-        run: |
-          printf 'Verified image identities are in the images artifact for this commit and run attempt.\n' >> "$GITHUB_STEP_SUMMARY"
