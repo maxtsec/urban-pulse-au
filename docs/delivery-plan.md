@@ -1,6 +1,6 @@
 # Delivery plan
 
-Aligned with brief v1. Progress is maintained here and in the [README progress table](../README.md#progress). Work IDs are planning references, not GitHub issue numbers.
+Aligned with brief revision 1. Progress is maintained here and in the [README progress table](../README.md#progress). Work IDs are planning references, not GitHub issue numbers.
 
 ## Milestones and exit evidence
 
@@ -72,7 +72,7 @@ The separate `/api/v1/fixture`, original worker and Dagster smoke paths remain a
 
 Every scheduled feature states the user outcome, scope, Given/When/Then cases, affected contracts, pending decisions, tests and demonstration steps. Include missing/stale and relevant failure cases.
 
-Ready for review means relevant checks pass, affected documents are updated and migration/recovery risks are recorded. Update progress in this document and README; other documents link here. On phase completion, record the reviewed commit SHA, demo/evidence and actual CI run. Production release follows the policy below. Document version v1 is independent of software release tags.
+Ready for review means relevant checks pass, affected documents are updated and migration/recovery risks are recorded. Update progress in this document and README; other documents link here. On phase completion, record the reviewed commit SHA, demo/evidence and actual CI run. Production release follows the policy below.
 
 A replay example: process the same warning twice, then an older revision. There must be one current effect, the newer warning remains authoritative, and every attempt is traceable. A file-hash test alone does not satisfy that acceptance case.
 
@@ -80,6 +80,8 @@ A replay example: process the same warning twice, then an older revision. There 
 ## Release policy
 
 Development phases are tracked through merged PRs, exact commit SHAs, demonstrations and verification evidence. No per-phase tag or release is required. Existing published tags, including `phase-0`, remain as historical records and do not create prerequisites for later work.
+
+Pre-production demo deployments use the full commit SHA and immutable image digest for each deployed image, without Git tags or GitHub releases. Each deployment record includes its environment, image digests, matching commit CI, database migration version and last verified rollback target. Redeploy those recorded digests for rollback after checking schema compatibility; do not rebuild a mutable branch or move a tag. Label the environment and its synthetic/live data scope as demo. This supports DEMO-01 continuous delivery before production acceptance.
 
 The first production release uses Git tag `v1.0.0` and release title **UrbanPulse AU — Production V1**. Publish it only after the architect approves production release and the [first complete city release criteria](../project_brief.md#19-definition-of-the-first-complete-city-release) are verified on the selected commit. Resolve outstanding decisions, including ADR 0004, and retain the source-permission, deployment, recovery and historical-analysis acceptance requirements. Completing Phase 3 alone does not satisfy these criteria.
 

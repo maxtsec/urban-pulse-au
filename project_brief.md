@@ -1,6 +1,6 @@
 # UrbanPulse AU Project Brief
 
-Version: v1
+Brief revision: 1
 Updated: 5 October 2026
 
 UrbanPulse AU is a city intelligence platform, starting with Melbourne. It answers:
@@ -469,7 +469,7 @@ The public story is city conditions and area context. Keep the README focused on
 
 Begin permitted live capture in phases 1-2 as source access, retention and the minimal runtime are approved. Record the earliest retained date and gaps. A hosted demonstration needs a budget, enforceable resource/query limits and a documented paused state.
 
-Each completed phase records its reviewed commit SHA, reproducible demonstration steps, evidence and actual CI results. Phases are development milestones and do not require release tags. Publish the first production release as `v1.0.0` after the acceptance criteria in Section 19 are met, with release notes and evidence tied to that exact commit. Document version v1 is independent of the software release version. Distinguish synthetic examples, planned behavior and observed live results. Report failed and neutral experiments as well as successes. Do not present a storm/disruption correlation as a proven causal explanation.
+Each completed phase records its reviewed commit SHA, reproducible demonstration steps, evidence and actual CI results. Phases are development milestones and do not require release tags. Publish the first production release as `v1.0.0` after the acceptance criteria in Section 19 are met, with release notes and evidence tied to that exact commit. Distinguish synthetic examples, planned behavior and observed live results. Report failed and neutral experiments as well as successes. Do not present a storm/disruption correlation as a proven causal explanation.
 
 ## 18 Architecture decisions and evolution
 

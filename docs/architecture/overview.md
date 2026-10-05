@@ -1,6 +1,6 @@
 # Architecture overview
 
-Design basis: [project brief v1](../../project_brief.md), sections 2-9 and 18. The brief selects the target technologies and an integrated Melbourne city product spanning transport, weather/hazards and planning/infrastructure. See the [delivery plan](../delivery-plan.md#implementation-baseline) for the executable baseline and progress. Open choices are in the [decision queue](../delivery-plan.md#decisions-needed-before-dependent-work).
+Design basis: [project brief revision 1](../../project_brief.md), sections 2-9 and 18. The brief selects the target technologies and an integrated Melbourne city product spanning transport, weather/hazards and planning/infrastructure. See the [delivery plan](../delivery-plan.md#implementation-baseline) for the executable baseline and progress. Open choices are in the [decision queue](../delivery-plan.md#decisions-needed-before-dependent-work).
 
 ## Runtime and module responsibilities
 
