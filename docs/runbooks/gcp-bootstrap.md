@@ -17,7 +17,7 @@ The bootstrap operator runs it with their own Google account. CI never runs `pla
 
 The claim values live in [`github-oidc-policy.json`](../../infra/bootstrap/github-oidc-policy.json). Terraform turns each section into exact-match CEL: the `provider` section becomes the provider's attribute condition, and the `image_builder` section sets the `attribute.image_builder` mapping to `allowed` only when every claim matches. The builder binding trusts only `attribute.image_builder/allowed`. [Policy tests](../../tests/unit/test_github_oidc_policy.py) evaluate the same file against push, pull-request, pull-request-target, dispatch, branch, tag, workflow and repository variants. Change the workflow file name or allowed event only by editing that file and its tests together.
 
-Anyone who can push to `main`, or merge a change to the image workflow, can publish images. The branch rules below protect that publication boundary before the image workflow is added. Deployment remains a separate identity and workflow, added in a later reviewed change.
+Anyone who can push to `main`, or merge a change to the image workflow, can publish images. The branch rules below protect that publication boundary. Configure and operate the workflow using the [image publishing runbook](image-publishing.md). Deployment remains a separate identity and workflow, added in a later reviewed change.
 
 ## Main branch rules
 
@@ -31,7 +31,7 @@ Read-only verified on 6 October 2026: repository ruleset [main, ID 24537367](htt
 | Required checks | Exact contexts **`checks`**, **`terraform`**, **`compose`**, from GitHub Actions (integration ID `15368`) |
 | Up-to-date requirement | Strict: the PR branch must be up to date before the required checks permit merging |
 
-All three contexts are jobs in [`check.yml`](../../.github/workflows/check.yml). Treat their job/display names as an interface with this ruleset. Before renaming or removing one, coordinate the ruleset change, confirm the replacement context actually runs on the PR head, and retain the old context until the transition is ready. A successful differently named job does not satisfy an old required name; a skipped workflow can leave the required check pending.
+Branch and PR runs report the three contexts directly. On main, the image workflow reuses these jobs as its verification gate; the run can display a caller prefix. All three contexts are jobs in [`check.yml`](../../.github/workflows/check.yml). Treat their job/display names as an interface with this ruleset. Before renaming or removing one, coordinate the ruleset change, confirm the replacement context actually runs on the PR head, and retain the old context until the transition is ready. A successful differently named job does not satisfy an old required name; a skipped workflow can leave the required check pending.
 
 To diagnose a blocked PR, compare its head's check contexts/results with the active ruleset and the effective rules returned by `GET /repos/maxtsec/urban-pulse-au/rules/branches/main`. Record deliberate ruleset changes here. This verification establishes branch enforcement only; successful and denied federated publishing still need the image-workflow acceptance described below.
 
@@ -91,4 +91,4 @@ gcloud.cmd artifacts repositories get-iam-policy urbanpulse --project=<project-i
 gcloud.cmd iam service-accounts keys list --iam-account=ci-builder@<project-id>.iam.gserviceaccount.com --project=<project-id> --managed-by=user
 ```
 
-Expect the condition to name the numeric repository and owner IDs, and `attribute.image_builder` to require `push`, `refs/heads/main` and the `images.yml` workflow. The only `workloadIdentityUser` member should end in `/attribute.image_builder/allowed`, the repository should grant only `artifactregistry.writer` to `ci-builder`, and the key list should be empty. A successful federated publish from a `main` push, and rejected attempts from `pull_request` and `pull_request_target` runs, are verified when the image workflow is added.
+Expect the condition to name the numeric repository and owner IDs, and `attribute.image_builder` to require `push`, `refs/heads/main` and the `images.yml` workflow. The only `workloadIdentityUser` member should end in `/attribute.image_builder/allowed`, the repository should grant only `artifactregistry.writer` to `ci-builder`, and the key list should be empty. A successful federated publish from a `main` push, and rejected attempts from `pull_request` and `pull_request_target` runs, remain acceptance work described in the [publishing verification procedure](image-publishing.md#first-live-verification). Static policy checks alone do not establish these live outcomes.

@@ -29,3 +29,6 @@ pipelines/dbt/.user.yml
 
 apps/web/test-results/
 apps/web/playwright-report/
+
+# Federated credentials are temporary workflow material.
+**/gha-creds-*.json

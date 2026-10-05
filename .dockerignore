@@ -22,3 +22,6 @@ claude.md
 **/*.key
 **/.local
 **/.git
+
+# Federated credentials are temporary workflow material.
+**/gha-creds-*.json

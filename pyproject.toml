@@ -11,7 +11,12 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy"]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+    "pyyaml>=6.0.3",
+]
 pipeline = ["dagster", "dagster-webserver", "dbt-bigquery"]
 
 [tool.uv]
@@ -27,7 +32,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["apps/api", "workers/ingestion", "workers/events", "workers/city", "urbanpulse"]
+files = ["apps/api", "workers/ingestion", "workers/events", "workers/city", "urbanpulse", "scripts/image_publication.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,5 +1,9 @@
 name: Project checks
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -19,6 +23,11 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - uses: actions/checkout@v4
+      - name: Validate workflow syntax
+        run: >-
+          docker run --rm --network none -v "$PWD:/repo:ro" -w /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.12.23'

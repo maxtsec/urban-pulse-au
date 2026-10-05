@@ -34,7 +34,7 @@ For replay performance: [bounded history measurements and reproduction](evidence
 
 For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For production V1: [release policy](delivery-plan.md#release-policy).
 
-For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md).
+For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md), [image publishing operations](runbooks/image-publishing.md) and [publication evidence](evidence/demo-01-image-publishing.md).
 
 For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
 
@@ -98,6 +98,8 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) | Transport prerequisites, continuous playback windows, receipt/shape semantics and API options | The architect reviews the proposal or MAP-02 implements it |
 | [MAP-02 payload estimate](evidence/map-02-animation-payload.md) | Reproducible synthetic JSON/compression sizes and placement trade-offs | The proposed wire shape changes or real fixture measurements become available |
 | [Google Cloud identity bootstrap](runbooks/gcp-bootstrap.md) | Terraform bootstrap for APIs, image repository, GitHub federation and the image builder | Bootstrap identities, trust conditions or apply steps change |
+| [Image publishing](runbooks/image-publishing.md) | Main CI gate, federation configuration, immutable image records and failed-attempt recovery | Publishing workflow or record semantics change |
+| [Image publishing evidence](evidence/demo-01-image-publishing.md) | Local container/registry verification and distinct live federation acceptance | A publication boundary is verified |
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
