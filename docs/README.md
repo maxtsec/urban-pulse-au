@@ -90,7 +90,7 @@ For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](ad
 | [ADR 0010: hosted fixture demo](adr/0010-hosted-fixture-demo.md) | Accepted managed hosting/IAP, image identity, deployment and rollback acceptance | Accepted topology or deployment requirements change |
 | [DEMO-01 web packaging evidence](evidence/demo-01-web-build.md) | Static asset target, build-context exclusions and container verification | Web packaging or its verified checks change |
 | [Optional cache evidence](evidence/demo-01-optional-cache.md) | Explicit cache modes, readiness failures and Redis-free Compose verification | Cache mode or its dependency checks change |
-| [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Proposed building source, MapLibre + deck.gl stack, animation classes and MAP-01–05 sequence | The architect decides MAP-01–05 or a map context source changes |
+| [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Accepted building source, MapLibre + deck.gl stack, animation classes and MAP-01–05 sequence | A MAP item or map context source changes |
 | [Google Cloud identity bootstrap](runbooks/gcp-bootstrap.md) | Terraform bootstrap for APIs, image repository, GitHub federation and the image builder | Bootstrap identities, trust conditions or apply steps change |
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
