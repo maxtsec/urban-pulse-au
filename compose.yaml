@@ -23,6 +23,7 @@ services:
       retries: 20
   city-init:
     profiles: [app]
+    image: "${COMPOSE_PROJECT_NAME:-urbanpulse}-api:local"
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -37,6 +38,7 @@ services:
     restart: "no"
   api:
     profiles: [app]
+    image: "${COMPOSE_PROJECT_NAME:-urbanpulse}-api:local"
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -49,7 +51,7 @@ services:
       redis: {condition: service_healthy}
       city-init: {condition: service_completed_successfully}
     healthcheck:
-      test: ["CMD", "uv", "run", "--no-sync", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
       interval: 5s
       timeout: 5s
       retries: 20

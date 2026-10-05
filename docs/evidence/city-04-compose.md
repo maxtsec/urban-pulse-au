@@ -33,7 +33,9 @@ The script removes only its isolated containers/network/volume and retains logs 
 
 ## Automated checks
 
-Ruff lint/format, mypy, web lint/format and the production build passed. All 332 unit/API tests, 40 real PostGIS integration tests and 32 Chromium Playwright tests passed. The isolated Compose smoke test also passed, including exact city-response equality through the UI proxy and after API recreation.
+Ruff lint/format, mypy, web lint/format and the production build passed. All 340 unit/API tests, 40 real PostGIS integration tests and 32 Chromium Playwright tests passed. The isolated Compose smoke test also passed, including exact city-response equality through the UI proxy and after API recreation.
+
+The review follow-up also passed the full Compose smoke under `python -O`: API and initializer share one project-scoped image, and the API healthcheck invokes its installed Python directly. Eight script regression cases verify malformed/mismatched responses, optimized-Python checks and cleanup failures. If cleanup also fails, the original failure remains primary with the cleanup error attached; a cleanup-only failure still fails the run.
 
 ## Remaining work
 

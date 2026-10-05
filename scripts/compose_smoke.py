@@ -3,12 +3,18 @@
 import json
 import re
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def require_equal(actual: object, expected: object, context: str) -> None:
+    if actual != expected:
+        raise RuntimeError(f"{context}: city response changed")
 
 
 def main() -> None:
@@ -37,7 +43,7 @@ def main() -> None:
             )
             log.flush()
             if result.returncode:
-                raise RuntimeError(f"Compose command failed; inspect {log_path}")
+                raise RuntimeError(f"Compose {' '.join(args)} failed; inspect {log_path}")
 
         def url(service: str, port: int) -> str:
             address = subprocess.check_output(
@@ -60,7 +66,7 @@ def main() -> None:
 
         try:
             print(f"Building isolated app images: {project}", flush=True)
-            run("build", "api", "city-init", "web")
+            run("build", "api", "web")
             run("up", "-d", "--wait", "postgres", "redis")
             print("Checking basic readiness before migrations/import", flush=True)
             run("up", "-d", "--no-deps", "--wait", "api")
@@ -75,29 +81,39 @@ def main() -> None:
             api = url("api", 8000)
             route = "/api/v1/areas/au-vic-melbourne-clue-southbank?scenario=city&seconds=360"
             view = read(api + route)
-            assert isinstance(view, dict)
-            assert view["composition"]["recovery"] == "persisted-domain-inputs"
+            if not isinstance(view, dict):
+                raise RuntimeError("city response must be an object")
+            if view.get("composition", {}).get("recovery") != "persisted-domain-inputs":
+                raise RuntimeError("city response must use persisted domain inputs")
             read(api + view["geometry_url"])
             read(api + view["evidence_url"])
-            assert read(url("web", 5173) + route) == view
+            require_equal(read(url("web", 5173) + route), view, "UI proxy")
             print("Recreating API without sharing initializer files", flush=True)
             run("up", "-d", "--no-deps", "--force-recreate", "--wait", "api")
             api = url("api", 8000)
-            assert read(api + route) == view
+            require_equal(read(api + route), view, "API recreation")
             print("Repeating initialization against existing inputs", flush=True)
             run("run", "--rm", "city-init")
-            assert read(api + route) == view
+            require_equal(read(api + route), view, "Repeated initialization")
             print(
                 "Compose smoke passed: cold readiness, initializer, city/boundary/evidence, "
                 "proxy and recreation",
                 flush=True,
             )
         finally:
-            # Never target the user's normal compose project or its database volume.
-            if not re.fullmatch(r"urbanpulse-smoke-[0-9a-f]{12}", project):
-                raise RuntimeError("invalid isolated cleanup target")
-            run("down", "--volumes", "--remove-orphans")
-            print(f"Removed isolated stack; log: {log_path}", flush=True)
+            primary_error = sys.exception()
+            try:
+                # Never target the user's normal compose project or its database volume.
+                if not re.fullmatch(r"urbanpulse-smoke-[0-9a-f]{12}", project):
+                    raise RuntimeError("invalid isolated cleanup target")
+                run("down", "--volumes", "--remove-orphans")
+            except Exception as cleanup_error:
+                if primary_error is None:
+                    raise
+                primary_error.add_note(f"Cleanup also failed: {cleanup_error}")
+                print(f"Cleanup failed for {project}; inspect {log_path}", file=sys.stderr)
+            else:
+                print(f"Removed isolated stack; log: {log_path}", flush=True)
 
 
 if __name__ == "__main__":
