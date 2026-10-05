@@ -4,12 +4,16 @@ import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import func, select, text, update
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 
 from urbanpulse.adapters.city_store import engine_for, migrate
 from urbanpulse.adapters.event_store import PostgresEventStore
@@ -361,8 +365,6 @@ def test_invalid_consumer_registration_rolls_back_owner_write(store, wire, consu
 
 
 def test_claim_cannot_be_completed_as_a_different_consumer(store, wire):
-    from dataclasses import replace
-
     publish(store, wire, ("location-v1", "audit-v1"))
     claim = store.claim("location-v1")[0]
     with pytest.raises(StaleClaim):
@@ -389,8 +391,6 @@ def test_old_event_id_with_changed_subject_is_a_conflict(store, wire):
 
 
 def test_claims_keep_publication_context_and_reject_a_changed_context(store, wire):
-    from dataclasses import replace
-
     publish(store, wire, context="run-a")
     publish(store, wire, context="run-b")
     claims = store.claim("location-v1", limit=2)
@@ -401,3 +401,70 @@ def test_claims_keep_publication_context_and_reject_a_changed_context(store, wir
     for claim in claims:
         store.complete(claim, effect)
     assert effects(store) == count(store, receipts) == 2
+
+
+def test_conflict_completion_is_repeatable_but_still_fences_claim_identity(store, wire):
+    with store.transaction() as transaction:
+        transaction.consume("run-1", "location-v1", wire, lambda: effect(transaction))
+    publish(store, changed(wire, revision=3))
+    claim = store.claim("location-v1")[0]
+
+    def unexpected(*_):
+        pytest.fail("conflict invoked the effect")
+
+    assert store.complete(claim, unexpected) == RevisionOutcome.CONFLICT
+    assert store.complete(claim, unexpected) == RevisionOutcome.CONFLICT
+    for altered in (
+        replace(claim, generation=claim.generation + 1),
+        replace(claim, consumer="other-v1"),
+        replace(claim, context="other-run"),
+    ):
+        with pytest.raises(StaleClaim):
+            store.complete(altered, unexpected)
+    assert effects(store) == count(store, receipts) == count(store, attempts) == 1
+    with store.engine.connect() as connection:
+        assert connection.execute(select(deliveries.c.status)).scalar_one() == "dead-letter"
+        assert connection.execute(select(attempts.c.outcome)).scalar_one() == "conflict"
+
+
+def test_exhausted_delivery_has_no_completion_to_repeat(store, wire):
+    publish(store, wire)
+    for _ in range(3):
+        claim = store.claim("location-v1")[0]
+        expire(store, claim)
+    assert store.claim("location-v1") == ()
+    with pytest.raises(StaleClaim):
+        store.complete(claim, effect)
+    assert effects(store) == count(store, receipts) == 0
+
+
+def test_attempt_policy_upgrade_preserves_work_and_allows_a_larger_application_limit(
+    store, wire, monkeypatch
+):
+    config = Config()
+    config.set_main_option("script_location", str(Path(__file__).parents[2] / "migrations"))
+    config.attributes["database_url"] = store.engine.url.render_as_string(hide_password=False)
+    command.downgrade(config, "0004_outbox_ledger")
+    publication = publish(store, wire)
+    for _ in range(3):
+        claim = store.claim("location-v1")[0]
+        expire(store, claim)
+    command.upgrade(config, "head")
+    monkeypatch.setattr("urbanpulse.adapters.event_store.MAX_ATTEMPTS", 4)
+    fourth = store.claim("location-v1")[0]
+    assert fourth.generation == 4
+    assert store.complete(fourth, effect) == RevisionOutcome.APPLY
+    assert count(store, attempts) == 4
+    with store.engine.connect() as connection:
+        assert connection.execute(select(publications.c.id)).scalar_one() == publication
+        assert connection.execute(select(deliveries.c.attempt_count)).scalar_one() == 4
+    with pytest.raises(IntegrityError):
+        with store.engine.begin() as connection:
+            connection.execute(update(deliveries).values(attempt_count=-1))
+    with pytest.raises(IntegrityError):
+        command.downgrade(config, "0004_outbox_ledger")
+    with store.engine.connect() as connection:
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
+            "0005_attempt_policy"
+        )
+        assert connection.execute(select(deliveries.c.attempt_count)).scalar_one() == 4
