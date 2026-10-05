@@ -82,7 +82,8 @@ Rules:
 - Animation is presentation only. It never changes an API result, condition, coverage, reason or count.
 - Motion follows the scenario clock, not wall-clock time. Pausing, scrubbing or rewinding the clock moves every animated element consistently; a paused clock stops observed and interpolated motion.
 - Never extrapolate beyond the latest received observation. A stale position stays still and dimmed; an expired position follows the existing last-known rule.
-- Unknown or error coverage is shown as absence of animation plus the existing coverage label, never as calm weather or empty roads.
+- Every animated layer is a pure function of the scenario clock and the records received at or before it. Seeking directly to a time and playing from the start to the same time produce the same frame. No layer reads a fixture or record received after the clock.
+- Each layer is gated by its own input. One input's missing, stale or failed state stops only the animation it drives and is shown with that input's label; it never appears as calm weather, empty roads or a stopped tram network.
 - `prefers-reduced-motion`, low-power or narrow mobile views start in a static 2D view; animation is opt-in there.
 
 ### Layers
@@ -90,12 +91,30 @@ Rules:
 | Layer | Rendering | Data | Rule |
 | --- | --- | --- | --- |
 | Transparent massing | deck.gl extruded polygons, neutral colour, partial opacity | Building fixture above | Context only; never used for membership, conditions, planning matching or routing |
-| 3D trams | glTF model via `ScenegraphLayer`, heading along the track | Observed positions; tram track geometry from DTP GTFS Schedule shapes | Interpolate only between consecutive observations of the same vehicle on its matched shape; otherwise show a static model at the observed point |
+| 3D trams | glTF model via `ScenegraphLayer`, heading along the track | Observed positions; tram track geometry from DTP GTFS Schedule shapes | Drawn at *t − 30 s* from observations received by *t*; interpolate only between bracketing observations of the same vehicle on its matched shape; otherwise static ([tram display delay](#tram-display-delay)) |
 | Simulated traffic | Translucent animated trails via `TripsLayer` | Southbank road centrelines from Vicmap Transport Road Line; deterministic synthetic trips | Separate toggle; always labelled "Simulated traffic, not real"; no speed, volume or congestion claims |
-| Weather | Particle rain over the map; flat pulsing outline for active warnings | Modelled reading; warning projection | Rain intensity is area-wide, from the modelled point value, never street-specific; warnings stay flat because height would read as severity |
+| Weather | Particle rain over the map; flat pulsing outline for active warnings | Modelled reading for rain; warning projection for outlines | Gated separately ([weather gating](#weather-gating)); rain is area-wide from the modelled point value, never street-specific; warnings stay flat because height would read as severity |
 | Construction | Small crane or scaffold models at located DAM points | DAM status | Animate only `Under construction`; other statuses use static markers; unlocated developments are not drawn |
 
-Interpolation and track matching are presentation rules owned by Location Intelligence's view model, not new domain facts. Matching DAM points to building footprints remains out of scope and needs its own spatial rule.
+#### Tram display delay
+
+Let *t* be the scenario clock. The 3D tram layer may use only position observations whose receipt time is at or before *t*. It draws each vehicle as of the display time *d = t − D*, where *D* is a versioned presentation delay, `tram-display-delay-v1` = 30 seconds, matching the proposed 30-second position cadence.
+
+- If two received observations of the same vehicle on its matched shape have observation times bracketing *d*, interpolate between them along the shape by observation time.
+- If *d* is later than the vehicle's latest received observation, hold the model at that observation; never extrapolate.
+- If *d* is earlier than the vehicle's first received observation, or an observation lacks an observation time, draw a static model at that observation instead of interpolating.
+- Stale and expired rules are evaluated at *t*, as in the list and area panel.
+
+The legend states that animated tram positions are shown 30 seconds behind the scenario clock. The tram list, selection details and API keep showing the latest received observation at *t*. Changing *D* is a versioned presentation change.
+
+#### Weather gating
+
+Rain and warning animation use different inputs and fail independently. Warning-feed coverage (`weather.coverage`) never switches rain on or off.
+
+- **Rain** depends only on the modelled reading. Animate rain when a reading has been received at or before *t*, its `valid_at` is at or before *t* and no more than *W* earlier, and its precipitation is above zero. *W* is a versioned presentation window, `modelled-rain-display-v1` = 60 minutes, matching an hourly model step. Intensity scales with precipitation. Without such a reading, show no rain and label the layer "No current modelled reading". A reading with zero precipitation shows no rain and is labelled as a dry modelled reading.
+- **Warning outlines** follow warning lifecycle at *t*: active warnings pulse; scheduled, cancelled and expired warnings do not. Unknown or error warning coverage keeps its existing coverage label and does not hide known active warnings, which remain until their received validity ends.
+
+Interpolation, track matching and these display windows are presentation rules owned by Location Intelligence's view model, not new domain facts. Matching DAM points to building footprints remains out of scope and needs its own spatial rule.
 
 ### Presentation and accessibility
 
@@ -123,8 +142,12 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 - Stacked podium and tower components render with the relative-height rule.
 - Switching views or toggling any animated layer does not change any API request or area result.
 - With the scenario clock paused, observed and interpolated trams stop; scrubbing backwards moves them backwards. No tram moves past its latest observation; a stale tram is static.
+- For several clock values, including one between two fixture position receipts (for example 15 seconds before the next position is received), seeking directly to the time and playing from 0 to it produce identical tram, rain and warning frames, and no record received after the clock is read.
+- At *t*, a tram whose next observation has not yet been received is held at its latest received observation as of *t − 30 s*; it begins moving only after that next observation's receipt time.
 - Simulated traffic is off when its toggle is off, always carries its label, and appears in no count, condition or coverage.
-- Unknown or error weather coverage shows no rain animation; cancelled or expired warnings stop pulsing.
+- Warning-feed outage with a recent non-zero modelled reading: rain animates from the reading, active warnings keep pulsing until their validity ends, and the warning coverage label shows error.
+- Current warning coverage with no reading, or with a reading more than 60 minutes old: no rain, labelled "No current modelled reading"; warnings follow their lifecycle.
+- A current reading with zero precipitation: no rain, labelled as a dry modelled reading. Scheduled, cancelled and expired warnings never pulse.
 - Reduced motion starts static; WebGL failure shows the existing fallback; keyboard selection works in 2D and 3D.
 - Enabling 3D and animation makes no request outside the application origin, and all credits are visible.
 - Measure bundle size, fixture size, frame rate and memory on desktop and mobile emulation before accepting each MAP item; simplify geometry or reduce particles only if measurements require it.
