@@ -1,6 +1,6 @@
 # Source register
 
-Reviewed: 5 October 2026. This register owns source evidence and enablement requirements. Integration progress is in the [delivery plan](delivery-plan.md). Measurements and official references are in the [SRC-01 evidence](evidence/src-01-source-feasibility.md).
+Reviewed: 6 October 2026. This register owns source evidence and enablement requirements. Integration progress is in the [delivery plan](delivery-plan.md). Measurements and official references are in the [SRC-01 evidence](evidence/src-01-source-feasibility.md).
 
 ## Source scope and enablement gates
 
@@ -90,7 +90,7 @@ Retained fixtures record the export query, retrieval date, source response SHA-2
 | Product | DTP [GTFS Schedule](https://opendata.transport.vic.gov.au/dataset/gtfs-schedule), tram feed `shapes.txt`, linked through `trips.txt` to route IDs. Already the static companion selected in [ADR 0002](adr/0002-southbank-tram-pilot.md) |
 | Access and licence | Public download, no credentials; CC BY 4.0. Catalogue checked 6 October 2026: one ZIP of about 250 MB covering trains, buses and trams, last modified 4 October 2026 |
 | Use | Track lines for tram heading and interpolation between consecutive observed positions; replaces the illustrative fixture tracks. Never used to infer positions beyond the latest observation |
-| To verify before MAP-02 | Tram shapes present for the routes crossing Southbank; shape-to-route/trip linkage and direction; shape identity stability across releases; coordinate precision; matching tolerance between observed points and shapes; size after clipping to Southbank |
+| To verify before MAP-02 | Tram shapes present for the routes crossing Southbank; shape-to-route/trip linkage and direction; shape identity stability across releases; coordinate precision; matching tolerance between observed points and shapes; size after clipping to Southbank; identifiers and manifest required by the [proposed animation input contract](architecture/tram-animation-input-contract.md) |
 | Retention | Clipped Southbank shapes retained with the release date, source ZIP SHA-256 and route/shape IDs. The full ZIP is not committed |
 
 ### Road centrelines (MAP-05)
