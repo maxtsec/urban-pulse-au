@@ -45,6 +45,18 @@ jobs:
             .local/city03/*.png
             apps/web/test-results/
 
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.4
+      # Static validation only: no cloud credentials, backend or plan in CI.
+      - run: terraform fmt -check -recursive infra
+      - run: terraform -chdir=infra/bootstrap init -backend=false -input=false
+      - run: terraform -chdir=infra/bootstrap validate
+
   compose:
     runs-on: ubuntu-latest
     steps:
