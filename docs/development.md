@@ -90,7 +90,7 @@ Read [CITY-04](demos/city-04.md) for event/restart verification.
 | Setting                                                         | Current consumer and behavior                                                         |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `DATABASE_URL`, `REDIS_URL`                                     | API settings; read environment variables and root `.env`; `REDIS_URL` is unused when cache is disabled |
-| `CACHE_ENABLED` | Defaults to `true`; `false` skips Redis readiness without skipping PostGIS or city import requirements. Invalid boolean values are rejected. Base Compose explicitly enables it; the no-cache overlay disables it. |
+| `CACHE_ENABLED` | Defaults to `true`; `false` skips Redis readiness without skipping PostGIS or city import requirements. Settings are validated during API startup; invalid boolean values prevent the process from serving. Readiness reuses those validated settings. Base Compose explicitly enables it; the no-cache overlay disables it. |
 | `RAW_STORAGE_PATH`                                              | City API/worker settings read `.env`; city bundles use `<path>/city`. Original smoke worker uses process environment only; default `.local/raw` |
 | `VITE_API_PROXY`                                                | Vite process environment; defaults to `http://127.0.0.1:8000`                         |
 | `GOOGLE_CLOUD_PROJECT`, `BIGQUERY_DATASET`, `BIGQUERY_LOCATION` | dbt process environment; `.env` is not loaded by dbt                                  |

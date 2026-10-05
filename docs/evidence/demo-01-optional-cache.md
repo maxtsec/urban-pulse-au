@@ -6,7 +6,8 @@ Date: 5 October 2026. Configuration and commands are in the [development guide](
 
 ## Verification
 
-- Ruff lint/format and mypy passed. The full local unit/API suite passed: **425 tests**, with 142 integration tests excluded from that command. Focused regressions cover flag defaults/validation, disabled client construction, enabled ping failure, PostGIS failures and smoke cleanup.
+- Ruff lint/format and mypy passed. The full local unit/API suite passed: **428 tests**, with 142 integration tests excluded from that command. Focused regressions cover flag defaults/validation, fail-fast API startup with sanitized errors, reuse of startup settings, disabled client construction, enabled ping failure, PostGIS failures and smoke cleanup.
+- A real Uvicorn subprocess exits on invalid cache configuration before serving; its logs contain the configuration diagnostic without the invalid input value.
 - `python -O scripts/compose_smoke.py` passed against real isolated PostGIS and Redis containers. It verified enabled-cache readiness, Redis outage returning 503 while city queries stay unchanged, then removed Redis and started the app with the no-cache overlay. No Redis container existed and readiness reported `disabled`; the integrated city result matched the enabled-mode result.
 - With cache disabled, stopping PostgreSQL made readiness and city queries return 503 while liveness stayed available. Restarting PostgreSQL restored the same city result. Re-enabling cache recreated the API with Redis readiness and preserved city data.
 - The same smoke retained its initializer, API recreation, proxy, durable checkpoint/expiry, replay and independent-worker database-restart checks. It removed its own stack/volume and retained local logs under `.local/compose-smoke/`.
