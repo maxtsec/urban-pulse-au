@@ -16,6 +16,7 @@ from scripts import compose_smoke
 def smoke(monkeypatch, tmp_path):
     monkeypatch.setattr(compose_smoke, "ROOT", tmp_path)
     monkeypatch.setattr(compose_smoke, "verify_database_restart", lambda *args: None)
+    monkeypatch.setattr(compose_smoke, "verify_city_checkpoints", lambda *args: None)
     commands = []
     worker_results = iter(
         [

@@ -65,6 +65,46 @@ def verify_database_restart(
     run("stop", "recovery-worker")
 
 
+def verify_city_checkpoints(run, city, read, api):
+    """Advance explicitly, then recreate the worker across persisted warning expiry."""
+    route = api + "/api/v1/areas/au-vic-melbourne-clue-southbank"
+
+    def completed(run_id, seconds, scenario):
+        deadline = time.monotonic() + 90
+        while True:
+            value = city("inspect", run_id)
+            if value["completed"] == seconds:
+                break
+            if time.monotonic() >= deadline:
+                raise RuntimeError("city worker did not complete its checkpoint")
+            time.sleep(0.5)
+        expected = read(route + f"?scenario={scenario}&seconds={seconds}")
+        actual = value["snapshot"]
+        for view in (expected, actual):
+            view["composition"].pop("delivery", None)
+            view["composition"].pop("recovery", None)
+        require_equal(actual, expected, "Durable city checkpoint")
+        return value
+
+    city("create", "compose-city", "--scenario", "city")
+    city("advance", "compose-city", "--seconds", "60")
+    run("up", "-d", "--no-deps", "city-worker")
+    completed("compose-city", 60, "city")
+    city("create", "compose-expiry", "--scenario", "weather-outage")
+    city("advance", "compose-expiry", "--seconds", "239")
+    completed("compose-expiry", 239, "weather-outage")
+    run("stop", "city-worker")
+    city("advance", "compose-expiry", "--seconds", "240")
+    before = city("inspect", "compose-expiry")
+    require_equal(before["completed"], 239, "Stopped city worker")
+    read(route + "?scenario=city&seconds=360")
+    require_equal(city("inspect", "compose-expiry"), before, "Read-only browser clock")
+    run("up", "-d", "--no-deps", "--force-recreate", "city-worker")
+    after = completed("compose-expiry", 240, "weather-outage")
+    require_equal(after["snapshot"]["assessment"]["condition"], "unknown", "Warning expiry")
+    run("stop", "city-worker")
+
+
 def main() -> None:
     project = "urbanpulse-smoke-" + uuid4().hex[:12]
     folder = ROOT / ".local" / "compose-smoke" / project
@@ -93,17 +133,17 @@ def main() -> None:
             if result.returncode:
                 raise RuntimeError(f"Compose {' '.join(args)} failed; inspect {log_path}")
 
-        def recovery(*args: str) -> object:
+        def command(service: str, module: str, *args: str) -> object:
             result = subprocess.run(
                 [
                     *base,
                     "run",
                     "--rm",
                     "--no-deps",
-                    "recovery-worker",
+                    service,
                     "/app/.venv/bin/python",
                     "-m",
-                    "workers.events.main",
+                    module,
                     *args,
                 ],
                 cwd=ROOT,
@@ -116,6 +156,12 @@ def main() -> None:
             if result.returncode:
                 raise RuntimeError(f"Recovery worker failed; inspect {log_path}")
             return json.loads(result.stdout)
+
+        def recovery(*args: str) -> object:
+            return command("recovery-worker", "workers.events.main", *args)
+
+        def city(*args: str) -> object:
+            return command("city-worker", "workers.city.main", *args)
 
         def url(service: str, port: int) -> str:
             address = subprocess.check_output(
@@ -186,12 +232,15 @@ def main() -> None:
                 raise RuntimeError("recovery replay must return a result")
             require_equal(repeated["status"], "duplicate", "Recovery replay")
             require_equal(read(api + route), view, "Recovery worker isolation")
+            print("Checking durable city checkpoints and persisted expiry", flush=True)
+            verify_city_checkpoints(run, city, read, api)
             print("Restarting isolated database while worker stays running", flush=True)
             verify_database_restart(base, run, recovery)
             require_equal(read(api + route), view, "Database restart isolation")
             print(
                 "Compose smoke passed: cold readiness, initializer, city/boundary/evidence, "
-                "proxy, recreation, worker replay and database restart recovery",
+                "proxy, recreation, city checkpoints/expiry, worker replay "
+                "and database restart recovery",
                 flush=True,
             )
         finally:

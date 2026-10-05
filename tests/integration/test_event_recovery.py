@@ -353,7 +353,7 @@ def test_downgrade_refuses_to_erase_recovery_state(store, wire, retained):
     with store.engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0006_worker_recovery"
+            == "0007_city_checkpoints"
         )
 
 

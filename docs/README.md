@@ -28,7 +28,7 @@ For event composition: [ADR 0008](adr/0008-in-process-city-composition.md), [CIT
 
 For durable delivery design: [ADR 0009 options](adr/0009-durable-event-delivery.md) and [EVENT-01 acceptance cases](architecture/event-01-durable-delivery.md).
 
-For worker operations: [recovery runbook](runbooks/event-recovery.md) and [process/database evidence](evidence/event-01-worker-recovery.md).
+For worker operations: [recovery runbook](runbooks/event-recovery.md) and [process/database evidence](evidence/event-01-worker-recovery.md). For the integrated city worker, use the [checkpoint walkthrough](runbooks/city-checkpoints.md).
 
 ## Document responsibilities
 
@@ -77,6 +77,8 @@ For worker operations: [recovery runbook](runbooks/event-recovery.md) and [proce
 | [Outbox/ledger evidence](evidence/event-01-outbox-ledger.md) | Real database concurrency, rollback and lease checks | Delivery repository verification changes |
 | [Worker recovery runbook](runbooks/event-recovery.md) | Worker commands, retry/replay semantics and migration operations | Recovery operations change |
 | [Worker recovery evidence](evidence/event-01-worker-recovery.md) | Process-kill, scheduling and operator verification | A recovery checkpoint is verified |
+| [City checkpoint runbook](runbooks/city-checkpoints.md) | Durable run commands, clock/result semantics, migration and recovery | City worker operations change |
+| [City checkpoint evidence](evidence/event-01-city-checkpoints.md) | City equivalence, ordered barriers, process crashes and Compose expiry | A city recovery checkpoint is verified |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 

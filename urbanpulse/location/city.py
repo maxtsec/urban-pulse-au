@@ -11,6 +11,9 @@ from urbanpulse.contracts.events import (
     compare_revision,
 )
 
+POSITION_STALE_SECONDS = 120
+POSITION_EXPIRED_SECONDS = 300
+
 
 class Freshness(StrEnum):
     CURRENT = "current"
@@ -23,9 +26,9 @@ def position_freshness(observed_at: datetime | None, at: datetime) -> Freshness:
     if observed_at is None or observed_at > at:
         return Freshness.UNKNOWN
     age = (at - observed_at).total_seconds()
-    if age >= 300:
+    if age >= POSITION_EXPIRED_SECONDS:
         return Freshness.EXPIRED
-    if age >= 120:
+    if age >= POSITION_STALE_SECONDS:
         return Freshness.STALE
     return Freshness.CURRENT
 

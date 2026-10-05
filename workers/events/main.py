@@ -1,11 +1,9 @@
 """Local durable recovery probe and operator commands (no HTTP replay endpoint)."""
 
 import argparse
-import json
 import math
 import signal
 import threading
-from dataclasses import asdict
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -15,31 +13,7 @@ from urbanpulse.adapters.recovery_probe import CONSUMER, apply_probe
 from urbanpulse.application.durable_delivery import ReplayReason, StaleClaim, StorageUnavailable
 from urbanpulse.application.event_worker import EventWorker
 from urbanpulse.config import ROOT, Settings
-
-
-def emit(value: object) -> None:
-    print(json.dumps(value, default=str), flush=True)
-
-
-def poll(worker: EventWorker, stop: threading.Event, *, once: bool, interval: float) -> None:
-    backoff = 1.0
-    while not stop.is_set():
-        try:
-            result = worker.step()
-        except (StorageUnavailable, SQLAlchemyError):
-            if once:
-                raise
-            emit({"error": "database-unavailable", "retry_in_seconds": backoff})
-            stop.wait(backoff)
-            backoff = min(backoff * 2, 30)
-            continue
-        backoff = 1.0
-        if result.status != "idle" or once:
-            emit(asdict(result))
-        if once:
-            return
-        if result.status == "idle":
-            stop.wait(interval)
+from workers.runtime import emit, poll
 
 
 def main() -> int:
