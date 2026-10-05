@@ -34,6 +34,8 @@ For replay performance: [bounded history measurements and reproduction](evidence
 
 For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For production V1: [release policy](delivery-plan.md#release-policy).
 
+For the hosted fixture demo: [DEMO-01 hosting and deployment proposal](adr/0010-hosted-fixture-demo.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -85,6 +87,7 @@ For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For 
 | [City checkpoint evidence](evidence/event-01-city-checkpoints.md) | City equivalence, ordered barriers, process crashes and Compose expiry | A city recovery checkpoint is verified |
 | [EVENT-01 performance evidence](evidence/event-01-performance.md) | Reproducible history workloads, timing samples, copy profiling and optimization priorities | Replay implementation or verified measurements change |
 | [Planning copy evidence](evidence/event-01-planning-copy-cost.md) | Immutable retained history, rollback guarantees and before/after measurements | Planning representation or verified performance changes |
+| [ADR 0010: hosted fixture demo](adr/0010-hosted-fixture-demo.md) | Hosting/access alternatives, image identity, deployment and rollback acceptance | The architect selects demo topology or deployment requirements change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
