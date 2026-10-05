@@ -113,7 +113,7 @@ def verify_cache_modes(base, run, read, url, route, view):
     run("stop", "redis")
     read(url("api", 8000) + "/health/ready", 503)
     require_equal(read(url("api", 8000) + route), view, "City during cache outage")
-    run("rm", "-f", "redis")
+    run("rm", "-f", "-v", "redis")
     run("up", "-d", "--wait", no_cache=True)
     containers = subprocess.check_output(
         [*base, "ps", "--all", "--quiet", "redis"], cwd=ROOT, text=True
@@ -135,11 +135,60 @@ def verify_cache_modes(base, run, read, url, route, view):
     require_equal(read(api + route), view, "City after re-enabling cache")
 
 
-def cleanup_stack(project: str, run: Callable[..., None]) -> None:
-    """Remove every profile in this generated project, then verify actual resource removal."""
+def project_volumes(project: str) -> set[str]:
+    """Remember volume mounts while their owning project containers still exist."""
     if not re.fullmatch(r"urbanpulse-smoke-[0-9a-f]{12}", project):
         raise RuntimeError("invalid isolated cleanup target")
-    run("down", "--volumes", "--remove-orphans", all_profiles=True)
+    containers = subprocess.check_output(
+        [
+            "docker",
+            "container",
+            "ls",
+            "--quiet",
+            "--all",
+            "--filter",
+            f"label=com.docker.compose.project={project}",
+        ],
+        cwd=ROOT,
+        text=True,
+        timeout=30,
+    ).splitlines()
+    volumes: set[str] = set()
+    for container in containers:
+        # Inspect mounts only: full inspection would include environment credentials.
+        mounts = json.loads(
+            subprocess.check_output(
+                ["docker", "container", "inspect", "--format", "{{json .Mounts}}", container],
+                cwd=ROOT,
+                text=True,
+                timeout=30,
+            )
+        )
+        volumes.update(mount["Name"] for mount in mounts if mount["Type"] == "volume")
+    return volumes
+
+
+def cleanup_stack(
+    project: str, run: Callable[..., None], known_volumes: set[str] | None = None
+) -> None:
+    """Remove every profile, checking labels and mounts recorded before container removal."""
+    if not re.fullmatch(r"urbanpulse-smoke-[0-9a-f]{12}", project):
+        raise RuntimeError("invalid isolated cleanup target")
+    volumes = set(known_volumes or ())
+    inventory_error = None
+    try:
+        volumes.update(project_volumes(project))
+    except Exception as error:
+        inventory_error = error
+    # Still attempt teardown if Docker could not provide the mount inventory.
+    try:
+        run("down", "--volumes", "--remove-orphans", all_profiles=True)
+    except Exception as error:
+        if inventory_error is not None:
+            error.add_note(f"Volume inventory also failed: {inventory_error}")
+        raise
+    if inventory_error is not None:
+        raise RuntimeError("Cannot verify cleanup: volume inventory failed") from inventory_error
     remaining: dict[str, list[str]] = {}
     for resource in ("container", "network", "volume"):
         command = ["docker", resource, "ls", "--quiet"]
@@ -149,8 +198,20 @@ def cleanup_stack(project: str, run: Callable[..., None]) -> None:
         identifiers = subprocess.check_output(command, cwd=ROOT, text=True, timeout=30).splitlines()
         if identifiers:
             remaining[resource] = identifiers
+    if volumes:
+        existing = set(
+            subprocess.check_output(
+                ["docker", "volume", "ls", "--quiet"],
+                cwd=ROOT,
+                text=True,
+                timeout=30,
+            ).splitlines()
+        )
+        surviving = sorted(volumes & existing)
+        if surviving:
+            remaining["recorded volume mounts"] = surviving
     if remaining:
-        raise RuntimeError(f"Smoke cleanup left labelled resources: {remaining}")
+        raise RuntimeError(f"Smoke cleanup left resources: {remaining}")
 
 
 def main() -> None:
@@ -171,9 +232,13 @@ def main() -> None:
         "app",
     ]
 
+    known_volumes: set[str] = set()
     with log_path.open("w", encoding="utf-8") as log:
 
         def run(*args: str, no_cache: bool = False, all_profiles: bool = False) -> None:
+            # Up may recreate a container; rm removes its ownership evidence outright.
+            if args[0] in {"up", "rm"}:
+                known_volumes.update(project_volumes(project))
             configuration = [*base]
             if no_cache:
                 configuration.extend(["-f", str(ROOT / "compose.no-cache.yaml")])
@@ -312,7 +377,7 @@ def main() -> None:
             primary_error = sys.exception()
             try:
                 # Never target the user's normal compose project or its database volume.
-                cleanup_stack(project, run)
+                cleanup_stack(project, run, known_volumes)
             except Exception as cleanup_error:
                 if primary_error is None:
                     raise
@@ -320,7 +385,8 @@ def main() -> None:
                 print(f"Cleanup failed for {project}; inspect {log_path}", file=sys.stderr)
             else:
                 print(
-                    f"Verified no isolated containers, networks or volumes remain; log: {log_path}",
+                    "Verified no project-labelled resources or recorded volume mounts remain; "
+                    f"log: {log_path}",
                     flush=True,
                 )
 
