@@ -59,7 +59,7 @@ Database failures use the shared worker backoff/reconciliation policy; they do n
 
 ## Migration and limits
 
-Migration `0007` adds three Location Intelligence tables and nullable per-delivery predecessor references. Existing unordered deliveries and imports remain usable. The legacy run-level `publications` column is retained for schema compatibility but is no longer selected or updated; new runs leave it at its empty default. It enqueues no work and changes no active import. Downgrade refuses any retained city run or ordered dependency history; this walkthrough has no destructive cleanup command.
+Migration `0007` adds three Location Intelligence tables and nullable per-delivery predecessor references. Existing unordered deliveries and imports remain usable. Run ordering stores only the input/result publication cursors; required publication references belong to each checkpoint. It enqueues no work and changes no active import. Downgrade refuses any retained city run or ordered dependency history; this walkthrough has no destructive cleanup command.
 
 The first verified local run is `event01-city-checkpoints-01`; the commands above create a separate `southbank-demo` run. Both remain in PostgreSQL until an explicitly scoped lifecycle operation is designed. A new run duplicates bounded replay history and results. Reconstruction reloads and validates inputs and retains candidate-state copying; large-history timings and any cache/copy optimization remain a separate measured change.
 

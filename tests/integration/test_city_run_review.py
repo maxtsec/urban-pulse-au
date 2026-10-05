@@ -6,7 +6,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from sqlalchemy import select, text, update
+from sqlalchemy import inspect, select, update
 from test_city_runs import city as city
 from test_city_runs import drain
 from test_event_store import store as store
@@ -228,12 +228,9 @@ def test_interleaved_duplicates_preserve_one_ordered_lane_without_run_id_list(ci
     run = city.read_run("pilot")
     assert "publications" not in run
     with city.queue.engine.connect() as connection:
-        assert (
-            connection.execute(
-                text("SELECT publications FROM event01_city_runs WHERE id='pilot'")
-            ).scalar_one()
-            == "[]"
-        )
+        assert "publications" not in {
+            column["name"] for column in inspect(connection).get_columns("event01_city_runs")
+        }
         rows = list(
             connection.execute(
                 select(deliveries)
