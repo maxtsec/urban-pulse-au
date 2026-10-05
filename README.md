@@ -68,7 +68,7 @@ uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 npm.cmd --prefix apps/web run dev
 ```
 
-Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). Use Play, Reset or the scenario moments to inspect moving, stale and last-known observations. Select a tram on the map or in the equivalent list.
+Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). The default weather scenario shows modelled readings above the map. Switch scenarios using the visible buttons. Use Play, Reset or the scenario moments to inspect moving, stale and last-known observations. Select a tram on the map or in the equivalent list.
 
 For PostGIS/Redis, start Docker Desktop and run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/services-smoke.ps1`. See the [development guide](docs/development.md) for setup, configuration and troubleshooting.
 

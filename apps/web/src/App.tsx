@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AREA_ID, displayTime, readJson } from './city';
 import type { Snapshot } from './city';
 import { CityMap } from './CityMap';
 import { WeatherPanel } from './WeatherPanel';
+import { WeatherSummary } from './WeatherSummary';
+import { ScenarioPicker, initialScenario } from './ScenarioPicker';
 import tramIcon from './assets/tram.svg';
 import type { Boundary } from './CityMap';
 
 export function App() {
   const [seconds, setSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [scenario, setScenario] = useState('journey');
+  const [scenario, setScenario] = useState(initialScenario);
   const [selected, setSelected] = useState<string | null>(null);
   const [showVehicles, setShowVehicles] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
@@ -24,7 +26,8 @@ export function App() {
         signal,
       ),
     retry: false,
-    placeholderData: keepPreviousData,
+    placeholderData: (previous) =>
+      previous?.scenario === scenario ? previous : undefined,
     refetchOnWindowFocus: false,
   });
   const snapshot = result.data;
@@ -72,6 +75,12 @@ export function App() {
     })
     .join('; ');
 
+  function changeScenario(value: string) {
+    setScenario(value);
+    setPlaying(false);
+    setSelected(null);
+  }
+
   function jump(value: number) {
     setPlaying(false);
     setSeconds(Math.max(0, Math.min(value, endSeconds)));
@@ -92,13 +101,15 @@ export function App() {
             <h1>Southbank</h1>
             <p className="subtitle">Trams, conditions and area context.</p>
           </div>
-          <label className="area-picker">
-            Explore an area
-            <select aria-label="Area">
-              <option>Southbank · CLUE area</option>
-            </select>
-          </label>
+          <p className="area-caption">City of Melbourne · CLUE area</p>
         </section>
+        <ScenarioPicker value={scenario} onChange={changeScenario} />
+        {snapshot && !result.isError && (
+          <WeatherSummary
+            weather={snapshot.weather}
+            onShowWeather={() => changeScenario('weather')}
+          />
+        )}
         <section className="playback" aria-label="Fixture playback">
           <div>
             <p className="eyebrow">SCENARIO CLOCK</p>
@@ -135,24 +146,6 @@ export function App() {
                 onChange={(event) => jump(Number(event.target.value))}
               />
             </label>
-            <label className="scenario-picker">
-              Scenario
-              <select
-                aria-label="Scenario"
-                value={scenario}
-                onChange={(event) => {
-                  setScenario(event.target.value);
-                  setPlaying(false);
-                  setSelected(null);
-                }}
-              >
-                <option value="journey">Tram journey</option>
-                <option value="empty">Empty transport</option>
-                <option value="outage">Transport outage</option>
-                <option value="weather">Weather warnings</option>
-                <option value="weather-outage">Weather outage</option>
-              </select>
-            </label>
           </div>
         </section>
         {result.isPending && (
@@ -172,307 +165,322 @@ export function App() {
         )}
         {snapshot && !result.isError && (
           <div className="city-grid">
-            <section className="map-card">
-              <div className="card-heading">
-                <div>
-                  <h2>Neighbourhood map</h2>
+            <div className="main-column">
+              <section className="map-card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Neighbourhood map</h2>
+                  </div>
+                  <span className="count-chip">
+                    {snapshot.vehicles.filter((v) => v.visible_on_map).length}{' '}
+                    on map
+                  </span>
                 </div>
-                <span className="count-chip">
-                  {snapshot.vehicles.filter((v) => v.visible_on_map).length} on
-                  map
-                </span>
-              </div>
-              <div className="layer-controls">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showVehicles}
-                    onChange={(event) => setShowVehicles(event.target.checked)}
-                  />{' '}
-                  Tram positions
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showBoundary}
-                    onChange={(event) => setShowBoundary(event.target.checked)}
-                  />{' '}
-                  Area boundary
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showTracks}
-                    onChange={(event) => setShowTracks(event.target.checked)}
-                  />
-                  Tracks (illustrative)
-                </label>
-                {snapshot.weather && (
+                <div className="layer-controls">
                   <label>
                     <input
                       type="checkbox"
-                      checked={showWarnings}
+                      checked={showVehicles}
                       onChange={(event) =>
-                        setShowWarnings(event.target.checked)
+                        setShowVehicles(event.target.checked)
                       }
                     />{' '}
-                    Warning areas
+                    Tram positions
                   </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showBoundary}
+                      onChange={(event) =>
+                        setShowBoundary(event.target.checked)
+                      }
+                    />{' '}
+                    Area boundary
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showTracks}
+                      onChange={(event) => setShowTracks(event.target.checked)}
+                    />
+                    Tracks (illustrative)
+                  </label>
+                  {snapshot.weather && (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showWarnings}
+                        onChange={(event) =>
+                          setShowWarnings(event.target.checked)
+                        }
+                      />{' '}
+                      Warning areas
+                    </label>
+                  )}
+                </div>
+                {geometry.data && (
+                  <CityMap
+                    boundary={geometry.data}
+                    vehicles={snapshot.vehicles}
+                    selected={selected}
+                    onSelect={selectVehicle}
+                    showVehicles={showVehicles}
+                    showBoundary={showBoundary}
+                    showTracks={showTracks}
+                    warnings={snapshot.weather?.warnings ?? []}
+                    showWarnings={showWarnings}
+                  />
                 )}
-              </div>
-              {geometry.data && (
-                <CityMap
-                  boundary={geometry.data}
-                  vehicles={snapshot.vehicles}
-                  selected={selected}
-                  onSelect={selectVehicle}
-                  showVehicles={showVehicles}
-                  showBoundary={showBoundary}
-                  showTracks={showTracks}
-                  warnings={snapshot.weather?.warnings ?? []}
-                  showWarnings={showWarnings}
-                />
-              )}
-              {geometry.isPending && (
-                <div className="map-placeholder" role="status">
-                  Loading area boundary…
+                {geometry.isPending && (
+                  <div className="map-placeholder" role="status">
+                    Loading area boundary…
+                  </div>
+                )}
+                {geometry.isError && (
+                  <div className="map-placeholder" role="alert">
+                    Boundary unavailable. Observations remain in the list.
+                    <button onClick={() => geometry.refetch()}>
+                      Retry boundary
+                    </button>
+                  </div>
+                )}
+                <div className="map-footnote">
+                  Tracks and trams are illustrative. Southbank boundary: City of
+                  Melbourne.
                 </div>
-              )}
-              {geometry.isError && (
-                <div className="map-placeholder" role="alert">
-                  Boundary unavailable. Observations remain in the list.
-                  <button onClick={() => geometry.refetch()}>
-                    Retry boundary
-                  </button>
+              </section>
+
+              {snapshot.weather && <WeatherPanel weather={snapshot.weather} />}
+              <section className="observations-card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Tram observations</h2>
+                  </div>
+                  <span className="count-chip">
+                    {snapshot.positions_total} in area
+                  </span>
                 </div>
-              )}
-              <div className="map-footnote">
-                Tracks and trams are illustrative. Southbank boundary: City of
-                Melbourne.
-              </div>
-            </section>
-            <aside className="area-panel" aria-label="Area overview">
-              <h2>Area conditions</h2>
-              <p className="area-description">Southbank · City of Melbourne</p>
-              <div className={`condition-box ${condition}`} role="status">
-                <span className="status-symbol">
-                  {condition === 'degraded'
-                    ? '!'
-                    : condition === 'normal'
-                      ? '✓'
-                      : '?'}
-                </span>
-                <div>
-                  <p>Current conditions</p>
-                  <strong>
+                {snapshot.vehicles.length === 0 && (
+                  <p className="empty-state">
+                    No tram observations in this fixture view.
+                  </p>
+                )}
+                {snapshot.positions_truncated && (
+                  <p role="status">
+                    Showing the first {snapshot.positions_limit} observations.
+                    More positions exist.
+                  </p>
+                )}
+                <div className="tram-list">
+                  {snapshot.vehicles.map((vehicle) => (
+                    <button
+                      key={vehicle.id}
+                      aria-label={`Select ${vehicle.label} in list`}
+                      aria-pressed={selected === vehicle.id}
+                      className={`tram-row ${selected === vehicle.id ? 'selected' : ''}`}
+                      onClick={() => selectVehicle(vehicle.id)}
+                    >
+                      <img className="tram-list-icon" src={tramIcon} alt="" />
+                      <span>
+                        <strong>{vehicle.label}</strong>
+                        <small>{vehicle.route_id ?? 'Route unknown'}</small>
+                      </span>
+                      <span className="observation-time">
+                        {displayTime(vehicle.observed_at)}
+                      </span>
+                      <span className={`coverage-pill ${vehicle.freshness}`}>
+                        {vehicle.freshness === 'expired'
+                          ? 'last known'
+                          : vehicle.freshness}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="selection-detail" aria-live="polite">
+                  {active ? (
+                    <>
+                      <strong>{active.label} selected</strong>
+                      <span>
+                        Observation: {displayTime(active.observed_at)} ·{' '}
+                        {active.freshness}
+                      </span>
+                      <span>
+                        Position: {active.latitude.toFixed(5)},{' '}
+                        {active.longitude.toFixed(5)} · Revision{' '}
+                        {active.revision}
+                      </span>
+                      <small>
+                        Event: {active.event_id} · Capture:{' '}
+                        {active.capture_ids.join(', ')}
+                      </small>
+                    </>
+                  ) : (
+                    <span>
+                      {selected
+                        ? 'The selected tram is outside this area at this time.'
+                        : 'Select a tram on the map or in the list to inspect its observation.'}
+                    </span>
+                  )}
+                </div>
+              </section>
+            </div>
+            <div className="side-column">
+              <aside className="area-panel" aria-label="Area overview">
+                <h2>Area conditions</h2>
+                <p className="area-description">
+                  Southbank · City of Melbourne
+                </p>
+                <div className={`condition-box ${condition}`} role="status">
+                  <span className="status-symbol">
                     {condition === 'degraded'
-                      ? 'Degraded'
+                      ? '!'
                       : condition === 'normal'
-                        ? 'Normal'
-                        : 'Unknown'}
-                  </strong>
-                </div>
-              </div>
-              <p className="condition-explanation">
-                {snapshot.assessment.reasons.length
-                  ? 'Known transport disruptions or applicable warnings affect this area.'
-                  : condition === 'unknown'
-                    ? missingCoverage + '. Overall conditions remain unknown.'
-                    : 'Required current-condition inputs are complete.'}
-              </p>
-              {snapshot.assessment.reasons.map((reason) => (
-                <div className="reason" key={reason.id}>
-                  <strong>{reason.reason}</strong>
-                  <span>
-                    Effective {displayTime(reason.effective_from)} ·{' '}
-                    {reason.resolved_at
-                      ? 'Resolved ' + displayTime(reason.resolved_at)
-                      : reason.effective_until
-                        ? 'Valid until ' + displayTime(reason.effective_until)
-                        : 'Resolution not yet observed'}
+                        ? '✓'
+                        : '?'}
                   </span>
+                  <div>
+                    <p>Current conditions</p>
+                    <strong>
+                      {condition === 'degraded'
+                        ? 'Degraded'
+                        : condition === 'normal'
+                          ? 'Normal'
+                          : 'Unknown'}
+                    </strong>
+                  </div>
                 </div>
-              ))}
-              <div className="domain-row">
-                <div>
-                  <h3>Transport</h3>
-                  <p>
-                    {coverage('transport_service') === 'error'
-                      ? 'Source unavailable · fixture'
-                      : snapshot.assessment.reasons.some(
-                            (reason) => reason.input_id === 'transport_service',
-                          )
-                        ? '1 service disruption · fixture'
-                        : 'No active disruption · fixture'}
-                  </p>
-                </div>
-                <span
-                  className={`coverage-pill ${coverage('transport_service')}`}
-                >
-                  {coverage('transport_service')}
-                </span>
-              </div>
-              <div className="domain-row">
-                <div>
-                  <h3>Weather & hazards</h3>
-                  <p>
-                    {coverage('weather_warnings') === 'unknown'
-                      ? snapshot.weather
-                        ? 'Warning coverage incomplete'
-                        : 'Warning data not connected'
-                      : coverage('weather_warnings') === 'error'
-                        ? 'Warning source unavailable'
-                        : coverage('weather_warnings') === 'stale'
-                          ? 'Warning coverage is stale'
-                          : coverage('weather_warnings') === 'unsupported'
-                            ? 'Warning coverage unsupported'
-                            : 'Warning coverage current'}
-                  </p>
-                </div>
-                <span
-                  className={`coverage-pill ${coverage('weather_warnings')}`}
-                >
-                  {coverage('weather_warnings')}
-                </span>
-              </div>
-              <div className="profile-heading">Area profile</div>
-              <div className="domain-row">
-                <div>
-                  <h3>Planning & infrastructure</h3>
-                  <p>Development data not connected</p>
-                  <p>As of: unknown</p>
-                </div>
-              </div>
-              <a
-                className="evidence-link"
-                href={snapshot.evidence_url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View fixture evidence ↗
-              </a>
-            </aside>
-            <section className="observations-card">
-              <div className="card-heading">
-                <div>
-                  <h2>Tram observations</h2>
-                </div>
-                <span className="count-chip">
-                  {snapshot.positions_total} in area
-                </span>
-              </div>
-              {snapshot.vehicles.length === 0 && (
-                <p className="empty-state">
-                  No tram observations in this fixture view.
+                <p className="condition-explanation">
+                  {snapshot.assessment.reasons.length
+                    ? 'Known transport disruptions or applicable warnings affect this area.'
+                    : condition === 'unknown'
+                      ? missingCoverage + '. Overall conditions remain unknown.'
+                      : 'Required current-condition inputs are complete.'}
                 </p>
-              )}
-              {snapshot.positions_truncated && (
-                <p role="status">
-                  Showing the first {snapshot.positions_limit} observations.
-                  More positions exist.
-                </p>
-              )}
-              <div className="tram-list">
-                {snapshot.vehicles.map((vehicle) => (
-                  <button
-                    key={vehicle.id}
-                    aria-label={`Select ${vehicle.label} in list`}
-                    aria-pressed={selected === vehicle.id}
-                    className={`tram-row ${selected === vehicle.id ? 'selected' : ''}`}
-                    onClick={() => selectVehicle(vehicle.id)}
-                  >
-                    <img className="tram-list-icon" src={tramIcon} alt="" />
+                {snapshot.assessment.reasons.map((reason) => (
+                  <div className="reason" key={reason.id}>
+                    <strong>{reason.reason}</strong>
                     <span>
-                      <strong>{vehicle.label}</strong>
-                      <small>{vehicle.route_id ?? 'Route unknown'}</small>
+                      Effective {displayTime(reason.effective_from)} ·{' '}
+                      {reason.resolved_at
+                        ? 'Resolved ' + displayTime(reason.resolved_at)
+                        : reason.effective_until
+                          ? 'Valid until ' + displayTime(reason.effective_until)
+                          : 'Resolution not yet observed'}
                     </span>
-                    <span className="observation-time">
-                      {displayTime(vehicle.observed_at)}
-                    </span>
-                    <span className={`coverage-pill ${vehicle.freshness}`}>
-                      {vehicle.freshness === 'expired'
-                        ? 'last known'
-                        : vehicle.freshness}
-                    </span>
-                  </button>
+                  </div>
                 ))}
-              </div>
-              <div className="selection-detail" aria-live="polite">
-                {active ? (
-                  <>
-                    <strong>{active.label} selected</strong>
-                    <span>
-                      Observation: {displayTime(active.observed_at)} ·{' '}
-                      {active.freshness}
-                    </span>
-                    <span>
-                      Position: {active.latitude.toFixed(5)},{' '}
-                      {active.longitude.toFixed(5)} · Revision {active.revision}
-                    </span>
-                    <small>
-                      Event: {active.event_id} · Capture:{' '}
-                      {active.capture_ids.join(', ')}
-                    </small>
-                  </>
-                ) : (
-                  <span>
-                    {selected
-                      ? 'The selected tram is outside this area at this time.'
-                      : 'Select a tram on the map or in the list to inspect its observation.'}
+                <div className="domain-row">
+                  <div>
+                    <h3>Transport</h3>
+                    <p>
+                      {coverage('transport_service') === 'error'
+                        ? 'Source unavailable · fixture'
+                        : snapshot.assessment.reasons.some(
+                              (reason) =>
+                                reason.input_id === 'transport_service',
+                            )
+                          ? '1 service disruption · fixture'
+                          : 'No active disruption · fixture'}
+                    </p>
+                  </div>
+                  <span
+                    className={`coverage-pill ${coverage('transport_service')}`}
+                  >
+                    {coverage('transport_service')}
                   </span>
+                </div>
+                <div className="domain-row">
+                  <div>
+                    <h3>Weather & hazards</h3>
+                    <p>
+                      {coverage('weather_warnings') === 'unknown'
+                        ? snapshot.weather
+                          ? 'Warning coverage incomplete'
+                          : 'Warning data not connected'
+                        : coverage('weather_warnings') === 'error'
+                          ? 'Warning source unavailable'
+                          : coverage('weather_warnings') === 'stale'
+                            ? 'Warning coverage is stale'
+                            : coverage('weather_warnings') === 'unsupported'
+                              ? 'Warning coverage unsupported'
+                              : 'Warning coverage current'}
+                    </p>
+                  </div>
+                  <span
+                    className={`coverage-pill ${coverage('weather_warnings')}`}
+                  >
+                    {coverage('weather_warnings')}
+                  </span>
+                </div>
+                <div className="profile-heading">Area profile</div>
+                <div className="domain-row">
+                  <div>
+                    <h3>Planning & infrastructure</h3>
+                    <p>Development data not connected</p>
+                    <p>As of: unknown</p>
+                  </div>
+                </div>
+                <a
+                  className="evidence-link"
+                  href={snapshot.evidence_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View fixture evidence ↗
+                </a>
+              </aside>
+              <section className="scenario-notes">
+                <h2>Demo moments</h2>
+                <p>Jump to a change in the six-minute scenario.</p>
+                {snapshot.weather ? (
+                  <div className="moments">
+                    <button onClick={() => jump(30)}>30s · Advice</button>
+                    <button onClick={() => jump(60)}>
+                      60s · Watch and Act
+                    </button>
+                    <button onClick={() => jump(150)}>150s · Cancelled</button>
+                    <button onClick={() => jump(180)}>
+                      180s · Emergency Warning
+                    </button>
+                    <button onClick={() => jump(240)}>
+                      240s · Expired, coverage stale
+                    </button>
+                    <button onClick={() => jump(270)}>
+                      270s · Coverage restored
+                    </button>
+                    <button onClick={() => jump(330)}>
+                      330s · Incomplete coverage
+                    </button>
+                  </div>
+                ) : (
+                  <div className="moments">
+                    <button onClick={() => jump(30)}>
+                      30s · Position update
+                    </button>
+                    <button onClick={() => jump(60)}>
+                      60s · Service interruption
+                    </button>
+                    <button onClick={() => jump(150)}>
+                      150s · Stale position
+                    </button>
+                    <button onClick={() => jump(330)}>
+                      330s · Last known only
+                    </button>
+                  </div>
                 )}
-              </div>
-            </section>
-            {snapshot.weather && <WeatherPanel weather={snapshot.weather} />}
-            <section className="scenario-notes">
-              <h2>Demo moments</h2>
-              <p>Jump to a change in the six-minute scenario.</p>
-              {snapshot.weather ? (
-                <div className="moments">
-                  <button onClick={() => jump(30)}>30s · Advice</button>
-                  <button onClick={() => jump(60)}>60s · Watch and Act</button>
-                  <button onClick={() => jump(150)}>150s · Cancelled</button>
-                  <button onClick={() => jump(180)}>
-                    180s · Emergency Warning
-                  </button>
-                  <button onClick={() => jump(240)}>
-                    240s · Expired, coverage stale
-                  </button>
-                  <button onClick={() => jump(270)}>
-                    270s · Coverage restored
-                  </button>
-                  <button onClick={() => jump(330)}>
-                    330s · Incomplete coverage
-                  </button>
-                </div>
-              ) : (
-                <div className="moments">
-                  <button onClick={() => jump(30)}>
-                    30s · Position update
-                  </button>
-                  <button onClick={() => jump(60)}>
-                    60s · Service interruption
-                  </button>
-                  <button onClick={() => jump(150)}>
-                    150s · Stale position
-                  </button>
-                  <button onClick={() => jump(330)}>
-                    330s · Last known only
-                  </button>
-                </div>
-              )}
-              <details>
-                <summary>Replay diagnostics</summary>
-                <p>
-                  Applied {snapshot.projection.apply} · Duplicates{' '}
-                  {snapshot.projection.duplicate} · Superseded{' '}
-                  {snapshot.projection.superseded} · Conflicts{' '}
-                  {snapshot.projection.conflict} · Invalid{' '}
-                  {snapshot.projection.rejected}
-                </p>
-                <p>Policy: {snapshot.policy_version}</p>
-              </details>
-            </section>
+                <details>
+                  <summary>Replay diagnostics</summary>
+                  <p>
+                    Applied {snapshot.projection.apply} · Duplicates{' '}
+                    {snapshot.projection.duplicate} · Superseded{' '}
+                    {snapshot.projection.superseded} · Conflicts{' '}
+                    {snapshot.projection.conflict} · Invalid{' '}
+                    {snapshot.projection.rejected}
+                  </p>
+                  <p>Policy: {snapshot.policy_version}</p>
+                </details>
+              </section>
+            </div>
           </div>
         )}
         <footer>
