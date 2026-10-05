@@ -49,7 +49,7 @@ The CLI returns JSON and a nonzero exit code for database/schema failures (2), s
 
 ## Inspection and Compose
 
-`inspect` returns one consistent view of the delivery, attempts and replay reasons, without the envelope. `list` returns at most 100 oldest deliveries in a context; inspect a known ID directly if outside that bounded listing. `metrics` reports current status counts, retry/dead-letter counts, backlog count and the age of its oldest original delivery. It uses the registered consumer as its only dimension; event IDs appear only in inspection, not metric labels. Manual replay retains original delivery age.
+`inspect` returns one consistent view of the delivery, attempts and replay reasons, without the envelope. `list` returns at most 100 oldest deliveries in a context; inspect a known ID directly if outside that bounded listing. `metrics` reports current status counts, retry/dead-letter counts, backlog count and the age of its oldest original delivery. `blocked_count` identifies the backlog subset held behind a dead-letter dependency, including indirect successors; see the [city metric definitions](city-checkpoints.md#monitor-both-city-consumers). It uses the registered consumer as its only dimension; event IDs appear only in inspection, not metric labels. Manual replay retains original delivery age.
 
 The `recovery` profile is opt-in and shares the API image. From a migrated app installation:
 

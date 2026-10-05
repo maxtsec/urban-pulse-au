@@ -21,7 +21,7 @@ The boundary is the accepted [ADR 0009](../adr/0009-durable-event-delivery.md) P
 | GET/rewind neither publishes nor moves durable cursors | Read-only snapshot/run inspection test in [city run tests](../../tests/integration/test_city_runs.py) and browser replay checks |
 | Versioned observation migration preserves imports and opaque fields | [Observation migration tests](../../tests/integration/test_observation_migration.py) and [storage evidence](event-01-observation-storage.md) |
 | Database outage does not consume handler retries or stop polling permanently | Serialization/deadlock/reconciliation tests and isolated database restart in [Compose smoke](../../scripts/compose_smoke.py) |
-| Operators can observe actual city input/result delivery state | [City metrics subprocess tests](../../tests/integration/test_city_metrics_operations.py): empty, pending, retry, dead-letter, replay and both consumers drained; CLI failure tests reject partial success |
+| Operators can observe actual city input/result delivery state | [City metrics subprocess tests](../../tests/integration/test_city_metrics_operations.py): empty, pending, retry, dead-letter, replay and both consumers drained; CLI failure tests reject partial success; [blocked-lane tests](../../tests/integration/test_blocked_metrics.py) cover transitive dependencies, independent lanes/consumers and replay across completed successors |
 | Performance changes preserve replay and rollback semantics | [Six-case benchmark](event-01-performance.md), [copy optimization comparison](event-01-planning-copy-cost.md) and nested-mutation failure tests |
 
 ## Run the acceptance checks
@@ -39,7 +39,7 @@ python -O scripts/compose_smoke.py
 
 The Compose check owns a uniquely named stack and volume; it builds the app, verifies initializer/readiness/proxy behavior, replays across workers, reconstructs city checkpoints across warning expiry, calls city metrics, restarts its database and cleans up its own stack. Provider keys and cloud resources are not used.
 
-Local verification on 5 October 2026: Ruff lint/format and mypy passed; 409 unit/API tests and 140 PostGIS integration tests passed. The isolated Compose smoke also passed under `python -O`, including the city metrics command and database restart recovery, then removed its stack and volume. Browser code is unchanged; this local verification did not rerun Playwright. The candidate PR CI supplies the browser check before release.
+Local verification on 5 October 2026: Ruff lint/format and mypy passed; 409 unit/API tests and 142 PostGIS integration tests passed. The initial city-metrics revision also passed isolated Compose smoke under `python -O`, including the city metrics command and database restart recovery, then removed its stack and volume. Browser code is unchanged; this local verification did not rerun Playwright. PR CI verifies the reviewed revision with both browser and Compose checks before merge; release also requires CI at its selected baseline.
 
 ## Demonstration
 
@@ -49,6 +49,12 @@ Read-only inspection of the existing local retained fixture run reported 39 comp
 
 ## Release and deferred boundaries
 
-After this acceptance change is reviewed and merged, verify CI at the merged revision, then create the `phase-3` tag/release on that revision. Release notes must link the actual successful CI run, this evidence and the two operator walkthroughs. A candidate PR is not a released phase; no phase tag is created before approval.
+Merge approval for this change does not authorize skipping earlier phase baselines or accept an outstanding architectural decision. Apply the release gates in order:
 
-[Issue #16](https://github.com/maxtsec/urban-pulse-au/issues/16) records repeated planning profile parsing and is deferred; it is not a Phase 3 exit gate. Live source authorization/retention (SRC-02), early collection (CLOUD-01), cloud deployment/telemetry (Phase 4), Phase 1 fixture-policy acceptance and earlier phase releases remain separate. This acceptance does not change their decisions or describe the synthetic city as live.
+1. Phase 1: obtain the architect's explicit acceptance of [ADR 0004](../adr/0004-southbank-fixture-map.md), including any required corrections. Select and verify the exact baseline commit, attach its successful CI run, [demo](../demos/city-01.md) and [evidence](city-01-fixture-map.md), then publish `phase-1` and release notes.
+2. Phase 2: verify its city MVP exit criteria and exact baseline commit, then publish `phase-2` with successful CI, the [integrated demo](../demos/city-04.md), [composition evidence](city-04-composition.md) and release notes. Link the Phase 1 baseline.
+3. Phase 3: only after both preceding tags/releases exist with their acceptance records, verify CI on the intended Phase 3 commit and publish `phase-3`. Link this evidence, the actual successful CI run, both operator walkthroughs and the Phase 2 baseline.
+
+Use distinct, reviewed milestone commits that contain the accepted behavior and are in ancestor order; record their SHAs and actual acceptance dates. Do not retrospectively claim a proposed policy was accepted at an earlier commit, or place all tags on the latest main merely to fill gaps. If a historical candidate lacks required fixes or cannot be verified, prepare a corrected baseline and its evidence before releasing it. Keep existing published tags immutable. Code merge and phase release are separate steps; no phase tag is created by this PR.
+
+[Issue #16](https://github.com/maxtsec/urban-pulse-au/issues/16) records repeated planning profile parsing and is deferred; it is not a Phase 3 exit gate. Live source authorization/retention (SRC-02), early collection (CLOUD-01), cloud deployment/telemetry (Phase 4) remain separately scoped. This acceptance does not change their decisions or describe the synthetic city as live.
