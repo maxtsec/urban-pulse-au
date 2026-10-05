@@ -1,6 +1,6 @@
 # Southbank area and map contract
 
-CITY-01 fixture identity, point membership, local map and fixture freshness are implemented for review under the proposal in [ADR 0004](../adr/0004-southbank-fixture-map.md), which remains proposed for architect acceptance. A-04 separates conditions from coverage as accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md); pilot weather-source roles, required inputs and VicEmergency severity are accepted in [ADR 0005](../adr/0005-weather-source-policy.md). Live freshness, spatial applicability, complete-snapshot evidence and timing targets remain subject to review. Southbank CLUE and the tram slice are accepted in [ADR 0002](../adr/0002-southbank-tram-pilot.md). Progress belongs in the [delivery plan](../delivery-plan.md).
+CITY-01 fixture identity, point membership, local map and fixture freshness are accepted in [ADR 0004](../adr/0004-southbank-fixture-map.md). A-04 separates conditions from coverage as accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md); pilot weather-source roles, required inputs and VicEmergency severity are accepted in [ADR 0005](../adr/0005-weather-source-policy.md). Live freshness, spatial applicability, complete-snapshot evidence and timing targets remain subject to review. Southbank CLUE and the tram slice are accepted in [ADR 0002](../adr/0002-southbank-tram-pilot.md). Progress belongs in the [delivery plan](../delivery-plan.md).
 
 ## Area identity and geometry
 
@@ -8,7 +8,7 @@ Use the application ID `au-vic-melbourne-clue-southbank`. Keep it stable when th
 
 Use longitude/latitude GeoJSON and PostGIS SRID 4326. Validate geometry before publishing it; reject empty, invalid or implausible coordinates. Do not repair geometry silently. Boundary changes produce a new area projection version and recompute memberships. Retain earlier raw bundles for replay; the CITY-01 HTTP adapter serves only its current bundle and returns 404 for other revisions.
 
-Proposed point inclusion rule: a point is in scope when the area covers it, including the edge. [PostGIS ST_Covers](https://postgis.net/docs/ST_Covers.html) includes boundary points; it requires valid inputs. Apply no walking buffer in the first pilot. A stop across the river is not automatically a Southbank stop. A later catchment feature must use a separately named/versioned rule.
+Accepted fixture point inclusion rule: a point is in scope when the area covers it, including the edge. [PostGIS ST_Covers](https://postgis.net/docs/ST_Covers.html) includes boundary points; it requires valid inputs. Apply no walking buffer in the first pilot. A stop across the river is not automatically a Southbank stop. A later catchment feature must use a separately named/versioned rule.
 
 Position membership describes where a tram was observed. Service-impact membership uses affected stops or routes joined to the compatible static schedule. A vehicle moving outside the polygon does not cancel a route disruption. A disruption with unknown geography remains visible as unlocated evidence and cannot establish area-wide normality.
 
@@ -22,7 +22,7 @@ The panel presents current transport/weather facts, planning context and source 
 
 Selecting a marker or list item selects the same record. Keyboard controls reach the area selector, layer toggles and list without requiring map gestures. Announce selection and status changes without repeatedly interrupting screen readers on every position refresh. Reduced-motion mode places markers directly at the latest observation; any later animation is a visual transition between observed points, not a claim about an unobserved trajectory.
 
-Proposed fixture freshness policy: position age below 120 seconds is current; from 120 seconds show a stale marker and its last observed time; at 300 seconds remove it from the current-marker layer while retaining it in the last-known list. Missing source time is unknown from the outset. These are deterministic scenario values; live thresholds require cadence evidence and A-04 acceptance. A repeated fetch must not reset age. Invalid points are withheld and counted in quality/coverage evidence.
+Accepted fixture freshness policy: position age below 120 seconds is current; from 120 seconds show a stale marker and its last observed time; at 300 seconds remove it from the current-marker layer while retaining it in the last-known list. Missing source time is unknown from the outset. These are deterministic scenario values; live thresholds require cadence evidence and A-04 acceptance. A repeated fetch must not reset age. Invalid points are withheld and counted in quality/coverage evidence.
 
 ## Conditions and coverage
 
@@ -62,7 +62,7 @@ Responses reference the applicable source/capture and policy versions. Public AP
 
 ## Contract review and CITY-01 evidence
 
-1. Review the proposed fixture ID, versioned boundary and point-edge/no-buffer rule. Review warning precision separately in SRC-02/CITY-02.
+1. Verify the accepted fixture ID, versioned boundary and point-edge/no-buffer rule. Review warning precision separately in SRC-02/CITY-02.
 2. Rehearse point-inside, exact-edge, outside and invalid-geometry examples against real PostGIS in CITY-01; verify boundary revision changes rebuild memberships.
 3. Demonstrate the same selection through keyboard/list and map, with fixture clock, provenance, loading, empty, error and unknown states.
 4. Exercise successive, repeated, missing-time and stale positions at the exact threshold boundaries. Compare visible markers and the accessible list.
@@ -72,7 +72,7 @@ The pure evaluator takes an explicit required-input policy and an evaluation clo
 
 Coverage entries are returned in input-ID order; active reasons are returned in fact-ID order. Reordering the same inputs at the same evaluation time must not create a changed assessment. A fact cannot resolve before its effective start; resolution at the start is allowed and gives an empty active interval. Resolution and expiry endpoints are exclusive.
 
-ADR 0004 awaits explicit architect acceptance; the delivery plan owns completion state. CITY-01 demonstrates the point-based map slice with real PostGIS and browser evidence. Existing pure evaluator tests cover warning expiry cases; spatially applicable weather data and shared cross-domain events require CITY-02/CITY-04 evidence. Live-source proof remains in SRC-02.
+ADR 0004 records fixture-policy acceptance; the delivery plan owns completion state. CITY-01 demonstrates the point-based map slice with real PostGIS and browser evidence. Existing pure evaluator tests cover warning expiry cases; spatially applicable weather data and shared cross-domain events require CITY-02/CITY-04 evidence. Live-source proof remains in SRC-02.
 
 
 ## Fixture observation time and bounded caching

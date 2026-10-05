@@ -10,7 +10,7 @@ A warning polygon applies to Southbank when the polygon interiors overlap with p
 
 The synthetic replay uses explicit complete/incomplete snapshot declarations and authored stale/error checkpoints. It does not select a numerical live TTL. Snapshot completeness must name every pilot warning product; a recent receipt alone does not establish coverage. Unknown products, levels, geography and unresolved omissions prevent a complete-coverage claim. Expiry removes the adverse fact but cannot repair an incomplete snapshot or source failure.
 
-These choices extend the accepted source and severity policy in [ADR 0005](0005-weather-source-policy.md). Live spatial evidence and freshness thresholds remain SRC-02/A-04 work. The proposed transport/fixture-map decisions in ADR 0004 are not accepted by this decision.
+These choices extend the accepted source and severity policy in [ADR 0005](0005-weather-source-policy.md). Live spatial evidence and freshness thresholds remain SRC-02/A-04 work. Transport/fixture-map policy is independently recorded in [ADR 0004](0004-southbank-fixture-map.md); this weather decision does not change it.
 
 ## Alternatives and consequences
 

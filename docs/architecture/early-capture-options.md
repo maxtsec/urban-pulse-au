@@ -16,7 +16,7 @@ Domain boundaries remain separate even when processes share a host. Collection m
 
 ## DEMO-01 and Phase 4 boundary
 
-[ADR 0010](../adr/0010-hosted-fixture-demo.md) proposes a fixture-only VM first. It does not select shared capture hosting under A-06. Adding CLOUD-01 requires approved source/retention policy, measured combined capacity, independent lifecycle and enforceable credential isolation; otherwise use a separate collector host. Application deployments must preserve collection continuity. CLOUD-02 adopts capture buckets, identities and manifests/checkpoints through infrastructure state; a serving-host migration does not justify rebuilding raw history. ADR 0010 defines the interim host's exit and migration acceptance.
+[ADR 0010](../adr/0010-hosted-fixture-demo.md) accepts Cloud Run serving with Cloud SQL/PostGIS and IAP for the fixture demo. This provides a managed Phase 4 foundation; it does not select shared-VM or continuous capture hosting under A-06. Adding CLOUD-01 requires approved source/retention policy, measured capacity and an independent collector lifecycle/identity. Request-driven serving does not provide continuous collection. Application deployments must preserve capture continuity. CLOUD-02 adopts capture buckets, identities and manifests/checkpoints through infrastructure state; changing compute does not justify rebuilding raw history.
 
 ## Workload assumptions
 
