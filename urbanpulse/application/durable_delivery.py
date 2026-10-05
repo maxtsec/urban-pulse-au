@@ -36,6 +36,10 @@ class PublicationConflict(ValueError):
     """An immutable publication identity or consumer set was changed."""
 
 
+class StorageUnavailable(RuntimeError):
+    """The storage transaction could not finish; this is not a handler failure."""
+
+
 class InvalidPublication(ValueError):
     """Stored wire bytes or receipt metadata cannot be trusted."""
 
@@ -107,4 +111,6 @@ class EventStore(Protocol):
 
 
 class RecoveryStore(EventStore, Protocol):
+    def release_infrastructure(self, claim: DeliveryClaim) -> str: ...
+
     def fail(self, claim: DeliveryClaim, category: FailureCategory) -> str: ...

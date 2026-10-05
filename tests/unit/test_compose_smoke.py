@@ -15,6 +15,7 @@ from scripts import compose_smoke
 @pytest.fixture
 def smoke(monkeypatch, tmp_path):
     monkeypatch.setattr(compose_smoke, "ROOT", tmp_path)
+    monkeypatch.setattr(compose_smoke, "verify_database_restart", lambda *args: None)
     commands = []
     worker_results = iter(
         [
@@ -38,7 +39,7 @@ def smoke(monkeypatch, tmp_path):
         "geometry_url": "/boundary",
         "evidence_url": "/evidence",
     }
-    views = [deepcopy(view) for _ in range(5)]
+    views = [deepcopy(view) for _ in range(6)]
     area_calls = 0
 
     def urlopen(endpoint, **kwargs):
@@ -90,7 +91,7 @@ def test_cleanup_failure_after_success_is_not_silenced(monkeypatch, smoke):
         compose_smoke.main()
 
 
-@pytest.mark.parametrize("index", [1, 2, 3, 4])
+@pytest.mark.parametrize("index", [1, 2, 3, 4, 5])
 def test_response_mismatch_fails_and_still_cleans_up(smoke, index):
     commands, views = smoke
     views[index]["changed"] = True

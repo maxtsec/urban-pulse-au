@@ -32,7 +32,7 @@ Duplicate/superseded events skip the effect. Reusing an old ID with changed cont
 
 Lease validity is checked before processing and again before writing completion. An expired/replaced claim cannot commit an effect through this boundary. Failures roll back effect, receipt, cursor and derived publications; the already committed claim/attempt remains available for expiry recovery.
 
-For the bounded pilot, advisory transaction locks serialize publications per context and receipts/effects per context plus consumer. Distinct consumer contexts can progress independently. These deliberately coarse locks cover first-ever identities and cross-subject event-ID conflicts. Multi-context transactions can still encounter database deadlocks; propagate/roll back the whole transaction, and let the worker scheduling layer retry. Do not add in-transaction network waits.
+For the bounded pilot, advisory transaction locks serialize publications per context and receipts/effects per context plus consumer. Distinct consumer contexts can progress independently. These deliberately coarse locks cover first-ever identities and cross-subject event-ID conflicts. Multi-context transactions can still encounter database deadlocks; propagate/roll back the whole transaction, and let the worker reconcile the infrastructure failure and retry without charging the handler budget. The [recovery runbook](../runbooks/event-recovery.md) explains fencing, refund and crash boundaries. Do not add in-transaction network waits.
 
 ## Migration and verification
 

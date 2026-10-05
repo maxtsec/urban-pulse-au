@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
@@ -31,6 +32,7 @@ from urbanpulse.application.durable_delivery import (
     PublicationConflict,
     ReplayReason,
     StaleClaim,
+    StorageUnavailable,
 )
 from urbanpulse.application.event_worker import EventWorker
 
@@ -61,11 +63,14 @@ def test_worker_replay_keeps_effect_original_wire_and_attempt_history(store, wir
     assert generation > result.generation
     replay = worker.step()
     assert replay.status == "duplicate"
+    assert replay.generation == generation == result.generation + 1
     assert count(queue, probe_effects) == count(queue, receipts) == 1
     after = queue.inspect(result.delivery_id)
     assert [a["outcome"] for a in after["attempts"]] == ["apply", "duplicate"]
     assert after["replays"][0]["reason"] == "verify-deduplication"
     assert after["attempt_count"] == 1
+    assert [a["generation"] for a in after["attempts"]] == [1, 2]
+    assert [a["replay_generation"] for a in after["attempts"]] == [None, 2]
     with queue.engine.connect() as connection:
         assert connection.execute(select(publications.c.envelope)).scalar_one() == wire
     with pytest.raises(StaleClaim):
@@ -350,3 +355,157 @@ def test_downgrade_refuses_to_erase_recovery_state(store, wire, retained):
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
             == "0006_worker_recovery"
         )
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "DO $$ BEGIN RAISE EXCEPTION 'private database error' USING ERRCODE = '40001'; END $$",
+        "SELECT pg_terminate_backend(pg_backend_pid())",
+    ],
+)
+def test_database_failures_rollback_without_spending_handler_budget(store, wire, sql):
+    queue = PostgresRecoveryStore(store.engine)
+    publish(queue, wire)
+
+    def fail_database(claim, transaction, payload):
+        effect(transaction)
+        transaction.connection.execute(text(sql))
+
+    worker = EventWorker(queue, "location-v1", fail_database)
+    for _ in range(4):
+        with pytest.raises(StorageUnavailable):
+            worker.step()
+        row = queue.inspect(queue.list_deliveries("run-1")[0]["id"])
+        assert row["status"] == "retry" and row["attempt_count"] == 0
+        assert row["attempts"][-1]["outcome"] == "infrastructure-error"
+        assert effects(queue) == count(queue, receipts) == 0
+        assert "private database error" not in json.dumps(row, default=str)
+        due(queue)
+    worker.handler = lambda c, t, w: effect(t)
+    assert worker.step().status == "apply"
+    row = queue.inspect(row["id"])
+    assert row["attempt_count"] == effects(queue) == count(queue, receipts) == 1
+    assert len(row["attempts"]) == 5
+
+
+def test_real_cross_context_deadlock_does_not_use_handler_budget(store, wire):
+    queue = PostgresRecoveryStore(store.engine)
+    with store.engine.begin() as connection:
+        connection.execute(
+            text("CREATE TABLE deadlock_probe (id int PRIMARY KEY, value int NOT NULL)")
+        )
+        connection.execute(text("INSERT INTO deadlock_probe VALUES (1, 0), (2, 0)"))
+    for context in ("run-a", "run-b"):
+        publish(queue, wire, context=context)
+    barrier = threading.Barrier(2)
+
+    def collide(claim, transaction, payload):
+        first = 1 if claim.context == "run-a" else 2
+        transaction.connection.execute(
+            text("UPDATE deadlock_probe SET value = value + 1 WHERE id = :id"), {"id": first}
+        )
+        barrier.wait(timeout=10)
+        transaction.connection.execute(
+            text("UPDATE deadlock_probe SET value = value + 1 WHERE id = :id"), {"id": 3 - first}
+        )
+
+    def step():
+        try:
+            return EventWorker(queue, "location-v1", collide).step().status
+        except StorageUnavailable as error:
+            assert error.__cause__.orig.sqlstate == "40P01"
+            return "database-deadlock"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: step(), range(2)))
+    assert sorted(results) == ["apply", "database-deadlock"]
+    rows = queue.list_deliveries("run-a") + queue.list_deliveries("run-b")
+    failed = next(row for row in rows if row["status"] == "retry")
+    assert failed["attempt_count"] == 0
+    due(queue)
+    assert EventWorker(queue, "location-v1", lambda c, t, w: effect(t)).step().status == "apply"
+    assert count(queue, receipts) == 2
+
+
+def test_unrecordable_database_failure_is_reconciled_before_claiming_again(
+    store, wire, monkeypatch
+):
+    queue = PostgresRecoveryStore(store.engine)
+    publish(queue, wire)
+    release = queue.release_infrastructure
+    offline = True
+
+    def unavailable(claim):
+        if offline:
+            raise StorageUnavailable("offline")
+        return release(claim)
+
+    monkeypatch.setattr(queue, "release_infrastructure", unavailable)
+
+    def fail_database(claim, transaction, payload):
+        transaction.connection.execute(
+            text("DO $$ BEGIN RAISE EXCEPTION 'offline' USING ERRCODE = '40001'; END $$")
+        )
+
+    worker = EventWorker(queue, "location-v1", fail_database)
+    with pytest.raises(StorageUnavailable):
+        worker.step()
+    claim = worker.interrupted_claim
+    assert claim is not None
+    with pytest.raises(StorageUnavailable):
+        worker.step()
+    assert count(queue, attempts) == 1
+    expire(queue, claim)
+    offline = False
+    assert worker.step().status == "infrastructure-error"
+    assert worker.interrupted_claim is None
+    row = queue.inspect(claim.delivery_id)
+    assert row["attempt_count"] == 0
+    assert release(claim) == "infrastructure-error"
+    assert queue.inspect(claim.delivery_id) == row
+    due(queue)
+    newer = queue.claim("location-v1")[0]
+    with pytest.raises(StaleClaim):
+        release(claim)
+    assert queue.inspect(newer.delivery_id)["attempt_count"] == 1
+
+
+def test_lost_completion_acknowledgement_does_not_refund_a_committed_effect(store, wire):
+    class LostAcknowledgement(PostgresRecoveryStore):
+        def complete(self, claim, handler):
+            super().complete(claim, handler)
+            raise StorageUnavailable("commit acknowledgement lost")
+
+    queue = LostAcknowledgement(store.engine)
+    publish(queue, wire)
+    with pytest.raises(StorageUnavailable):
+        EventWorker(queue, "location-v1", lambda c, t, w: effect(t)).step()
+    row = queue.inspect(queue.list_deliveries("run-1")[0]["id"])
+    assert row["status"] == "complete" and row["attempt_count"] == 1
+    assert row["attempts"][0]["outcome"] == "apply"
+    assert effects(queue) == count(queue, receipts) == 1
+
+
+def test_replay_generations_link_each_retry_cycle_without_gaps(store, wire):
+    queue = PostgresRecoveryStore(store.engine)
+    publish(queue, wire)
+    first = queue.claim("location-v1")[0]
+    queue.fail(first, FailureCategory.INVALID)
+    assert queue.replay(first.delivery_id, 1, ReplayReason.HANDLER_FIXED) == 2
+    second = queue.claim("location-v1")[0]
+    assert second.generation == 2
+    queue.fail(second, FailureCategory.HANDLER)
+    due(queue)
+    third = queue.claim("location-v1")[0]
+    assert third.generation == 3
+    queue.complete(third, effect)
+    assert queue.replay(first.delivery_id, 3, ReplayReason.VERIFY_DEDUPLICATION) == 4
+    fourth = queue.claim("location-v1")[0]
+    assert fourth.generation == 4
+    assert queue.complete(fourth, effect).value == "duplicate"
+    row = queue.inspect(first.delivery_id)
+    assert [a["generation"] for a in row["attempts"]] == [1, 2, 3, 4]
+    assert [a["replay_generation"] for a in row["attempts"]] == [None, 2, 2, 4]
+    assert [r["generation"] for r in row["replays"]] == [2, 4]
+    assert effects(queue) == 1
