@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 
-Status: **Accepted by the project architect on 2026-10-06** for building option A, MapLibre with deck.gl, the five animation classes and their rules, and MAP-05 simulated traffic in scope. The `Structure`-only first building layer remains pending confirmation. Implementation (MAP-01 to MAP-05) follows DEMO-01; each item still needs its own source/asset records and review.
+Status: **Accepted by the project architect on 2026-10-06** for building option A, MapLibre with deck.gl, the five animation classes and their rules, MAP-05 simulated traffic in scope, and a `Structure`-only first building layer. Implementation (MAP-01 to MAP-05) follows DEMO-01; each item still needs its own source/asset records and review.
 
 ## Problem
 
@@ -137,6 +137,6 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 | Rendering stack | MapLibre with an interleaved deck.gl overlay |
 | Animation | The five classes and their rules, as written above |
 | Simulated traffic | MAP-05 in scope, under the simulated class and its labelling rule |
-| First building layer | `Structure` only: pending architect confirmation before MAP-01 |
+| First building layer | `Structure` only; other footprint types need their own rendering rule and decision |
 
 This decision does not decide A-02's public basemap, live data sources, DAM-to-building matching or any live-data animation. See the [source register](../source-register.md#map-context-sources) and [delivery plan](../delivery-plan.md).
