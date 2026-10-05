@@ -26,6 +26,8 @@ For the planning slice: [ADR 0007](adr/0007-planning-fixture-profile.md), [plann
 
 For event composition: [ADR 0008](adr/0008-in-process-city-composition.md), [CITY-04 acceptance specification](architecture/city-04-composition.md), [recovery demo](demos/city-04.md) and [verification evidence](evidence/city-04-composition.md).
 
+For durable delivery design: [ADR 0009 options](adr/0009-durable-event-delivery.md) and [EVENT-01 acceptance cases](architecture/event-01-durable-delivery.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -65,6 +67,9 @@ For event composition: [ADR 0008](adr/0008-in-process-city-composition.md), [CIT
 | [Local evidence](evidence/phase-0-local.md)              | Actual checks and their limits                                     | A new verification checkpoint is recorded               |
 | [BASE-01 evidence](evidence/base-01-clean-checkout.md)   | Dated clean-checkout results, measurements and verification scope  | A new clean-checkout checkpoint is recorded             |
 | [SRC-01 evidence](evidence/src-01-source-feasibility.md) | Official source findings, pilot comparison and reproduction method | Source evidence changes or a new comparison is measured |
+
+| [ADR 0009](adr/0009-durable-event-delivery.md) | Durable transport options, proposed transaction/recovery model and A-05 decision | Architect reviews durable delivery scope |
+| [EVENT-01 specification](architecture/event-01-durable-delivery.md) | Implementation sequence and crash/concurrency/replay acceptance cases | Durable recovery behavior or test scope changes |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
