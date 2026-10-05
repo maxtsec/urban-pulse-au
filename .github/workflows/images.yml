@@ -1,0 +1,128 @@
+name: Publish images
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: images-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPOSITORY: ${{ vars.GCP_IMAGE_REPOSITORY }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_BUILDER_SERVICE_ACCOUNT: ${{ vars.GCP_BUILDER_SERVICE_ACCOUNT }}
+
+jobs:
+  verify:
+    uses: ./.github/workflows/check.yml
+    permissions:
+      contents: read
+
+  publish:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'maxtsec/urban-pulse-au'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            context: .
+            file: apps/api/Dockerfile
+            target: runtime
+          - component: web
+            context: apps/web
+            file: apps/web/Dockerfile
+            target: serving
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate bootstrap configuration
+        id: config
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: python -m scripts.image_publication config --component "$COMPONENT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build once, without cloud credentials
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          tags: ${{ steps.config.outputs.image_tag }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+      - name: Check built container
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: python -m scripts.image_publication smoke --component "$COMPONENT"
+      - name: Authenticate the repository-scoped builder
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ steps.config.outputs.project }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_BUILDER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 900s
+          create_credentials_file: false
+          export_environment_variables: false
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ steps.config.outputs.registry }}
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+      - name: Push the tested image
+        env:
+          IMAGE_TAG: ${{ steps.config.outputs.image_tag }}
+        run: docker push "$IMAGE_TAG"
+      - name: Verify registry digest and record identity
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: python -m scripts.image_publication record --component "$COMPONENT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: image-record-${{ matrix.component }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/image-publication/${{ matrix.component }}.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 90
+
+  manifest:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: image-record-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/image-publication
+          merge-multiple: true
+      - name: Require both verified images from this source and attempt
+        run: python -m scripts.image_publication assemble
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: images-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/image-publication/image-publication.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 90
+      - name: Summarize publication
+        run: |
+          printf 'Verified image identities are in the images artifact for this commit and run attempt.\n' >> "$GITHUB_STEP_SUMMARY"

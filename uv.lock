@@ -2405,6 +2405,7 @@ dependencies = [
 dev = [
     { name = "mypy" },
     { name = "pytest" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 pipeline = [
@@ -2437,6 +2438,7 @@ requires-dist = [
 dev = [
     { name = "mypy" },
     { name = "pytest" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "ruff" },
 ]
 pipeline = [
