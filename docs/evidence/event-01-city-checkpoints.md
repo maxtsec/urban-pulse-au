@@ -14,7 +14,7 @@ The weather-outage run changes from Degraded at 239 to Unknown at 240 without ad
 
 Review regressions exercise result-publication conflicts, invalid area events, missing delivery references and failure during next-checkpoint activation. Each affected transaction rolls back and records a checkpoint error while another run completes. Database failures still propagate to polling backoff without marking the checkpoint invalid. Separate database connections acquire both advisory and row locks during input loading and spatial evaluation, proving that preparation holds neither. Paused preparations resume after another worker completes or a producer advances; neither a stale result nor a late error can overwrite the newer run state.
 
-Advancement tests complete clock 300, then verify that only missing clocks after 300 are prepared for target 330. Repeating target 330 reuses its pending manifests. Interleaved old/new envelopes retain one ordered delivery chain without reading or updating the legacy run-wide publication list. The required per-checkpoint references and bounded projection reconstruction remain.
+Advancement tests complete clock 300, then verify that only missing clocks after 300 are prepared for target 330. Repeating target 330 reuses its pending manifests. Interleaved old/new envelopes retain one ordered delivery chain without a run-wide publication list. A fresh migration is checked to omit that unused column. The required per-checkpoint references and bounded projection reconstruction remain.
 
 ## Local check results
 

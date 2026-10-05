@@ -16,7 +16,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE TABLE event01_city_runs (
             id varchar(100) PRIMARY KEY, scope varchar(64) NOT NULL REFERENCES city04_imports(id),
-            input_hash varchar(64) NOT NULL, publications text NOT NULL DEFAULT '[]',
+            input_hash varchar(64) NOT NULL,
             scenario varchar(40) NOT NULL, boundary_revision varchar(64) NOT NULL,
             rule_version varchar(100) NOT NULL, run_version varchar(100) NOT NULL,
             target integer NOT NULL DEFAULT -1 CHECK (target BETWEEN -1 AND 360),
