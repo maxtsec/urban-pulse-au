@@ -62,7 +62,7 @@ For each feature, connect acceptance cases to test names and applicable integrat
 
 Before review, run affected checks and report commands, outcomes, skipped checks and unresolved limitations. If a feature requires warehouse behavior, a successful local parse is insufficient to call it verified. Code can be reviewed with an explicit blocker while its required integration acceptance remains open.
 
-Before closing a phase, demonstrate its exit criteria, create its Git tag, and attach release notes, demo/evidence, a passing CI run and relevant measurements. No arbitrary coverage percentage replaces those behavioral checks. Revisit coverage and performance targets with evidence as the implementation grows.
+Before closing a phase, demonstrate its exit criteria and record the reviewed commit SHA, demo/evidence, a passing CI run and relevant measurements. Per-phase tags are not required; production `v1.0.0` follows the [release policy](delivery-plan.md#release-policy). No arbitrary coverage percentage replaces those behavioral checks. Revisit coverage and performance targets with evidence as the implementation grows.
 
 ## Weather-source acceptance
 
