@@ -30,8 +30,21 @@ uv run --locked python -O -m scripts.web_serving_smoke
 
 Run the pinned actionlint command in `check.yml` with the repository mounted read-only. For container identity checks, build both workflow targets with its platform, provenance setting and OCI labels; run the helper's `smoke` command using the same build identity. An isolated local registry can exercise `verify_pushed_image`; it does not exercise Google federation. Local logs and readback references are under ignored `.local/image-publication-rehearsal/` and `.local/web-serving-smoke/`.
 
-## Live acceptance boundary
+## First main publication
 
-The first authorized main push must establish actual GitHub-to-GCP federation, Artifact Registry writes/readback and the complete two-image artifact. Record that exact SHA, run URL and image digests here after it succeeds. A PR run cannot establish this positive case because the current builder trust intentionally excludes its claims.
+[Main run 37388784051](https://github.com/maxtsec/urban-pulse-au/actions/runs/37388784051) completed successfully for source `1920fd4f3a8ee0c845aa49354435d6d5211af1c8`, attempt 1. Its reused verification jobs, both publishing jobs and manifest assembly passed. The reviewed revision also passed the full 494-test unit suite before merge.
 
-Existing policy tests cover denied PR, pull-request-target, fork, branch, workflow and dispatch claims. Actual denied impersonation evidence remains outstanding; use the [bounded verification procedure](../runbooks/image-publishing.md#first-live-verification). Static checks and a local registry are not live IAM evidence. Hosted deployment, IAP, migration jobs and revision rollback retain their separate ADR 0010 acceptance cases.
+The downloaded publication artifact was checked against the expected source, repository, run and attempt. Its immutable registry references are:
+
+- **api**: `australia-southeast2-docker.pkg.dev/urbanpulse-demo-510709/urbanpulse/api@sha256:e2a2890fad6689b71ba6cc8ed7d06c9fa4c312881ef19942773324111ff7d629`
+- **web**: `australia-southeast2-docker.pkg.dev/urbanpulse-demo-510709/urbanpulse/web@sha256:6960e975cb5ae832d73e1c10fc8c67bc2205e985a9a86679ec34e54ba9ad1507`
+
+The workflow pulled each digest and matched its source labels, platform and image configuration to the tested local build. An independent operator `gcloud artifacts docker images describe` read confirmed both manifest digests in Artifact Registry. This proves successful main federation, repository writes and registry readback; it is not hosted application acceptance. These images remain candidates until the deployment procedure passes.
+
+The source SHA and references are also visible in the run summary. Retain this evidence and the later deployment record independently of the 90-day Actions artifact lifetime.
+
+## Remaining live acceptance
+
+Existing policy tests cover denied PR, pull-request-target, fork, branch, workflow and dispatch claims. Actual denied impersonation evidence remains outstanding; use the [bounded verification procedure](../runbooks/image-publishing.md#first-live-verification). Static checks are not live IAM evidence. Builder authority and reusable-workflow hardening are recorded in [issue #28](https://github.com/maxtsec/urban-pulse-au/issues/28); dependency updates and deployment-aware image retention remain [#29](https://github.com/maxtsec/urban-pulse-au/issues/29) and [#30](https://github.com/maxtsec/urban-pulse-au/issues/30).
+
+Hosted deployment, IAP, migration jobs and revision rollback retain their separate ADR 0010 acceptance cases.
