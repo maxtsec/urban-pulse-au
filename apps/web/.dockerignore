@@ -1,15 +1,22 @@
-node_modules
-dist
-
-# Local credentials and agent instructions never belong in build contexts.
-**/.env
-**/.env.*
-**/.npmrc
-**/*.pem
-**/*.key
-**/AGENTS.md
-**/CLAUDE.md
-**/agent.md
-**/claude.md
-**/.local
-**/.git
+# Deny every path by default, including files inside approved directories.
+# Add exact build inputs here when adding source files; do not allow whole trees.
+**
+!package.json
+!package-lock.json
+!index.html
+!tsconfig.json
+!vite.config.ts
+!src/App.tsx
+!src/CityMap.tsx
+!src/PlanningPanel.tsx
+!src/ReplayDiagnostics.tsx
+!src/ScenarioPicker.tsx
+!src/WeatherPanel.tsx
+!src/WeatherSummary.tsx
+!src/assets/building.svg
+!src/assets/tram.svg
+!src/city.ts
+!src/fixture-tracks.ts
+!src/main.tsx
+!src/style.css
+!src/vite-env.d.ts
