@@ -4,11 +4,24 @@
 	persist_config off
 }
 
+# Apply at response write time, including responses from the backend.
+(security_headers) {
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		# The edge terminates TLS. Browsers ignore HSTS on local HTTP responses.
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+		defer
+	}
+}
+
 :{$PORT:8080} {
 	root * /srv
 	encode gzip
-	header X-Content-Type-Options nosniff
-	header -Server
+	import security_headers
 
 	@backend path /api /api/* /health /health/*
 	handle @backend {
@@ -31,6 +44,13 @@
 		@existing file
 		header @existing Cache-Control "public, max-age=31536000, immutable"
 		file_server
+	}
+
+	# Error routes have their own response chain; repeat the shared policy here.
+	handle_errors {
+		import security_headers
+		header >Cache-Control "no-store"
+		respond "{err.status_code} {err.status_text}" {err.status_code}
 	}
 
 	handle {
