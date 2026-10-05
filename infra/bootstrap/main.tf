@@ -10,6 +10,22 @@ locals {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
   ])
+
+  # Exact-match claim policies. tests/unit/test_github_oidc_policy.py evaluates
+  # the same file against push, pull_request, pull_request_target and other tokens.
+  oidc_policy  = jsondecode(file("${path.module}/github-oidc-policy.json"))
+  policy_value = concat(values(local.oidc_policy.provider), values(local.oidc_policy.image_builder))
+  policy_claim = concat(keys(local.oidc_policy.provider), keys(local.oidc_policy.image_builder))
+
+  provider_condition = join(" && ", [
+    for claim in sort(keys(local.oidc_policy.provider)) :
+    "assertion.${claim} == '${local.oidc_policy.provider[claim]}'"
+  ])
+  # The repository claims are already enforced by the provider condition.
+  image_builder_condition = join(" && ", [
+    for claim in sort(keys(local.oidc_policy.image_builder)) :
+    "assertion.${claim} == '${local.oidc_policy.image_builder[claim]}'"
+  ])
 }
 
 resource "google_project_service" "bootstrap" {
@@ -54,21 +70,32 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   }
 
   attribute_mapping = {
-    "google.subject"           = "assertion.sub"
-    "attribute.repository_id"  = "assertion.repository_id"
-    "attribute.ref"            = "assertion.ref"
-    "attribute.event_name"     = "assertion.event_name"
-    "attribute.repository_ref" = "assertion.repository_id + ':' + assertion.ref"
+    "google.subject"          = "assertion.sub"
+    "attribute.repository_id" = "assertion.repository_id"
+    "attribute.ref"           = "assertion.ref"
+    "attribute.event_name"    = "assertion.event_name"
+    "attribute.workflow_ref"  = "assertion.workflow_ref"
+    "attribute.image_builder" = "(${local.image_builder_condition}) ? 'allowed' : 'denied'"
   }
 
   # Reject tokens from any other repository, including forks and renamed lookalikes.
-  attribute_condition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_owner_id}'"
+  attribute_condition = local.provider_condition
+
+  lifecycle {
+    precondition {
+      # Policy values are embedded in CEL string literals.
+      condition = alltrue([
+        for value in local.policy_value : length(regexall("['\\\\]", value)) == 0
+      ]) && alltrue([for claim in local.policy_claim : can(regex("^[a-z_]+$", claim))])
+      error_message = "OIDC policy claims must be lowercase names and values must not contain quotes or backslashes."
+    }
+  }
 }
 
 resource "google_service_account" "ci_builder" {
   account_id   = "ci-builder"
   display_name = "CI image builder"
-  description  = "Publishes images from protected main-branch workflows; no deployment or secret access"
+  description  = "Publishes images from the main-branch image workflow on push; no deployment or secret access"
 
   depends_on = [google_project_service.bootstrap]
 }
@@ -81,9 +108,11 @@ resource "google_artifact_registry_repository_iam_member" "builder_writer" {
   member     = google_service_account.ci_builder.member
 }
 
-# Pull-request refs (refs/pull/N/merge) and other branches cannot impersonate the builder.
+# Only push events running the image workflow from main map to 'allowed'.
+# pull_request, pull_request_target (which also reports refs/heads/main),
+# workflow_dispatch and other workflows map to 'denied'.
 resource "google_service_account_iam_member" "builder_federation" {
   service_account_id = google_service_account.ci_builder.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository_ref/${var.github_repository_id}:${var.builder_ref}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.image_builder/allowed"
 }

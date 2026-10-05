@@ -15,22 +15,5 @@ variable "artifact_repository_id" {
   default     = "urbanpulse"
 }
 
-# Numeric IDs do not change when a repository or owner is renamed, so a later
-# repository with the same name cannot inherit this trust.
-variable "github_repository_id" {
-  description = "Numeric GitHub ID of maxtsec/urban-pulse-au."
-  type        = string
-  default     = "1404249334"
-}
-
-variable "github_owner_id" {
-  description = "Numeric GitHub ID of the repository owner."
-  type        = string
-  default     = "98444048"
-}
-
-variable "builder_ref" {
-  description = "Only workflows running on this Git ref may publish images."
-  type        = string
-  default     = "refs/heads/main"
-}
+# GitHub repository/owner IDs and the image-builder claims live in
+# github-oidc-policy.json so Terraform and its unit test share one definition.
