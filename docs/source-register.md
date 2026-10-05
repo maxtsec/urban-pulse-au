@@ -15,7 +15,7 @@ The architect selected **Southbank CLUE** and **Yarra Trams positions, trip upda
 | Planning & Infrastructure | [City of Melbourne Development Activity Monitor](https://data.melbourne.vic.gov.au/explore/dataset/development-activity-monitor/)                                                | Public API, CC BY 4.0, monthly cadence; 128 Southbank records; all pilot points matched named polygons in the inspected snapshot                                              | Accept this planning slice and retention duration; define identity/change/deletion handling and attribution; verify capture/retrieval                                        |
 | Spatial foundation        | [CLUE small areas](https://data.melbourne.vic.gov.au/explore/dataset/small-areas-for-census-of-land-use-and-employment-clue/)                                                    | Southbank selected; CC BY 4.0; boundary geometry and publication timestamps inspected                                                                                         | AREA-01 defines internal ID, version/hash, coordinate validation, boundary-edge and catchment rules                                                                          |
 | Road incidents/works      | Additional official source to evaluate separately                                                                                                                                | GTFS and DAM do not establish comprehensive road incident or works coverage                                                                                                   | Verify access, spatial/temporal fields and ownership before adding a road layer                                                                                              |
-| Map context (proposed) | [City of Melbourne 2023 Building Footprints](https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/) | CC BY 4.0; stacked footprints with AHD elevations and heights; 1,189 polygons intersect Southbank (6 October 2026) | Architect acceptance of [ADR 0011](adr/0011-southbank-building-massing.md); retained-fixture manifest, attribution and recent-construction limitation |
+| Map context (proposed) | [City of Melbourne 2023 Building Footprints](https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/) for 3D massing; GTFS Schedule shapes for tram tracks; [Vicmap Transport Road Line](https://discover.data.vic.gov.au/dataset/vicmap-transport-road-line) for simulated traffic paths; 3D model assets | Footprints: CC BY 4.0, stacked AHD heights, 1,189 polygons intersect Southbank (6 October 2026). GTFS Schedule and Vicmap Road Line: CC BY 4.0 | Architect acceptance of [ADR 0011](adr/0011-southbank-building-massing.md); per-source fixture manifests, attribution and the records in [map context sources](#map-context-sources) |
 
 The candidate warning scope includes severe weather, severe thunderstorm, riverine flood and flash flood. Riverine flooding is relevant to the Southbank/Yarra pilot; inclusion as a candidate does not prove local applicability or complete feed coverage. Verify and enable each product independently. Heat and station observations require separate product evaluation. The provider category `Met` is not an accepted substitute for that evaluation. Fire, hazmat and road incidents are outside this slice. Preserve official severity and source links; an application status is not official emergency guidance.
 
@@ -64,9 +64,11 @@ Verify whether VicEmergency exposes a feed-level generation timestamp and what i
 
 Open-Meteo service access and data licensing are separate considerations. Verify current request accounting/limits for the selected query, application eligibility, required credits and stored-output use against its official terms. Keep model identity, units and effective times; receiving model data cannot make warning coverage current. Follow ADR 0005 for informational readings and warning severity; do not apply VicEmergency levels to BOM.
 
-## Building massing context
+## Map context sources
 
-Status: proposed in [ADR 0011](adr/0011-southbank-building-massing.md); not enabled.
+Status: proposed in [ADR 0011](adr/0011-southbank-building-massing.md); none enabled. These sources shape the 3D and animated presentation only. None is an input to area membership, conditions, coverage, warning applicability, planning matching or routing. Each is retained as a reviewed static fixture with a manifest; none is polled.
+
+### Building massing
 
 | Field | Record |
 | --- | --- |
@@ -80,6 +82,30 @@ Status: proposed in [ADR 0011](adr/0011-southbank-building-massing.md); not enab
 | Retention | Static fixture retained in the repository with its manifest. Refresh only through a reviewed change; no polling or live capture |
 
 Retained fixtures record the export query, retrieval date, source response SHA-256, fixture SHA-256, included and rejected counts and the modification note. Recheck the licence and field definitions when refreshing the fixture.
+
+### Tram track geometry (MAP-02)
+
+| Field | Record |
+| --- | --- |
+| Product | DTP [GTFS Schedule](https://opendata.transport.vic.gov.au/dataset/gtfs-schedule), tram feed `shapes.txt`, linked through `trips.txt` to route IDs. Already the static companion selected in [ADR 0002](adr/0002-southbank-tram-pilot.md) |
+| Access and licence | Public download, no credentials; CC BY 4.0. Catalogue checked 6 October 2026: one ZIP of about 250 MB covering trains, buses and trams, last modified 4 October 2026 |
+| Use | Track lines for tram heading and interpolation between consecutive observed positions; replaces the illustrative fixture tracks. Never used to infer positions beyond the latest observation |
+| To verify before MAP-02 | Tram shapes present for the routes crossing Southbank; shape-to-route/trip linkage and direction; shape identity stability across releases; coordinate precision; matching tolerance between observed points and shapes; size after clipping to Southbank |
+| Retention | Clipped Southbank shapes retained with the release date, source ZIP SHA-256 and route/shape IDs. The full ZIP is not committed |
+
+### Road centrelines (MAP-05, optional)
+
+| Field | Record |
+| --- | --- |
+| Product | [Vicmap Transport Road Line](https://discover.data.vic.gov.au/dataset/vicmap-transport-road-line), Department of Transport and Planning |
+| Access and licence | Public download (SHP, GDB and other formats; a REST API is listed separately), no credentials; CC BY 4.0. Catalogue checked 6 October 2026, metadata modified 3 October 2026 |
+| Use | Paths for clearly labelled simulated traffic only. No speed, volume, congestion or travel-time meaning |
+| To verify before MAP-05 | Road classes to include, one-way/direction attributes, coordinate system and conversion to WGS84, size after clipping to Southbank, required attribution wording |
+| Alternative | OpenStreetMap roads are licensed under ODbL, whose share-alike obligations need separate review; not proposed |
+
+### 3D model assets (MAP-02, MAP-04)
+
+Tram, crane and scaffold models must be created for the project or come from an identified source whose licence allows public display and modification, preferably CC0 or CC BY. Record each model's source, author, licence, attribution text, file SHA-256 and any modifications. Do not use models extracted from games, commercial viewers or unlicensed downloads. A tram model is a generic representation and must not imply a specific operator's livery unless its use is permitted.
 
 ## Common geography and time
 
