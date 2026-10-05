@@ -25,7 +25,7 @@ Full-state warning revisions replace earlier severity, geometry and validity. Sa
 
 ## Receipt and coverage
 
-A new, valid capture of identical raw bytes preserves the original warning event and capture provenance while advancing independent receipt evidence. Readings and warning records retain their original source times. Malformed captures are rejected before partial application and do not advance the last successful receipt. Semantic uncertainty may still be a received capture, but cannot establish complete coverage.
+A new, valid capture of identical raw bytes preserves the original warning event and capture provenance while advancing independent receipt evidence. Readings and warning records retain their original source times. Warning payloads must be arrays of objects; a non-array payload or any non-object entry rejects the entire capture. Malformed captures are rejected before partial application and do not advance the last successful receipt. Semantic uncertainty may still be a received capture, but cannot establish complete coverage.
 
 A complete synthetic warning snapshot must include severe weather, severe thunderstorm, riverine flood and flash flood in its declared product scope. Additional declared products do not invalidate coverage of those four; unrecognised warning records still cannot establish complete coverage. Unknown levels/products, unknown applicability, conflicting/older records or an absent still-active known record make coverage unknown. An omitted warning is never treated as cancellation. Once a snapshot is incomplete, expiry alone cannot make it complete; a new supported complete capture is required. An explicit outage retains known facts until their received validity ends, while source coverage remains error.
 

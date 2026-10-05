@@ -345,3 +345,37 @@ def test_dedicated_weather_evidence_matches_snapshot_and_replay_clock(captured, 
     actual = [e for e in records if e["id"] in ids]
     assert actual == sorted(expected, key=lambda e: (e["at_seconds"], e["id"]))
     assert all(e["at_seconds"] <= seconds for e in actual)
+
+
+@pytest.mark.parametrize("invalid", [None, 1, "invalid", [], True])
+@pytest.mark.parametrize("first", [False, True])
+def test_non_object_warning_rejects_whole_capture_in_area_and_evidence(
+    captured, monkeypatch, invalid, first
+):
+    records = captured.weather["payloads"]["cancel"]
+    records.insert(0 if first else len(records), invalid)
+    monkeypatch.setattr("apps.api.city.city_service", lambda: service(captured))
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=150")
+        assert response.status_code == 200
+        area = response.json()
+        weather = area["weather"]
+        assert weather["last_feed_update_received_at"].endswith("00:02:00+00:00")
+        assert weather["warnings"][0]["cancelled_at"] is None
+        assert weather["warnings"][0]["level"] == "Watch and Act"
+        assert weather["coverage"] == "unknown"
+        assert weather["projection"]["rejected"] == 1
+        assert weather["projection"]["apply"] == 3
+        evidence = client.get(area["evidence_url"])
+        assert evidence.status_code == 200
+        rejected = [e for e in evidence.json()["events"] if e["kind"] == "rejected-capture"]
+        assert len(rejected) == 1 and rejected[0]["at_seconds"] == 150
+
+
+@pytest.mark.parametrize("invalid", [None, {}, "invalid", 1])
+def test_non_array_warning_payload_is_rejected(captured, invalid):
+    captured.weather["payloads"]["cancel"] = invalid
+    weather = service(captured).snapshot(150, "weather")["weather"]
+    assert weather["projection"]["rejected"] == 1
+    assert weather["last_feed_update_received_at"].endswith("00:02:00+00:00")
+    assert weather["warnings"][0]["cancelled_at"] is None
