@@ -39,6 +39,7 @@ deliveries = Table(
     Column("id", String(36), primary_key=True),
     Column("publication_id", String(36), ForeignKey("event01_publications.id"), nullable=False),
     Column("consumer", String(200), nullable=False),
+    Column("predecessor_id", String(36), ForeignKey("event01_deliveries.id")),
     Column("status", String(20), nullable=False),
     Column("generation", Integer, nullable=False),
     Column("attempt_count", Integer, nullable=False),

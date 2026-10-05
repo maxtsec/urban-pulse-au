@@ -465,6 +465,6 @@ def test_attempt_policy_upgrade_preserves_work_and_allows_a_larger_application_l
         command.downgrade(config, "0004_outbox_ledger")
     with store.engine.connect() as connection:
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "0006_worker_recovery"
+            "0007_city_checkpoints"
         )
         assert connection.execute(select(deliveries.c.attempt_count)).scalar_one() == 4

@@ -44,6 +44,64 @@ def semantic_state(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def area_event(view: dict[str, Any], revision: int) -> AreaStatusChanged:
+    timeline = view["composition"]["timeline_id"]
+    clock = view["clock"]["seconds"]
+    semantic = semantic_state(view)
+    at = view["clock"]["at"]
+    coverage = [
+        event
+        for event in view["composition"]["coverage_events"]
+        if event["data"]["state"]["input_id"] in {"transport_service", "weather_warnings"}
+    ]
+    revisions = sorted(
+        [revision for event in coverage for revision in event["data"]["state"]["input_revisions"]],
+        key=lambda item: (item["source"], item["subject"]),
+    )
+    captures = sorted(
+        {capture for event in coverage for capture in event["data"]["provenance"]["capture_ids"]}
+    )
+    event = AreaStatusChanged.model_validate(
+        {
+            "specversion": "1.0",
+            "id": payload_hash([timeline, clock, revision]),
+            "source": "urn:urbanpulse:fixture:location",
+            "type": "au.urbanpulse.location.area-status-changed.v1",
+            "subject": f"{view['area']['id']}/{timeline}",
+            "time": at,
+            "datacontenttype": "application/json",
+            "upmode": "fixture",
+            "data": {
+                "schema_version": "1.0",
+                "revision": revision,
+                "provenance": {
+                    "provider": "synthetic",
+                    "product": "area-condition",
+                    "record_id": view["area"]["id"],
+                    "capture_ids": captures,
+                    "source_observed_at": None,
+                },
+                "effective_from": at,
+                "effective_until": None,
+                "correlation_id": timeline,
+                "causation_id": None,
+                "state": {
+                    "timeline_id": timeline,
+                    "area_id": view["area"]["id"],
+                    "condition": semantic["condition"],
+                    "reasons": semantic["reasons"],
+                    "coverage": [item["data"]["state"] for item in coverage],
+                    "boundary_revision": view["area"]["boundary_revision"],
+                    "rule_version": view["policy_version"],
+                    "input_revisions": revisions,
+                    "evaluated_at": at,
+                },
+            },
+        }
+    )
+    return event
+
+
 class ComposedCityService:
     def __init__(self, city: CityService, inputs: CityInputs) -> None:
         self.city = city
@@ -74,65 +132,7 @@ class ComposedCityService:
             if semantic == previous:
                 continue
             previous = semantic
-            at = view["clock"]["at"]
-            coverage = [
-                event
-                for event in view["composition"]["coverage_events"]
-                if event["data"]["state"]["input_id"] in {"transport_service", "weather_warnings"}
-            ]
-            revisions = sorted(
-                [
-                    revision
-                    for event in coverage
-                    for revision in event["data"]["state"]["input_revisions"]
-                ],
-                key=lambda item: (item["source"], item["subject"]),
-            )
-            captures = sorted(
-                {
-                    capture
-                    for event in coverage
-                    for capture in event["data"]["provenance"]["capture_ids"]
-                }
-            )
-            event = AreaStatusChanged.model_validate(
-                {
-                    "specversion": "1.0",
-                    "id": payload_hash([timeline, clock, len(transitions) + 1]),
-                    "source": "urn:urbanpulse:fixture:location",
-                    "type": "au.urbanpulse.location.area-status-changed.v1",
-                    "subject": f"{view['area']['id']}/{timeline}",
-                    "time": at,
-                    "datacontenttype": "application/json",
-                    "upmode": "fixture",
-                    "data": {
-                        "schema_version": "1.0",
-                        "revision": len(transitions) + 1,
-                        "provenance": {
-                            "provider": "synthetic",
-                            "product": "area-condition",
-                            "record_id": view["area"]["id"],
-                            "capture_ids": captures,
-                            "source_observed_at": None,
-                        },
-                        "effective_from": at,
-                        "effective_until": None,
-                        "correlation_id": timeline,
-                        "causation_id": None,
-                        "state": {
-                            "timeline_id": timeline,
-                            "area_id": view["area"]["id"],
-                            "condition": semantic["condition"],
-                            "reasons": semantic["reasons"],
-                            "coverage": [item["data"]["state"] for item in coverage],
-                            "boundary_revision": view["area"]["boundary_revision"],
-                            "rule_version": view["policy_version"],
-                            "input_revisions": revisions,
-                            "evaluated_at": at,
-                        },
-                    },
-                }
-            )
+            event = area_event(view, len(transitions) + 1)
             revision_result(publisher.publish(event.model_dump_json(), (handler,))[handler.name])
             transitions.append(event.model_dump(mode="json"))
         result["composition"]["area_events"] = transitions

@@ -73,14 +73,21 @@ class PostgresEventTransaction:
         self.connection = connection
         self.failed = False
 
-    def publish(self, context: str, wire: str, consumers: Sequence[str]) -> str:
+    def publish(
+        self,
+        context: str,
+        wire: str,
+        consumers: Sequence[str],
+        *,
+        after: str | None = None,
+    ) -> str:
         try:
-            return self._publish(context, wire, consumers)
+            return self._publish(context, wire, consumers, after)
         except Exception:
             self.failed = True
             raise
 
-    def _publish(self, context: str, wire: str, consumers: Sequence[str]) -> str:
+    def _publish(self, context: str, wire: str, consumers: Sequence[str], after: str | None) -> str:
         validate_key(context)
         if isinstance(consumers, str) or not consumers or len(set(consumers)) != len(consumers):
             raise ValueError("publication requires distinct registered consumers")
@@ -114,6 +121,22 @@ class PostgresEventTransaction:
         ).first()
         if aggregate is not None:
             raise PublicationConflict("aggregate revision already published with another event ID")
+        predecessors: dict[str, str] = {}
+        if after is not None:
+            rows = self.connection.execute(
+                select(deliveries.c.id, deliveries.c.consumer)
+                .join(publications)
+                .where(
+                    publications.c.id == after,
+                    publications.c.context == context,
+                    deliveries.c.consumer.in_(consumers),
+                )
+            ).all()
+            predecessors = {consumer: identity for identity, consumer in rows}
+            if set(predecessors) != set(consumers):
+                raise ValueError(
+                    "ordered publication needs a predecessor in the same context/consumers"
+                )
         publication_id = str(uuid4())
         self.connection.execute(
             publications.insert().values(
@@ -131,6 +154,7 @@ class PostgresEventTransaction:
                     "id": str(uuid4()),
                     "publication_id": publication_id,
                     "consumer": consumer,
+                    "predecessor_id": predecessors.get(consumer),
                     "status": "pending",
                     "generation": 0,
                     "attempt_count": 0,
@@ -139,6 +163,17 @@ class PostgresEventTransaction:
             ],
         )
         return publication_id
+
+    def delivery_state(self, publication_id: str, consumer: str) -> str:
+        state = self.connection.execute(
+            select(deliveries.c.status).where(
+                deliveries.c.publication_id == publication_id,
+                deliveries.c.consumer == consumer,
+            )
+        ).scalar_one_or_none()
+        if state is None:
+            raise ValueError("unknown registered delivery")
+        return str(state)
 
     def consume(
         self, context: str, consumer: str, wire: str, effect: Callable[[], None]
@@ -227,6 +262,7 @@ class PostgresEventStore:
         if not math.isfinite(lease_seconds) or not 0 < lease_seconds <= 3600:
             raise ValueError("lease duration must be positive and at most one hour")
         claimed = []
+        predecessor = deliveries.alias("predecessor")
         with self.transaction() as transaction:
             connection = transaction.connection
             rows = (
@@ -235,6 +271,12 @@ class PostgresEventStore:
                     .join(publications)
                     .where(
                         deliveries.c.consumer == consumer,
+                        ~select(predecessor.c.id)
+                        .where(
+                            predecessor.c.id == deliveries.c.predecessor_id,
+                            predecessor.c.status != "complete",
+                        )
+                        .exists(),
                         or_(
                             and_(
                                 deliveries.c.status.in_(("pending", "retry")),

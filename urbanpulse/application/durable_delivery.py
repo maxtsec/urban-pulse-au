@@ -91,7 +91,16 @@ class DeliveryClaim:
 
 
 class EventTransaction(Protocol):
-    def publish(self, context: str, wire: str, consumers: Sequence[str]) -> str: ...
+    def publish(
+        self,
+        context: str,
+        wire: str,
+        consumers: Sequence[str],
+        *,
+        after: str | None = None,
+    ) -> str: ...
+
+    def delivery_state(self, publication_id: str, consumer: str) -> str: ...
 
     def consume(
         self, context: str, consumer: str, wire: str, effect: Callable[[], None]

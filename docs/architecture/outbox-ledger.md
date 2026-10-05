@@ -8,13 +8,13 @@ Decision: accepted option A in [ADR 0009](../adr/0009-durable-event-delivery.md)
 
 Consumers receive the original serialized envelope. Their effect callback must write through repositories bound to that same transaction, including any derived publication. It must not commit the connection, use an independent database connection, perform network side effects or recursively process another claim. Application handlers do not import SQLAlchemy or the event tables; adapter wiring binds their repositories to the transaction.
 
-Browser requests and the existing fixture import do not enqueue events. The accepted fixture-run producer and Location Intelligence worker are wired in later implementation slices; these primitives are verified with database-local test effects.
+Browser requests and the existing fixture import do not enqueue events. Explicit fixture-run creation and Location Intelligence consumption use the [city checkpoint worker](../runbooks/city-checkpoints.md).
 
 ## Publication identity
 
 A publication is unique by `(context, source, event ID)` and by `(context, source, subject, revision)`. Semantic fingerprints use the existing CloudEvents receipt rules, excluding delivery trace context and normalizing numeric representations. A resend returns the original publication ID and preserves the first wire bytes. Changing semantic content, reusing an aggregate revision under a different ID or changing the registered consumer set raises `PublicationConflict` and aborts the transaction.
 
-Consumers are a nonempty, unique set. Publication plus one pending delivery per consumer commit atomically. The set is frozen at publication time; adding a consumer later needs the separately implemented explicit backfill operation. Contexts and versioned consumer names are internal ASCII identifiers up to 200 characters; durable revisions fit a positive signed 64-bit integer. Fixture-run context construction remains part of the run-coordinator slice.
+Consumers are a nonempty, unique set. Publication plus one pending delivery per consumer commit atomically. The set is frozen at publication time; adding a consumer later needs the separately implemented explicit backfill operation. Contexts and versioned consumer names are internal ASCII identifiers up to 200 characters; durable revisions fit a positive signed 64-bit integer. City runs use `city-run:<run-id>` contexts.
 
 ## Claims and attempts
 
@@ -22,7 +22,7 @@ Claims select up to 100 eligible deliveries for one consumer using `FOR UPDATE O
 
 A later claim sweep schedules an expired lease using its deadline plus the retry delay and can reclaim it with a new generation once due. Each expired lease retains its attempt outcome and consumes one of three automatic attempts. After the third expiry, the next sweep marks the delivery dead-letter with `attempts-exhausted`. Another consumer's delivery is independent. An empty claim batch is not evidence that a run has completed; it can contain locked, leased or just-exhausted work.
 
-The [recovery worker](../runbooks/event-recovery.md) adds persisted retry times, polling and operator replay. Lease renewal, global queue ordering and an ordered fixture-checkpoint barrier are outside this repository layer.
+The [recovery worker](../runbooks/event-recovery.md) adds persisted retry times, polling and operator replay. Lease renewal and global queue ordering are outside this repository layer. `publish(..., after=publication_id)` optionally creates per-consumer predecessor dependencies in the same context. Only completed predecessors release successors; blocked dependencies consume no claim attempt. Republishing an existing identity retains its original dependency. The city coordinator uses this for ordered input and derived-result lanes.
 
 ## Completion and receipts
 
@@ -36,6 +36,6 @@ For the bounded pilot, advisory transaction locks serialize publications per con
 
 ## Migration and verification
 
-Run `uv run --locked python -m urbanpulse.adapters.city_store migrate` to apply migrations through `0006_worker_recovery`. Migration `0004_outbox_ledger` creates the tables; `0005_attempt_policy` removes the database retry ceiling while retaining the nonnegative counter check. `0006_worker_recovery` adds retry scheduling and operator audit; its downgrade guards are described in the recovery runbook. The application owns the default three-attempt policy. This upgrade preserves existing delivery and attempt records. These upgrades do not backfill work, switch active imports or change city history. The existing API does not require a running delivery worker. Downgrading `0005` restores the old three-attempt constraint and fails transactionally if any counter exceeds three; do not truncate history to force a downgrade. Downgrading below `0004` removes these delivery records; it does not delete city imports. Preserve any needed delivery history before a separately requested downgrade.
+Run `uv run --locked python -m urbanpulse.adapters.city_store migrate` to apply migrations through `0007_city_checkpoints`. Migration `0004_outbox_ledger` creates the tables; `0005_attempt_policy` removes the database retry ceiling while retaining the nonnegative counter check. `0006_worker_recovery` adds retry scheduling and operator audit; its downgrade guards are described in the recovery runbook. `0007_city_checkpoints` adds ordered-delivery dependencies and city-run storage, with a downgrade guard against removing either history. The application owns the default three-attempt policy. This upgrade preserves existing delivery and attempt records. These upgrades do not backfill work, switch active imports or change city history. The existing API does not require a running delivery worker. Downgrading `0005` restores the old three-attempt constraint and fails transactionally if any counter exceeds three; do not truncate history to force a downgrade. Downgrading below `0004` removes these delivery records; it does not delete city imports. Preserve any needed delivery history before a separately requested downgrade.
 
 Run `uv run --locked pytest tests/integration/test_event_store.py -m integration -q`. Tests create isolated schemas and real concurrent database connections, covering producer/effect rollback, first-publication races, independent claims, SKIP LOCKED behavior, repeated acknowledgement, receipt identity, expiry/generation fencing and exhausted leases. [Evidence](../evidence/event-01-outbox-ledger.md) distinguishes these transaction checks from later worker/process-crash evidence.

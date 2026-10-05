@@ -4,7 +4,7 @@ Decision: [ADR 0009](../adr/0009-durable-event-delivery.md). Progress: [delivery
 
 ## Scope and upgrade
 
-The local CLI runs the explicitly registered `recovery-probe-v1` consumer. Its synthetic database effect proves the worker/transaction boundary; it is not the Location Intelligence projection. Existing city imports and browser requests enqueue nothing. The application worker accepts an injected handler; city checkpoint and timer wiring is the next slice.
+The local CLI runs the explicitly registered `recovery-probe-v1` consumer. Its synthetic database effect proves the worker/transaction boundary; it is not the Location Intelligence projection. Existing city imports and browser requests enqueue nothing. The application worker accepts an injected handler; the independent [city worker](city-checkpoints.md) binds Location Intelligence and persisted timer checkpoints.
 
 Stop old delivery processes and run `uv run --locked python -m urbanpulse.adapters.city_store migrate` before using this worker. Migration `0006_worker_recovery` preserves existing publications, deliveries and attempts, adds `available_at`, permits retry state, and creates replay audit and synthetic-effect tables. Existing pending work is immediately eligible. The API remains usable without a worker.
 
@@ -62,3 +62,5 @@ docker compose stop recovery-worker
 ```
 
 A standalone recovery profile does not migrate automatically: apply migrations first using the API image or local migration command. Continuous workers resume automatically after database/schema recovery. Compose uses `restart: on-failure` as a fallback if the process exits unexpectedly; an explicit stop remains a stop. The Compose smoke test seeds the probe, executes it in a separate container, replays it in another container, and verifies the city response is unchanged. It also stops and starts its isolated PostgreSQL container, observes the outage, and verifies the same worker incarnation processes a newly published event afterward. Process-kill regression seams exist only under `tests/helpers`.
+
+City-run delivery IDs use the same list/inspect/replay commands. The independent `city-worker` processes their registered consumers; follow the [city checkpoint walkthrough](city-checkpoints.md) for run clocks and completion barriers.
