@@ -65,7 +65,7 @@ The city API reads a consistent persisted export and reconstructs request-local 
 
 Before upgrading observation storage, stop old API/import processes, run migration `0003_observation_codec`, and restart with the updated code. Existing valid selections need no reimport. The migration preserves unsupported older normalizer exports and rejects ambiguous or corrupt supported history; [storage compatibility and rollback](architecture/observation-storage.md) explains the checks.
 
-Migration `0004_outbox_ledger` adds independent publication/consumer tables without enqueuing fixture work. Apply through `0005_attempt_policy` to let application policy own the retry ceiling; existing `0004` databases also need this upgrade. See [transaction boundaries and repository tests](architecture/outbox-ledger.md); the serving API remains on its existing replay path.
+Migration `0004_outbox_ledger` adds independent publication/consumer tables without enqueuing fixture work. Apply through `0006_worker_recovery` for the current retry policy and scheduling schema; existing installations also need the upgrade. See the [worker recovery runbook](runbooks/event-recovery.md) for optional CLI/Compose operation. See [transaction boundaries and repository tests](architecture/outbox-ledger.md); the serving API remains on its existing replay path.
 
 Read [CITY-04](demos/city-04.md) for event/restart verification.
 

@@ -16,9 +16,19 @@ from scripts import compose_smoke
 def smoke(monkeypatch, tmp_path):
     monkeypatch.setattr(compose_smoke, "ROOT", tmp_path)
     commands = []
+    worker_results = iter(
+        [
+            {},
+            {"status": "apply", "delivery_id": "probe-delivery", "generation": 1},
+            {},
+            {"status": "duplicate"},
+        ]
+    )
 
     def run(command, **kwargs):
         commands.append(command)
+        if "workers.events.main" in command:
+            return subprocess.CompletedProcess(command, 0, json.dumps(next(worker_results)), "")
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(compose_smoke.subprocess, "run", run)
@@ -28,7 +38,7 @@ def smoke(monkeypatch, tmp_path):
         "geometry_url": "/boundary",
         "evidence_url": "/evidence",
     }
-    views = [deepcopy(view) for _ in range(4)]
+    views = [deepcopy(view) for _ in range(5)]
     area_calls = 0
 
     def urlopen(endpoint, **kwargs):
@@ -68,17 +78,19 @@ def test_cleanup_failure_preserves_original_failure(monkeypatch, smoke):
 
 
 def test_cleanup_failure_after_success_is_not_silenced(monkeypatch, smoke):
+    successful_run = compose_smoke.subprocess.run
+
     def run(command, **kwargs):
         if "down" in command:
             return subprocess.CompletedProcess(command, 1)
-        return subprocess.CompletedProcess(command, 0)
+        return successful_run(command, **kwargs)
 
     monkeypatch.setattr(compose_smoke.subprocess, "run", run)
     with pytest.raises(RuntimeError, match="Compose down .* failed"):
         compose_smoke.main()
 
 
-@pytest.mark.parametrize("index", [1, 2, 3])
+@pytest.mark.parametrize("index", [1, 2, 3, 4])
 def test_response_mismatch_fails_and_still_cleans_up(smoke, index):
     commands, views = smoke
     views[index]["changed"] = True

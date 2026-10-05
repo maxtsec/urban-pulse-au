@@ -43,6 +43,12 @@ deliveries = Table(
     Column("generation", Integer, nullable=False),
     Column("attempt_count", Integer, nullable=False),
     Column("lease_until", DateTime(timezone=True)),
+    Column(
+        "available_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.clock_timestamp(),
+    ),
     Column("outcome", String(30)),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp()
@@ -81,4 +87,28 @@ cursors = Table(
     Column("event_id", Text, nullable=False),
     Column("revision", BigInteger, nullable=False),
     Column("fingerprint", String(64), nullable=False),
+)
+
+replays = Table(
+    "event01_replays",
+    metadata,
+    Column("delivery_id", String(36), ForeignKey("event01_deliveries.id"), primary_key=True),
+    Column("generation", Integer, primary_key=True),
+    Column("reason", String(40), nullable=False),
+    Column(
+        "requested_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.clock_timestamp(),
+    ),
+)
+probe_effects = Table(
+    "event01_probe_effects",
+    metadata,
+    Column("context", String(200), primary_key=True),
+    Column("source", Text, primary_key=True),
+    Column("event_id", Text, primary_key=True),
+    Column(
+        "applied_at", DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp()
+    ),
 )

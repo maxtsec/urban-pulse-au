@@ -5,6 +5,7 @@ from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from typing import Protocol
 
 from pydantic import TypeAdapter
@@ -33,6 +34,26 @@ MAX_ATTEMPTS = 3
 
 class PublicationConflict(ValueError):
     """An immutable publication identity or consumer set was changed."""
+
+
+class InvalidPublication(ValueError):
+    """Stored wire bytes or receipt metadata cannot be trusted."""
+
+
+class FailureCategory(StrEnum):
+    HANDLER = "handler-error"
+    INVALID = "invalid-envelope"
+    CONFLICT = "publication-conflict"
+
+
+class ReplayReason(StrEnum):
+    OPERATOR_RETRY = "operator-retry"
+    HANDLER_FIXED = "handler-fixed"
+    VERIFY_DEDUPLICATION = "verify-deduplication"
+
+
+def retry_delay(attempt_count: int) -> int:
+    return 1 if attempt_count == 1 else 5
 
 
 class StaleClaim(ValueError):
@@ -83,3 +104,7 @@ class EventStore(Protocol):
     def complete(
         self, claim: DeliveryClaim, effect: Callable[[EventTransaction, str], None]
     ) -> RevisionOutcome: ...
+
+
+class RecoveryStore(EventStore, Protocol):
+    def fail(self, claim: DeliveryClaim, category: FailureCategory) -> str: ...
