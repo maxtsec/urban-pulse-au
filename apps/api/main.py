@@ -7,9 +7,8 @@ import psycopg
 from fastapi import FastAPI, HTTPException
 from redis import Redis
 from redis.exceptions import RedisError
-from sqlalchemy.exc import SQLAlchemyError
 
-from apps.api.city import city_service, router
+from apps.api.city import router
 from urbanpulse.config import ROOT, Settings
 
 app = FastAPI(title="UrbanPulse AU", version="0.1.0")
@@ -35,13 +34,7 @@ def ready() -> dict[str, str]:
         raise HTTPException(status_code=503, detail="PostGIS is unavailable") from exc
     except RedisError as exc:
         raise HTTPException(status_code=503, detail="Local dependencies are unavailable") from exc
-    try:
-        city_service()
-    except (SQLAlchemyError, OSError, ValueError, KeyError) as exc:
-        raise HTTPException(
-            status_code=503, detail="City inputs unavailable; run migrations and fixture import"
-        ) from exc
-    return {"status": "ok", "postgis": "ok", "redis": "ok", "city_inputs": "ok", "mode": "fixture"}
+    return {"status": "ok", "postgis": "ok", "redis": "ok", "mode": "fixture"}
 
 
 @app.get("/api/v1/fixture")

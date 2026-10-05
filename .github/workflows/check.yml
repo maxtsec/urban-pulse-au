@@ -44,3 +44,14 @@ jobs:
             .local/city02/*.png
             .local/city03/*.png
             apps/web/test-results/
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/compose_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compose-smoke-evidence
+          path: .local/compose-smoke/

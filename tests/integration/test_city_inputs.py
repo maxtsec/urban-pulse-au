@@ -17,6 +17,7 @@ from urbanpulse.adapters.city_import import prepare_import
 from urbanpulse.adapters.city_store import (
     CityInputStore,
     DomainExport,
+    active_imports,
     encode,
     engine_for,
     imports,
@@ -199,3 +200,96 @@ def test_missing_import_is_unavailable(stored):
     store, *_ = stored
     with pytest.raises(ValueError, match="inputs missing"):
         store.load("0" * 64)
+
+
+def test_explicit_selection_survives_reimport_and_failed_import(stored, monkeypatch):
+    store, save, captured, rows, spatial = stored
+    name = "test-" + uuid4().hex
+    scope = save()
+    try:
+        with pytest.raises(ValueError, match="not selected"):
+            store.active_scope(name)
+        assert store.save(captured, rows, activate=name) == scope
+        assert CityInputStore(store.engine).active_scope(name) == scope
+        assert store.save(captured, rows, activate=name) == scope
+        different = replace(captured, capture_id=payload_hash([captured.capture_id, "interrupted"]))
+        original = DomainExport.write
+
+        def fail(self, connection, new_scope, values):
+            original(self, connection, new_scope, values)
+            if self.owner == "weather":
+                raise RuntimeError("interrupted selection")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(DomainExport, "write", fail)
+            with pytest.raises(RuntimeError):
+                store.save(different, rows, activate=name)
+        assert store.active_scope(name) == scope
+        inputs = CityInputStore(store.engine).load(store.active_scope(name))
+        assert inputs.captured.capture_id == captured.capture_id
+    finally:
+        with store.engine.begin() as connection:
+            connection.execute(delete(active_imports).where(active_imports.c.name == name))
+
+
+def test_unselected_import_cannot_change_active_city(stored):
+    store, save, captured, rows, spatial = stored
+    name = "test-" + uuid4().hex
+    scope = save()
+    other_scope = None
+    try:
+        store.save(captured, rows, activate=name)
+        other = replace(captured, capture_id=payload_hash([captured.capture_id, "other"]))
+        other_scope = store.save(other, rows)
+        assert other_scope != scope
+        assert store.active_scope(name) == scope
+        store.save(other, rows, activate=name)
+        assert store.active_scope(name) == other_scope
+        store.save(captured, rows, activate=name)
+        assert store.active_scope(name) == scope
+    finally:
+        with store.engine.begin() as connection:
+            connection.execute(delete(active_imports).where(active_imports.c.name == name))
+            if other_scope:
+                connection.execute(delete(imports).where(imports.c.id == other_scope))
+
+
+def test_api_reuses_spatial_cache_but_still_loads_inputs_per_request(stored, monkeypatch):
+    from types import SimpleNamespace
+
+    from apps.api.city import city_service, spatial_membership
+
+    store, save, captured, rows, spatial = stored
+    scope = save()
+    queries = {"covers": 0, "overlap": 0, "loads": 0}
+    covers = PostgisMembership._query_covers
+    overlaps = PostgisMembership._query_overlap
+
+    def query_covers(self, *args):
+        queries["covers"] += 1
+        return covers(self, *args)
+
+    def query_overlap(self, *args):
+        queries["overlap"] += 1
+        return overlaps(self, *args)
+
+    def load(selected):
+        queries["loads"] += 1
+        return store.load(selected)
+
+    monkeypatch.setattr(PostgisMembership, "_query_covers", query_covers)
+    monkeypatch.setattr(PostgisMembership, "_query_overlap", query_overlap)
+    monkeypatch.setattr(
+        "apps.api.city.input_store", lambda: SimpleNamespace(active_scope=lambda: scope, load=load)
+    )
+    monkeypatch.setattr("apps.api.city.Settings", lambda: SimpleNamespace(database_url=URL))
+    spatial_membership.cache_clear()
+    try:
+        first = city_service().snapshot(180, "city")
+        spatial_counts = (queries["covers"], queries["overlap"])
+        assert all(spatial_counts)
+        assert city_service().snapshot(180, "city") == first
+        assert (queries["covers"], queries["overlap"]) == spatial_counts
+        assert queries["loads"] == 2
+    finally:
+        spatial_membership.cache_clear()

@@ -74,6 +74,13 @@ Domain state is committed before dispatch. A crash in that gap is repaired by re
 
 ## Acceptance and consequences
 
-The [CITY-04 implementation specification](../architecture/city-04-composition.md) owns acceptance cases and the demonstration plan. The public HTTP snapshot/clock interface and existing UI interactions remain compatible. Add migrations and an explicit local import command, with database readiness explaining missing schema/imports; a GET request must not run migrations or import data.
+The [CITY-04 implementation specification](../architecture/city-04-composition.md) owns acceptance cases and the demonstration plan. The public HTTP snapshot/clock interface and existing UI interactions remain compatible. Add migrations and an explicit local import command, with city endpoints explaining missing schema/imports; a GET request must not run migrations or import data.
 
 Option A deliberately trades bounded reconstruction work for straightforward isolation and recovery. Measure the fixture request cost in integration evidence before adding projection caching or moving to option B. Existing source-use, live freshness, durable delivery and cloud decisions remain independently reviewable.
+
+
+## Container follow-up: import selection and readiness
+
+The fixture import transaction also updates a named active-import row in PostgreSQL. Only explicit successful imports select a scope; unrelated test/research imports remain unselected. Rollback preserves the prior selection. Migration 0002 introduces this row without guessing a selection from historical imports; run the import once after upgrading. No API host file is needed to select the same data after recreation.
+
+Compose uses a one-shot initializer, with migrations included in the image, before starting the API. `/health/ready` checks basic PostGIS/Redis availability and never reconstructs city inputs; the city endpoints report missing schema/import separately with 503. Spatial membership reuses the existing bounded geometry/point caches across requests. Input-history caching, incremental reconstruction and alternative handler transaction strategies remain separate work; request-local state and integrity validation are retained.

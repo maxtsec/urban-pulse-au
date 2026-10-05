@@ -1,6 +1,5 @@
 """Read-only fixture city endpoints; every clock is explicit and request-local."""
 
-import json
 from functools import lru_cache
 from typing import Any
 
@@ -23,15 +22,16 @@ def input_store() -> CityInputStore:
     return CityInputStore(engine_for(Settings().database_url))
 
 
+@lru_cache(maxsize=1)
+def spatial_membership() -> PostgisMembership:
+    return PostgisMembership(Settings().database_url)
+
+
 def city_service() -> ComposedCityService:
-    settings = Settings()
-    pointer = json.loads(
-        (settings.city_capture_path / "current-import.json").read_text(encoding="utf-8")
-    )
-    if not isinstance(pointer, dict) or not isinstance(pointer.get("scope"), str):
-        raise ValueError("invalid fixture import pointer; rerun fixture import")
-    inputs = input_store().load(pointer["scope"])
-    city = CityService(inputs, PostgisMembership(settings.database_url), inputs=inputs)
+    store = input_store()
+    scope = store.active_scope()
+    inputs = store.load(scope)
+    city = CityService(inputs, spatial_membership(), inputs=inputs)
     return ComposedCityService(city, inputs)
 
 

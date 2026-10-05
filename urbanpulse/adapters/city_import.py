@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from urbanpulse.adapters.city_store import CityInputStore, encode, engine_for
+from urbanpulse.adapters.city_store import CityInputStore, engine_for
 from urbanpulse.application.city import MAX_SECONDS, CapturedCity, CityService, SpatialMembership
 from urbanpulse.application.planning_replay import planning_steps
 from urbanpulse.application.service_events import service_events
@@ -107,14 +107,10 @@ def import_fixture(database_url: str, destination: Path) -> str:
     engine = engine_for(database_url)
     try:
         scope = CityInputStore(engine).save(
-            captured, prepare_import(captured, PostgisMembership(database_url))
+            captured,
+            prepare_import(captured, PostgisMembership(database_url)),
+            activate="city-fixture",
         )
     finally:
         engine.dispose()
-    pointer = destination / "current-import.json"
-    from uuid import uuid4
-
-    temporary = pointer.with_suffix(f".{uuid4().hex}.tmp")
-    temporary.write_text(encode({"scope": scope}), encoding="utf-8")
-    temporary.replace(pointer)
     return scope

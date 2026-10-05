@@ -32,7 +32,7 @@ The Southbank map, warnings and planning profile continue to tell one consistent
 | A reason's input order changes, or only evaluation time advances without a semantic transition | No extra AreaStatusChanged event. A real required-coverage change is observable. |
 | An object moves out of Southbank or a warning footprint changes | Recomputed membership removes the previous applicable effect; no stale area membership survives. |
 | A new planning snapshot arrives while transport/weather stay the same | Profile changes, but planning cannot create an adverse fact or fill required current-condition coverage. |
-| The API starts without migrations/imports or PostgreSQL becomes unavailable | Clear setup/readiness failure; no automatic migration/import on GET and no falsely successful current snapshot. |
+| The API starts without migrations/imports or PostgreSQL becomes unavailable | City endpoint returns 503 with setup guidance; basic readiness checks only dependencies. No automatic migration/import on GET or falsely successful city snapshot. |
 
 Real integration tests use isolated database scopes. The restart test must discard all in-memory objects and reconstruct in a fresh process; replaying the original JSON directly does not establish persisted-domain recovery. Browser checks retain map camera/selection behavior, scenario URLs, rewind and separate domain diagnostics.
 

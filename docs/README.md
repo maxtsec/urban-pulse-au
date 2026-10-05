@@ -52,6 +52,7 @@ For event composition: [ADR 0008](adr/0008-in-process-city-composition.md), [CIT
 | [CITY-04 specification](architecture/city-04-composition.md) | Implementation sequence, failure/restart acceptance and demo plan | Composition scope or acceptance cases change |
 | [CITY-04 demo](demos/city-04.md) | Reproducible event/expiry/restart walkthrough | Recovery commands or observable behavior change |
 | [CITY-04 evidence](evidence/city-04-composition.md) | Dated delivery/persistence/browser results and limits | A new checkpoint is verified |
+| [CITY-04 Compose evidence](evidence/city-04-compose.md) | Container startup/recreation checks, readiness boundary and request timings | Container behavior or verified measurements change |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |

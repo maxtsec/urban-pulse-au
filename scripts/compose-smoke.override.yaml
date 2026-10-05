@@ -1,0 +1,10 @@
+# Isolated smoke checks publish random loopback ports and own their database volume.
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  api:
+    ports: !override ["127.0.0.1::8000"]
+  web:
+    ports: !override ["127.0.0.1::5173"]
