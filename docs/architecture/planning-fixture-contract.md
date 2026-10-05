@@ -18,17 +18,25 @@ Payload state contains `snapshot_id`, nullable `as_of`, `complete=true` and up t
 
 Use the existing revision guard and retained event receipts: exact redelivery is Duplicate, unseen older revisions are Superseded, and changed content under the same event ID is Conflict. Each accepted snapshot remains in bounded replay history. Same payload recapture advances the complete receipt timestamp without inventing another snapshot event or moving its source date.
 
+## Fixture coverage scope
+
+The bounded synthetic snapshot has one conservative spatial-completeness check: **any current record without coordinates leaves planning coverage unknown**, regardless of its reported `clue_small_area`. This deliberately includes a record labelled Carlton, Southbank or with no area label. A provider label is not verified spatial exclusion, so it cannot silently remove uncertainty from the selected area. Removed historical records do not affect this check. All unlocated current records remain visible separately, outside the map and Southbank count.
+
+This is the fixture's declared rule, not a suitable automatic whole-municipality live policy. Before live DAM enablement, SRC-02 must verify and review area-scoped completeness or a trustworthy exclusion rule; a missing coordinate elsewhere could otherwise keep Southbank unknown indefinitely.
+
+Capture acceptance and profile coverage are separate: `capture_state` reports current/unknown/stale/error from the received attempt/checkpoint; `state` additionally reflects missing source dates and unresolved spatial membership. At 150s, snapshot 2 is successfully accepted (`capture_state=current`) while its missing location leaves `state=unknown`. At 180s the next capture is rejected (`capture_state=unknown`), so the same accepted snapshot is retained. The panel describes these cases separately.
+
 ## Capture failures and evidence
 
 A partial capture applies no rows. A malformed complete payload, duplicate key or invalid row rejects the entire snapshot. Neither advances the last successful receipt or removes prior records. A complete successful empty snapshot is distinct from no snapshot. Coverage checkpoints can assert only unknown/stale/error, not successful capture. Their timing is authored; there is no numerical live freshness policy.
 
 For a newly accepted full snapshot, replace current records atomically and recompute current spatial membership. Keep missing prior records in the history view with their last listed status/date. Reappearing keys return to the current list. The membership of a removed record uses its last known position; it cannot establish its present position.
 
-Evidence reads the same normalized timeline without projections or database access. Missing capture identity returns 404; broken bundle references or capture integrity/storage errors return 503. Rejected provider-shaped payloads remain explicit evidence attempts. Never reveal frames beyond the selected clock; source outage blocks later captures and recovery until the non-outage scenario is selected.
+Weather and planning share capture timing, canonical payload hashing and an atomic normalization history for recapture/original-event redelivery. Domain-specific validation and completeness remain separate. Evidence reads the same normalized timeline without projections or database access. Missing capture identity returns 404; broken bundle references or capture integrity/storage errors return 503. Rejected provider-shaped payloads remain explicit evidence attempts. Never reveal frames beyond the selected clock; source outage blocks later captures and recovery until the non-outage scenario is selected.
 
 ## Area response and UI
 
-The existing `planning` object retains `state`, `as_of` and `description`. The `city` and `planning-outage` scenarios add current `records`, `unlocated_records`, `removed_records`, snapshot identity/history, last successful receipt, policy identifiers, attribution, projection outcomes and evidence. Original scenarios retain the disconnected planning profile. Weather and transport remain independently replayed in the integrated scenarios.
+The existing `planning` object retains `state`, `as_of` and `description`, with additive `capture_state` in integrated scenarios. The `city` and `planning-outage` scenarios add current `records`, `unlocated_records`, `removed_records`, snapshot identity/history, last successful receipt, policy identifiers, attribution, projection outcomes and evidence. Original scenarios retain the disconnected planning profile. Weather and transport remain independently replayed in the integrated scenarios.
 
 The default **City overview** shows all three domains. Development sites use a separate building marker layer and accessible list with synchronized selection. Original statuses, snapshot dates and receipt times are separate labels. Missing locations never produce invented markers; missing source dates do not become receipt dates. Complete profile coverage can be current while current area conditions remain Unknown, and a planning outage cannot degrade otherwise Normal current conditions.
 

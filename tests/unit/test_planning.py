@@ -288,3 +288,73 @@ def test_complete_empty_removes_prior_records_and_reappearance_restores_them(cap
     restored = city(captured).snapshot(270, "city")["planning"]
     assert len(restored["records"]) == 3 and restored["removed_records"] == []
     assert len(restored["snapshots"]) == 3
+
+
+@pytest.mark.parametrize("reported_area", ["Southbank", "Carlton", None])
+def test_whole_fixture_location_gap_does_not_mean_capture_failed(captured, reported_area):
+    captured.planning["payloads"]["updated"]["records"][-1]["clue_small_area"] = reported_area
+    profile = city(captured).snapshot(150, "city")["planning"]
+    assert profile["state"] == "unknown"
+    assert profile["capture_state"] == "current"
+    assert profile["snapshot_id"] == "synthetic-planning-snapshot-2"
+    assert profile["last_successful_received_at"].endswith("00:02:30+00:00")
+    assert len(profile["unlocated_records"]) == 1
+    assert profile["unlocated_records"][0]["clue_small_area"] == reported_area
+
+
+@pytest.mark.parametrize(
+    "seconds,expected",
+    [(120, "unknown"), (180, "unknown"), (210, "stale"), (240, "error"), (270, "current")],
+)
+def test_capture_state_tracks_acceptance_and_failures_independently(captured, seconds, expected):
+    profile = city(captured).snapshot(seconds, "city")["planning"]
+    assert profile["capture_state"] == expected
+
+
+def test_planning_consumer_fingerprints_each_incoming_event_only_once(captured, monkeypatch):
+    from urbanpulse.contracts.events import EventReceipt
+
+    old, new = event(captured), event(captured, "updated", 4)
+    original = EventReceipt.from_event
+    calls = []
+
+    def counted(cls, incoming):
+        calls.append(incoming.id)
+        return original(incoming)
+
+    monkeypatch.setattr(EventReceipt, "from_event", classmethod(counted))
+    projection = PlanningProjection()
+    assert projection.consume(old) == "apply"
+    assert projection.consume(new) == "apply"
+    assert projection.consume(old) == "duplicate"
+    assert calls == [old.id, new.id, old.id]
+    assert projection.latest == new
+
+
+def test_scenario_registry_api_snapshot_and_evidence_agree(captured, monkeypatch):
+    from urbanpulse.application.scenarios import SCENARIOS, Scenario
+
+    assert set(Scenario) == set(SCENARIOS)
+    monkeypatch.setattr("apps.api.city.city_service", lambda: city(captured))
+    with TestClient(app) as client:
+        schema = client.get("/openapi.json").json()
+        assert set(schema["components"]["schemas"]["Scenario"]["enum"]) == set(SCENARIOS)
+        for scenario, policy in SCENARIOS.items():
+            response = client.get(f"/api/v1/areas/{AREA_ID}?scenario={scenario}&seconds=150")
+            assert response.status_code == 200
+            snapshot = response.json()
+            assert (snapshot["weather"] is not None) is policy.weather
+            assert ("records" in snapshot["planning"]) is policy.planning
+            evidence = client.get(snapshot["evidence_url"])
+            assert evidence.status_code == 200
+            kinds = {e["kind"] for e in evidence.json()["events"]}
+            assert ("modelled-reading-capture" in kinds) is policy.weather
+            assert ("planning-snapshot-capture" in kinds) is policy.planning
+        for suffix in ("not-a-scenario", "city%0A"):
+            assert client.get(f"/api/v1/areas/{AREA_ID}?scenario={suffix}").status_code == 422
+            assert (
+                client.get(
+                    f"/api/v1/fixture/captures/{captured.capture_id}?scenario={suffix}"
+                ).status_code
+                == 422
+            )

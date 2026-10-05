@@ -1,12 +1,17 @@
 """Validate retained planning attempts; evidence has no projection or database dependency."""
 
-import hashlib
-import json
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+from functools import partial
 from typing import Any, Protocol
 
+from urbanpulse.application.capture_replay import (
+    CaptureHistory,
+    capture_received_at,
+    payload_hash,
+    received_frames,
+)
 from urbanpulse.contracts.planning import PlanningSnapshotPublished
 
 
@@ -25,13 +30,8 @@ class PlanningStep:
 def planning_steps(
     bundle: dict[str, Any], seconds: int, at: datetime, outage: bool, normalizer: PlanningNormalizer
 ) -> Iterator[PlanningStep]:
-    normalized: dict[str, PlanningSnapshotPublished] = {}
-    sent: dict[str, PlanningSnapshotPublished] = {}
-    for frame in sorted(bundle["frames"], key=lambda item: item["at_seconds"]):
-        if frame["at_seconds"] > seconds or (
-            outage and frame["at_seconds"] >= bundle["outage_at_seconds"]
-        ):
-            continue
+    history = CaptureHistory[PlanningSnapshotPublished]()
+    for frame in received_frames(bundle, seconds, outage):
         evidence = {"id": frame["id"], "at_seconds": frame["at_seconds"]}
         if frame["kind"] == "coverage":
             if frame["state"] not in {"stale", "error", "unknown"}:
@@ -41,7 +41,7 @@ def planning_steps(
             )
             continue
         if frame["kind"] == "redelivery":
-            event = sent[frame["event_id"]]
+            event = history.redeliver(frame["event_id"])
             yield PlanningStep(
                 frame, {**evidence, "kind": "planning-redelivery", "event_ids": [event.id]}, event
             )
@@ -49,13 +49,8 @@ def planning_steps(
         if frame["kind"] != "capture":
             raise ValueError("unknown planning frame kind")
         raw = bundle["payloads"][frame["payload_id"]]
-        if datetime.fromisoformat(frame["received_at"]) != at + timedelta(
-            seconds=frame["at_seconds"] - seconds
-        ):
-            raise ValueError("planning receipt must match the replay clock")
-        digest = hashlib.sha256(
-            json.dumps(raw, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-        ).hexdigest()
+        capture_received_at(frame, seconds, at)
+        digest = payload_hash(raw)
         evidence.update({"payload_sha256": digest, "received_at": frame["received_at"]})
         try:
             if not isinstance(raw, dict) or not isinstance(raw.get("complete"), bool):
@@ -66,15 +61,15 @@ def planning_steps(
                     {**evidence, "kind": "planning-incomplete-capture"},
                 )
                 continue
-            recapture = digest in normalized
-            event = normalized[digest] if recapture else normalizer.snapshot(raw, frame)
+            candidate = history.prepare(digest, partial(normalizer.snapshot, raw, frame))
         except (KeyError, ValueError):
             yield PlanningStep(
                 {**frame, "kind": "rejected"}, {**evidence, "kind": "planning-rejected-capture"}
             )
             continue
-        normalized[digest] = event
-        sent.setdefault(event.id, event)
+        events = history.commit((candidate,))
+        event = candidate[1]
+        recapture = not events
         yield PlanningStep(
             frame,
             {
