@@ -293,3 +293,51 @@ def test_api_reuses_spatial_cache_but_still_loads_inputs_per_request(stored, mon
         assert queries["loads"] == 2
     finally:
         spatial_membership.cache_clear()
+
+
+def test_new_codec_preserves_literal_reference_fields_in_every_domain(stored):
+    store, save, captured, rows, spatial = stored
+    literal = {
+        "event_reference": ["ordinary", "metadata"],
+        "items": [
+            {"rejected_event": "not an event"},
+            {"kind": "reference", "source": "a", "id": "b"},
+        ],
+    }
+    for owner in rows:
+        rows[owner][0]["frame"]["custom"] = copy.deepcopy(literal)
+    rows["weather"][0]["evidence"]["custom"] = copy.deepcopy(literal)
+    scope = save()
+    with store.engine.connect() as connection:
+        for owner in rows:
+            restored = DomainExport(owner).read(connection, scope)
+            assert encode(restored) == encode(rows[owner])
+            assert restored[0]["frame"]["custom"] == literal
+    assert store.load(scope).weather[0].evidence["custom"] == literal
+
+
+@pytest.mark.parametrize("corruption", ["version", "descriptor", "missing"])
+def test_codec_corruption_is_rejected_before_serving_inputs(stored, corruption):
+    store, save, captured, rows, spatial = stored
+    scope = save()
+    table = observations["transport"]
+    with store.engine.begin() as connection:
+        record = (
+            connection.execute(select(table).where(table.c.scope == scope, table.c.sequence == 0))
+            .mappings()
+            .one()
+        )
+        body = json.loads(record["body"])
+        if corruption == "version":
+            changes = {"codec_version": 99}
+        else:
+            if corruption == "descriptor":
+                body["event"] = {"event_reference": ["legacy", "ambiguous"]}
+            else:
+                body["event"]["id"] = "absent-revision"
+            changes = {"body": encode(body)}
+        connection.execute(
+            update(table).where(table.c.scope == scope, table.c.sequence == 0).values(**changes)
+        )
+    with pytest.raises(ValueError):
+        store.load(scope)

@@ -2,7 +2,7 @@
 
 Date: 2026-10-05
 
-Status: **Proposed; awaiting the project architect's A-05 decision.**
+Status: **Accepted by the project architect: option A, including its persistent delivery model and fixture-run scope.**
 
 ## Problem
 
@@ -21,7 +21,7 @@ PostgreSQL documents `SKIP LOCKED` for competing consumers of queue-like tables,
 
 Pub/Sub defaults to at-least-once delivery without ordering guarantees. Its exactly-once feature does not remove publish-side duplicates, so application event identity and database transactions remain necessary. [Subscription semantics](https://docs.cloud.google.com/pubsub/docs/subscription-overview#default_subscription_properties), [exactly-once limitations](https://docs.cloud.google.com/pubsub/docs/exactly-once-delivery#things_to_know).
 
-## Proposed scope for option A
+## Decision: option A
 
 ### Transaction and ownership boundaries
 
@@ -47,7 +47,7 @@ Claim a bounded batch in a short transaction with row locking, then commit a lea
 
 Check a previously seen event ID and its fingerprint before aggregate revision ordering. An old ID with altered content is a conflict; a semantically identical resend is duplicate even with a new tracing context. Preserve the existing superseded-revision rules for genuinely different older events.
 
-Use persisted retry scheduling rather than sleeping inside a transaction. Proposed fixture policy: three total automatic attempts with 1-second then 5-second delays and a configurable 30-second lease. These are local recovery-test defaults, not production SLOs. Lease expiry consumes an attempt; exhausted or terminal failures enter a durable dead-letter state. Invalid/conflicting envelopes are terminal. A dead-letter event blocks only the dependent ordered fixture lane; other consumers/runs continue.
+Use persisted retry scheduling rather than sleeping inside a transaction. Fixture recovery-test policy: three total automatic attempts with 1-second then 5-second delays and a configurable 30-second lease. These are local recovery-test defaults, not production SLOs. Lease expiry consumes an attempt; exhausted or terminal failures enter a durable dead-letter state. Invalid/conflicting envelopes are terminal. A dead-letter event blocks only the dependent ordered fixture lane; other consumers/runs continue.
 
 An explicit replay command records an operator reason and a new attempt generation while retaining original event identity, bytes and previous attempts. Replaying an already applied event must produce no extra effect. Correcting payload content requires a new valid domain revision, not editing history. No destructive retention or automatic dead-letter deletion is introduced; fixture cleanup removes an explicitly selected whole run.
 
@@ -69,4 +69,4 @@ Keep the [measured CITY-04 request costs](../evidence/city-04-compose.md) as the
 
 ## Acceptance and decision boundary
 
-The [EVENT-01 specification](../architecture/event-01-durable-delivery.md) defines crash points, concurrency, retry/dead-letter, controlled replay and city-equivalence evidence. Approval of A authorizes its proposed persistent delivery model and fixture-run scope; B requires refining relay/subscription deployment and verification before implementation. No durable schema, worker or cloud resources are implemented by this proposal.
+The [EVENT-01 specification](../architecture/event-01-durable-delivery.md) defines crash points, concurrency, retry/dead-letter, controlled replay and city-equivalence evidence. Option A is accepted. Implement the sequence through separately reviewed PRs; implementation progress stays in the delivery plan. Cloud resources and live source-use decisions remain separate.
