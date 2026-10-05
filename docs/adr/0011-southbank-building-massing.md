@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 
-Status: **Proposed for project architect review.** Implementation (MAP-01 to MAP-05) follows DEMO-01 and waits for an explicit decision.
+Status: **Accepted by the project architect on 2026-10-06** for building option A, MapLibre with deck.gl, the five animation classes and their rules, and MAP-05 simulated traffic in scope. The `Structure`-only first building layer remains pending confirmation. Implementation (MAP-01 to MAP-05) follows DEMO-01; each item still needs its own source/asset records and review.
 
 ## Problem
 
@@ -38,7 +38,7 @@ A gives the clearest base for the requested effects and keeps the map self-conta
 
 The brief lists deck.gl for use "when justified". Moving models, trails and transparent massing are that justification. MapLibre keeps ownership of the camera, the boundary and the existing layers; deck.gl renders the 3D and animated layers in the same view.
 
-## Proposed decision: A with deck.gl
+## Decision: A with deck.gl
 
 ### Building source and selection
 
@@ -113,9 +113,9 @@ Interpolation and track matching are presentation rules owned by Location Intell
 | MAP-02 | 3D tram model and interpolation along GTFS shapes | GTFS shapes fixture; tram model asset licence |
 | MAP-03 | Weather particles and warning pulse | None beyond existing fixtures |
 | MAP-04 | Construction models at DAM points | Model asset licence |
-| MAP-05 | Simulated traffic trails | Road-line fixture; acceptance of the simulated-traffic presentation |
+| MAP-05 | Simulated traffic trails | Road-line fixture |
 
-Each item is a separate reviewed PR with its own tests and measurements. MAP-05 is optional; the others do not depend on it.
+Each item is a separate reviewed PR with its own tests and measurements. MAP-05 is in scope; the other items do not depend on it.
 
 ## Acceptance cases
 
@@ -129,12 +129,14 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 - Enabling 3D and animation makes no request outside the application origin, and all credits are visible.
 - Measure bundle size, fixture size, frame rate and memory on desktop and mobile emulation before accepting each MAP item; simplify geometry or reduce particles only if measurements require it.
 
-## Decisions requested
+## Decision record
 
-1. Accept building option A, or choose B or C.
-2. Accept MapLibre with deck.gl as the 3D and animation stack.
-3. Accept the five animation classes and their rules.
-4. Confirm the first building layer includes `Structure` only.
-5. Decide whether MAP-05 simulated traffic is in scope.
+| Decision | Outcome (2026-10-06) |
+| --- | --- |
+| Building source | Option A, retained City of Melbourne footprints |
+| Rendering stack | MapLibre with an interleaved deck.gl overlay |
+| Animation | The five classes and their rules, as written above |
+| Simulated traffic | MAP-05 in scope, under the simulated class and its labelling rule |
+| First building layer | `Structure` only: pending architect confirmation before MAP-01 |
 
-Accepting this ADR does not decide A-02's public basemap, live data sources, DAM-to-building matching or any live-data animation. See the [source register](../source-register.md#map-context-sources) and [delivery plan](../delivery-plan.md).
+This decision does not decide A-02's public basemap, live data sources, DAM-to-building matching or any live-data animation. See the [source register](../source-register.md#map-context-sources) and [delivery plan](../delivery-plan.md).
