@@ -1,0 +1,26 @@
+# Local rehearsal only: combine with compose.yaml and compose.no-cache.yaml.
+# Cloud Run will provide HTTPS/IAP and use the default localhost API upstream.
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  api:
+    ports: !reset []
+  web:
+    build:
+      target: serving
+    environment: !override
+      PORT: "8080"
+      API_UPSTREAM: "api:8000"
+    ports: !override ["127.0.0.1:8080:8080"]
+    depends_on:
+      api: {condition: service_healthy}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null "http://127.0.0.1:$$PORT/health/ready"']
+      interval: 5s
+      timeout: 5s
+      retries: 20

@@ -1,0 +1,14 @@
+services:
+  api:
+    # Rehearse the shared network namespace used by a Cloud Run API sidecar.
+    network_mode: service:web
+    depends_on: !override
+      postgres: {condition: service_healthy}
+      city-init: {condition: service_completed_successfully}
+      web: {condition: service_started}
+  web:
+    depends_on: !reset {}
+    # No API_UPSTREAM override: exercise the default localhost upstream.
+    environment: !override
+      PORT: "8088"
+    ports: !override ["127.0.0.1::8088"]

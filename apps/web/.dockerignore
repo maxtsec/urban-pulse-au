@@ -20,3 +20,4 @@
 !src/main.tsx
 !src/style.css
 !src/vite-env.d.ts
+!Caddyfile

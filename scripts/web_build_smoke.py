@@ -7,7 +7,14 @@ from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD_FILES = {"package.json", "package-lock.json", "index.html", "tsconfig.json", "vite.config.ts"}
+BUILD_FILES = {
+    "package.json",
+    "package-lock.json",
+    "index.html",
+    "tsconfig.json",
+    "vite.config.ts",
+    "Caddyfile",
+}
 GENERATED_DIRECTORIES = {"node_modules", "dist"}
 PROBES = (
     ".env",

@@ -189,7 +189,7 @@ docker build --target assets --output type=local,dest=.local/web-assets apps/web
 python -O scripts/web_build_smoke.py
 ```
 
-`assets` contains only the built site; it is not an HTTP server. Managed hosting and IAP follow [ADR 0010](adr/0010-hosted-fixture-demo.md); the serving container, HTTPS integration and registry-digest promotion are separate implementation steps.
+`assets` contains only the built site. The separate `serving` target provides HTTP and same-origin API proxying; see the [serving rehearsal](runbooks/web-serving.md). Managed hosting and IAP follow [ADR 0010](adr/0010-hosted-fixture-demo.md); HTTPS/IAP integration and registry-digest promotion follow separate deployment steps.
 
 The web context denies every path by default and allows only exact build/source filenames in `apps/web/.dockerignore`. New source files need an explicit entry; do not allow an entire directory. This also excludes local Playwright output, arbitrary credential filenames and files nested inside `src`. The API context retains its separate exclusions. Build-time public configuration requires a reviewed interface; copying `.env` into a frontend image is unsupported.
 

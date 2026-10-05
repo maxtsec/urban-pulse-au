@@ -89,6 +89,8 @@ For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](ad
 | [Planning copy evidence](evidence/event-01-planning-copy-cost.md) | Immutable retained history, rollback guarantees and before/after measurements | Planning representation or verified performance changes |
 | [ADR 0010: hosted fixture demo](adr/0010-hosted-fixture-demo.md) | Accepted managed hosting/IAP, image identity, deployment and rollback acceptance | Accepted topology or deployment requirements change |
 | [DEMO-01 web packaging evidence](evidence/demo-01-web-build.md) | Static asset target, build-context exclusions and container verification | Web packaging or its verified checks change |
+| [Compiled web serving](runbooks/web-serving.md) | Runtime settings, local rehearsal, route/cache behavior and failure checks | Serving packaging or its runtime contract changes |
+| [Web serving evidence](evidence/demo-01-web-serving.md) | Compiled browser flows, same-origin API and dependency outage/recovery | Serving acceptance is verified |
 | [Optional cache evidence](evidence/demo-01-optional-cache.md) | Explicit cache modes, readiness failures and Redis-free Compose verification | Cache mode or its dependency checks change |
 | [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Accepted building source, MapLibre + deck.gl stack, animation classes and MAP-01–05 sequence | A MAP item or map context source changes |
 | [Google Cloud identity bootstrap](runbooks/gcp-bootstrap.md) | Terraform bootstrap for APIs, image repository, GitHub federation and the image builder | Bootstrap identities, trust conditions or apply steps change |
