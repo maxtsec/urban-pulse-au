@@ -18,7 +18,7 @@ The weather-outage run changes from Degraded at 239 to Unknown at 240 without ad
 - Unit/API suite: 387 passed, including seven clock-boundary cases.
 - Real PostgreSQL/PostGIS integration suite: 122 passed, including 19 city-run and five ordered-delivery cases.
 - Frontend lint/format and production build passed; 32 Playwright browser tests passed.
-- The isolated Compose smoke now compares the three-domain durable run with HTTP results, stops its worker, stages warning expiry and recreates the worker to complete it. It also retains the previous cold-readiness, initializer, proxy, API recreation, replay and database-restart checks. Run with `python -O scripts/compose_smoke.py` or use the PR's Compose CI job. The initial local attempt stalled while downloading API image dependencies; this is not recorded as a passed container test.
+- The isolated Compose smoke passed under `python -O`: it compares the three-domain durable run with HTTP results, stops its worker, stages warning expiry and recreates the worker to complete it. It also retains the previous cold-readiness, initializer, proxy, API recreation, replay and database-restart checks. Run with `python -O scripts/compose_smoke.py` or use the PR's Compose CI job. The initial dependency download delay resolved; the full container check passed and its generated stack/volume were removed.
 
 Existing non-failing warnings concern the TestClient dependency transition and the frontend bundle size. Fixture checks use no provider keys or cloud resources.
 
