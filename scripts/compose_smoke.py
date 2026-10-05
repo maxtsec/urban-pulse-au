@@ -105,6 +105,36 @@ def verify_city_checkpoints(run, city, read, api):
     run("stop", "city-worker")
 
 
+def verify_cache_modes(base, run, read, url, route, view):
+    """Exercise enabled failure, a Redis-free app graph, and database failure/recovery."""
+    healthy = {"status": "ok", "postgis": "ok", "redis": "ok", "mode": "fixture"}
+    disabled = {**healthy, "redis": "disabled"}
+    require_equal(read(url("api", 8000) + "/health/ready"), healthy, "Enabled cache")
+    run("stop", "redis")
+    read(url("api", 8000) + "/health/ready", 503)
+    require_equal(read(url("api", 8000) + route), view, "City during cache outage")
+    run("rm", "-f", "redis")
+    run("up", "-d", "--wait", no_cache=True)
+    containers = subprocess.check_output(
+        [*base, "ps", "--all", "--quiet", "redis"], cwd=ROOT, text=True
+    ).strip()
+    require_equal(containers, "", "Redis-free Compose graph")
+    api = url("api", 8000)
+    require_equal(read(api + "/health/ready"), disabled, "Disabled cache")
+    require_equal(read(api + route), view, "Redis-free city")
+    run("stop", "postgres", no_cache=True)
+    read(api + "/health/ready", 503)
+    read(api + route, 503)
+    read(api + "/health/live")
+    run("up", "-d", "--wait", "postgres", no_cache=True)
+    require_equal(read(api + "/health/ready"), disabled, "Redis-free database recovery")
+    require_equal(read(api + route), view, "Redis-free city recovery")
+    run("up", "-d", "--wait", "api")
+    api = url("api", 8000)
+    require_equal(read(api + "/health/ready"), healthy, "Re-enabled cache")
+    require_equal(read(api + route), view, "City after re-enabling cache")
+
+
 def main() -> None:
     project = "urbanpulse-smoke-" + uuid4().hex[:12]
     folder = ROOT / ".local" / "compose-smoke" / project
@@ -125,9 +155,12 @@ def main() -> None:
 
     with log_path.open("w", encoding="utf-8") as log:
 
-        def run(*args: str) -> None:
+        def run(*args: str, no_cache: bool = False) -> None:
+            configuration = [*base]
+            if no_cache:
+                configuration.extend(["-f", str(ROOT / "compose.no-cache.yaml")])
             result = subprocess.run(
-                [*base, *args], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, timeout=900
+                [*configuration, *args], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, timeout=900
             )
             log.flush()
             if result.returncode:
@@ -246,9 +279,13 @@ def main() -> None:
             verify_database_restart(base, run, recovery)
             require_equal(read(api + route), view, "Database restart isolation")
             print(
+                "Checking enabled, absent and re-enabled Redis with database recovery", flush=True
+            )
+            verify_cache_modes(base, run, read, url, route, view)
+            print(
                 "Compose smoke passed: cold readiness, initializer, city/boundary/evidence, "
                 "proxy, recreation, city checkpoints/expiry, worker replay "
-                "and database restart recovery",
+                "and database restart recovery, optional cache modes",
                 flush=True,
             )
         finally:

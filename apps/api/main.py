@@ -26,15 +26,24 @@ def ready() -> dict[str, str]:
     try:
         with psycopg.connect(settings.database_url, connect_timeout=3) as connection:
             connection.execute("SELECT PostGIS_Version()").fetchone()
-        with Redis.from_url(
-            settings.redis_url, socket_connect_timeout=3, socket_timeout=3
-        ) as cache:
-            cache.ping()
     except (psycopg.Error, OSError) as exc:
         raise HTTPException(status_code=503, detail="PostGIS is unavailable") from exc
-    except RedisError as exc:
-        raise HTTPException(status_code=503, detail="Local dependencies are unavailable") from exc
-    return {"status": "ok", "postgis": "ok", "redis": "ok", "mode": "fixture"}
+    if settings.cache_enabled:
+        try:
+            with Redis.from_url(
+                settings.redis_url, socket_connect_timeout=3, socket_timeout=3
+            ) as cache:
+                cache.ping()
+        except (RedisError, OSError) as exc:
+            raise HTTPException(
+                status_code=503, detail="Local dependencies are unavailable"
+            ) from exc
+    return {
+        "status": "ok",
+        "postgis": "ok",
+        "redis": "ok" if settings.cache_enabled else "disabled",
+        "mode": "fixture",
+    }
 
 
 @app.get("/api/v1/fixture")

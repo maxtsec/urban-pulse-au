@@ -17,6 +17,7 @@ def smoke(monkeypatch, tmp_path):
     monkeypatch.setattr(compose_smoke, "ROOT", tmp_path)
     monkeypatch.setattr(compose_smoke, "verify_database_restart", lambda *args: None)
     monkeypatch.setattr(compose_smoke, "verify_city_checkpoints", lambda *args: None)
+    monkeypatch.setattr(compose_smoke, "verify_cache_modes", lambda *args: None)
     commands = []
     worker_results = iter(
         [
@@ -139,3 +140,15 @@ def test_response_check_remains_active_with_optimized_python():
     )
     assert result.returncode != 0
     assert "probe: city response changed" in result.stderr
+
+
+def test_cache_mode_failure_still_cleans_up(monkeypatch, smoke):
+    commands, _ = smoke
+
+    def fail(*args):
+        raise RuntimeError("cache mode check failed")
+
+    monkeypatch.setattr(compose_smoke, "verify_cache_modes", fail)
+    with pytest.raises(RuntimeError, match="cache mode check failed"):
+        compose_smoke.main()
+    assert "down" in commands[-1]

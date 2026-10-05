@@ -16,7 +16,7 @@ Status: **Accepted by the project architect on 2026-10-05.** The decision select
 
 DEMO-01 makes the three-domain Southbank fixture experience available through a stable HTTPS URL with repeatable deployment and rollback. It precedes production V1 and live collection; the [release policy](../delivery-plan.md#release-policy) identifies deployments by commit SHA and image digests.
 
-The default [web image](../../apps/web/Dockerfile) runs Vite. [Compose](../../compose.yaml) has development ports, a local database password and mutable dependency tags. Hosted delivery needs compiled assets, pinned images, retained fixture imports and managed database connectivity. The API currently requires Redis readiness. Existing Compose tests establish local behavior; hosted identity, recovery and deployment need their own evidence.
+The default [web image](../../apps/web/Dockerfile) runs Vite. [Compose](../../compose.yaml) has development ports, a local database password and mutable dependency tags. Hosted delivery needs compiled assets, pinned images, retained fixture imports and managed database connectivity. The default API mode requires Redis readiness; the [explicit no-cache mode](../development.md#run-the-fixture-demo-without-redis) supports the fixture deployment without Redis. Existing Compose tests establish local behavior; hosted identity, recovery and deployment need their own evidence.
 
 ## Hosting comparison
 
@@ -35,7 +35,7 @@ Cloud SQL holds fixture inputs and durable delivery state. Use authenticated Clo
 
 Migration and fixture import run as explicit Cloud Run Jobs, never on every API startup. Durable city administration remains private. Continuous polling must not run inside a request-driven API container: worker hosting remains a separate implementation choice between bounded fixture jobs and an independently managed continuous worker. A bounded job needs a drain/termination criterion; the existing single-sweep `--once` command does not prove a run is complete. Evaluate a Cloud Run worker pool if continuous processing is required, with measured capacity and a separate identity. This ADR does not select continuous live-capture hosting.
 
-The Redis-free demo is conditional on a separately reviewed readiness change: an explicit cache setting, matching deployment dependencies, tests for cache-enabled failure and cache-disabled health, and real city/database failures. Until then Redis is required; do not omit it and claim the existing API is ready. If retained, its managed hosting/network plan needs approval before provisioning.
+The Redis-free demo uses an explicit cache setting and matching deployment dependencies, with tests for cache-enabled failure, cache-disabled health and real city/database failures. The default mode still requires Redis; simply omitting its container does not disable that check. Follow the [no-cache configuration](../development.md#run-the-fixture-demo-without-redis). If retained, its managed hosting/network plan needs approval before provisioning.
 
 ## IAP access and deployment identities
 
