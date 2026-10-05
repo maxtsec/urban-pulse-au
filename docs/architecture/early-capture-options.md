@@ -14,6 +14,10 @@ A-06 decision proposal, researched 4 October 2026. Evaluate continuous capture a
 
 Domain boundaries remain separate even when processes share a host. Collection must continue independently of API/database availability, with raw inputs retrievable after host loss. Keep analytical development local until a separately evaluated cloud batch path is justified. No hosting option is selected by this comparison.
 
+## DEMO-01 and Phase 4 boundary
+
+[ADR 0010](../adr/0010-hosted-fixture-demo.md) proposes a fixture-only VM first. It does not select shared capture hosting under A-06. Adding CLOUD-01 requires approved source/retention policy, measured combined capacity, independent lifecycle and enforceable credential isolation; otherwise use a separate collector host. Application deployments must preserve collection continuity. CLOUD-02 adopts capture buckets, identities and manifests/checkpoints through infrastructure state; a serving-host migration does not justify rebuilding raw history. ADR 0010 defines the interim host's exit and migration acceptance.
+
 ## Workload assumptions
 
 Use measured payload sizes and memory/CPU observations before sizing a deployment. An initial comparison scenario uses tram positions every 30 seconds and updates/alerts every 60 seconds: four requests per minute. At an assumed average payload of 1 MiB and 30-day retention, this produces 172,800 captures and 168.75 GiB of retained payloads at steady state. These values are planning inputs, not measured source characteristics or an accepted retention policy.
