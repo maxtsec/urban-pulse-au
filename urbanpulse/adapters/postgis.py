@@ -10,6 +10,7 @@ import psycopg
 class PostgisMembership:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
+        self._cached_overlap = lru_cache(maxsize=64)(self._query_overlap)
         self._cached_covers = lru_cache(maxsize=32)(self._query_covers)
 
     def covers(self, geometry: dict[str, Any], points: list[tuple[float, float]]) -> list[bool]:
@@ -44,3 +45,31 @@ class PostgisMembership:
         if row is None or row[0] is not True:
             raise ValueError("invalid area boundary")
         return tuple(bool(value) for value in row[1])
+
+    def overlaps(self, area: dict[str, Any], warning: dict[str, Any]) -> bool | None:
+        encoded = tuple(
+            json.dumps(geom, sort_keys=True, separators=(",", ":"), allow_nan=False)
+            for geom in (area, warning)
+        )
+        return self._cached_overlap(*encoded)
+
+    def _query_overlap(self, area: str, warning: str) -> bool | None:
+        with psycopg.connect(self.database_url, connect_timeout=3) as connection:
+            connection.execute("SET LOCAL statement_timeout = '3000ms'")
+            row = connection.execute(
+                """WITH shapes AS MATERIALIZED (
+                    SELECT ST_SetSRID(ST_GeomFromGeoJSON(%s),4326) AS area,
+                           ST_SetSRID(ST_GeomFromGeoJSON(%s),4326) AS warning
+                ), checked AS MATERIALIZED (
+                    SELECT *, ST_IsValid(area) AND ST_IsValid(warning)
+                      AND NOT ST_IsEmpty(area) AND NOT ST_IsEmpty(warning)
+                      AND GeometryType(area) IN ('POLYGON','MULTIPOLYGON')
+                      AND GeometryType(warning) IN ('POLYGON','MULTIPOLYGON')
+                      AND ST_XMin(Box3D(warning)) >= -180 AND ST_XMax(Box3D(warning)) <= 180
+                      AND ST_YMin(Box3D(warning)) >= -90 AND ST_YMax(Box3D(warning)) <= 90 AS valid
+                    FROM shapes
+                ) SELECT CASE WHEN valid THEN
+                    ST_Relate(area, warning, '2********') ELSE NULL END FROM checked""",
+                (area, warning),
+            ).fetchone()
+        return None if row is None or row[0] is None else bool(row[0])

@@ -42,9 +42,9 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
-The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. Weather and planning are explicit unknown sections. Live capture and hosted delivery follow the [delivery plan](docs/delivery-plan.md).
+The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. The weather scenarios add modelled information and warning lifecycles; planning stays unknown. Live capture and hosted delivery follow the [delivery plan](docs/delivery-plan.md).
 
-[Run the Southbank demo](docs/demos/city-01.md) | [CITY-01 evidence](docs/evidence/city-01-fixture-map.md)
+[Run the Southbank demo](docs/demos/city-01.md) | [CITY-01 evidence](docs/evidence/city-01-fixture-map.md) | [Weather demo](docs/demos/city-02.md)
 
 ## Fixture quickstart
 

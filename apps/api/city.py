@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from urbanpulse.adapters.city_fixture import LocalCityCapture, capture_city
 from urbanpulse.adapters.postgis import PostgisMembership
+from urbanpulse.adapters.weather_fixture import FixtureWeatherNormalizer
 from urbanpulse.application.city import AREA_ID, MAX_SECONDS, CityService
 from urbanpulse.config import Settings
 
@@ -21,6 +22,7 @@ def city_service() -> CityService:
     return CityService(
         LocalCityCapture(settings.city_capture_path, capture_id),
         PostgisMembership(settings.database_url),
+        FixtureWeatherNormalizer(),
     )
 
 
@@ -33,7 +35,9 @@ def require_area(area_id: str) -> None:
 def area_snapshot(
     area_id: str,
     seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
-    scenario: str = Query(default="journey", pattern="^(journey|empty|outage)$"),
+    scenario: str = Query(
+        default="journey", pattern="^(journey|empty|outage|weather|weather-outage)$"
+    ),
 ) -> dict[str, Any]:
     require_area(area_id)
     try:
@@ -49,7 +53,7 @@ def area_boundary(area_id: str, revision: str) -> dict[str, Any]:
     require_area(area_id)
     try:
         geometry = city_service().geometry()
-    except (OSError, ValueError) as error:
+    except (psycopg.Error, OSError, ValueError) as error:
         raise HTTPException(status_code=503, detail="Boundary unavailable") from error
     if geometry["revision"] != revision:
         raise HTTPException(status_code=404, detail="Unknown boundary revision")
@@ -60,11 +64,13 @@ def area_boundary(area_id: str, revision: str) -> dict[str, Any]:
 def fixture_evidence(
     capture_id: str,
     seconds: int = Query(default=0, ge=0, le=MAX_SECONDS),
-    scenario: str = Query(default="journey", pattern="^(journey|empty|outage)$"),
+    scenario: str = Query(
+        default="journey", pattern="^(journey|empty|outage|weather|weather-outage)$"
+    ),
 ) -> dict[str, Any]:
     try:
         return city_service().evidence(capture_id, seconds, scenario)
     except LookupError as error:
         raise HTTPException(status_code=404, detail="Unknown fixture capture") from error
-    except (OSError, ValueError) as error:
+    except (psycopg.Error, OSError, ValueError) as error:
         raise HTTPException(status_code=503, detail="Fixture evidence unavailable") from error

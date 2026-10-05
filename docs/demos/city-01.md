@@ -4,7 +4,7 @@
 
 Inspect Southbank tram observations on a map, advance a controlled clock and understand why area conditions differ from data coverage. The boundary is official City of Melbourne open data; vehicle IDs, positions, stops and service facts are synthetic.
 
-The path is retained fixture bundle → CloudEvents validation/revision guard → PostGIS membership → area assessment → FastAPI → React/MapLibre. Weather and planning remain explicit unknown sections in the integrated city view.
+The path is retained fixture bundle → CloudEvents validation/revision guard → PostGIS membership → area assessment → FastAPI → React/MapLibre. The original transport scenarios keep weather and planning unknown. Use the additional [CITY-02 weather scenarios](city-02.md) to inspect integrated warning behavior.
 
 ## Run
 

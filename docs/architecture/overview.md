@@ -186,3 +186,8 @@ OpenAPI and dbt will own generated field/model references. Schema diagrams and e
 Bind local services to loopback. Keep administrative pipeline/telemetry surfaces separate from public freshness information. Cloud execution needs scoped identities, compatible regions, explicit secret handling and cost controls before provisioning. The brief's latency and throughput figures are proposed targets, not measured results.
 
 Architecture changes should include an ADR explaining alternatives, consequences and evidence for revisiting the decision. Do not treat scaffold shortcuts as accepted architecture decisions.
+
+
+### Weather fixture path
+
+CITY-02 retains authored weather payloads alongside the city capture. Application orchestration calls a fixture normalization port, passes published weather CloudEvents to Location Intelligence and evaluates warning polygons through PostGIS. The area API presents independent modelled information, warning lifecycle, source receipt and coverage. [Weather contract](weather-fixture-contract.md) records the boundaries; shared publisher/handler delivery and persisted reconciliation remain CITY-04 work.

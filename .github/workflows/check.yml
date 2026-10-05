@@ -41,4 +41,5 @@ jobs:
           name: city-browser-evidence
           path: |
             .local/city01/*.png
+            .local/city02/*.png
             apps/web/test-results/

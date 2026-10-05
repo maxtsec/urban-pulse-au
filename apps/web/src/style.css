@@ -736,3 +736,57 @@ footer {
     animation: none !important;
   }
 }
+
+.weather-card {
+  background: #fff;
+  border: 1px solid #dedede;
+  border-radius: 12px;
+  padding: 24px;
+  grid-column: 1 / -1;
+}
+.weather-card h3,
+.weather-card h4 {
+  margin: 0;
+}
+.weather-card p {
+  color: #616161;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.weather-reading {
+  padding: 16px 0 20px;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 20px;
+}
+.weather-reading .weather-values {
+  font-size: 28px;
+  color: #242424;
+  margin: 12px 0;
+}
+.weather-values span {
+  font-size: 14px;
+  margin-left: 20px;
+}
+.warning-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.warning-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+}
+.warning-row {
+  border: 1px solid #dedede;
+  border-radius: 8px;
+  padding: 16px;
+}
+.weather-card a {
+  color: #333;
+  text-underline-offset: 3px;
+}
+.weather-note {
+  margin-bottom: 0;
+}
