@@ -363,7 +363,7 @@ class CityInputStore:
             )
 
 
-def migrate(database_url: str) -> None:
+def migrate(database_url: str, *, connection: Connection | None = None) -> None:
     from alembic import command
     from alembic.config import Config
 
@@ -372,6 +372,7 @@ def migrate(database_url: str) -> None:
     config = Config()
     config.set_main_option("script_location", str(ROOT / "migrations"))
     config.attributes["database_url"] = database_url
+    config.attributes["connection"] = connection
     command.upgrade(config, "head")
 
 

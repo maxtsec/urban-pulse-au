@@ -47,3 +47,34 @@ def test_failing_benchmark_still_removes_only_its_created_schema():
         assert "public" in inspect(engine).get_schema_names()
     finally:
         engine.dispose()
+
+
+def test_stripped_connection_options_abort_before_migrations(monkeypatch):
+    from sqlalchemy import make_url
+
+    from scripts import benchmark_city
+
+    def stripped_engine(url):
+        parsed = make_url(url)
+        if "options" in parsed.query:
+            parsed = parsed.difference_update_query(["options"])
+        return engine_for(parsed.render_as_string(hide_password=False))
+
+    def forbidden_migration(*args, **kwargs):
+        pytest.fail("migration must not run on an unverified schema")
+
+    monkeypatch.setattr(benchmark_city, "engine_for", stripped_engine)
+    monkeypatch.setattr(benchmark_city, "migrate", forbidden_migration)
+    with pytest.raises(RuntimeError, match="isolation"):
+        with isolated_store(URL):
+            pytest.fail("unverified store must not escape")
+
+
+def test_schema_is_rechecked_before_subsequent_store_transactions():
+    with isolated_store(URL) as store:
+        # Simulate session settings changing after the migration preflight.
+        with store.engine.connect() as connection:
+            connection.execute(text("SET search_path TO public"))
+            connection.commit()
+        with pytest.raises(RuntimeError, match="isolation"):
+            store.active_scope()

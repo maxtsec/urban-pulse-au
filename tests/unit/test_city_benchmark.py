@@ -101,3 +101,60 @@ def test_copy_instrumentation_restores_handler_and_preserves_results(base):
     with pytest.raises(ValueError, match="differs"):
         profile_copies(replay, "wrong")
     assert delivery.deepcopy is original
+
+
+@pytest.mark.parametrize(
+    "status,dirty",
+    [("", False), (" M urbanpulse/location/planning.py\n", True), ("?? new.py\n", True)],
+)
+def test_source_metadata_uses_repo_root_and_records_dirty_state(
+    monkeypatch, tmp_path, status, dirty
+):
+    from scripts import benchmark_city
+
+    calls = []
+
+    def git(command, *, cwd, text):
+        calls.append((command, cwd))
+        return "abc123\n" if command[1] == "rev-parse" else status
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(benchmark_city.subprocess, "check_output", git)
+    result = benchmark_city.source_metadata()
+    assert result["revision"] == "abc123"
+    assert result["worktree_dirty"] is dirty
+    assert all(cwd == benchmark_city.ROOT for _, cwd in calls)
+    assert len(result["benchmark_source_sha256"]) == 2
+
+
+def test_cli_resolves_capture_and_relative_output_from_root(monkeypatch, tmp_path):
+    import json
+    from contextlib import contextmanager
+
+    from scripts import benchmark_city
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setattr(benchmark_city, "ROOT", repo)
+    monkeypatch.setattr(benchmark_city, "source_metadata", lambda: {"worktree_dirty": True})
+    seen = []
+    monkeypatch.setattr(benchmark_city, "capture_city", lambda path: seen.append(path) or "capture")
+    monkeypatch.setattr(benchmark_city.LocalCityCapture, "read", lambda self: None)
+
+    @contextmanager
+    def store(url):
+        yield None
+
+    monkeypatch.setattr(benchmark_city, "isolated_store", store)
+    monkeypatch.setattr(benchmark_city, "benchmark_case", lambda *args: {"ok": True})
+    monkeypatch.setattr(
+        benchmark_city.sys, "argv", ["benchmark", "--histories", "1", "--records", "1"]
+    )
+    benchmark_city.main()
+    assert seen == [repo / ".local/benchmarks/raw"]
+    report = json.loads((repo / ".local/benchmarks/city.json").read_text(encoding="utf-8"))
+    assert report["worktree_dirty"] is True
+    assert not (elsewhere / ".local").exists()
