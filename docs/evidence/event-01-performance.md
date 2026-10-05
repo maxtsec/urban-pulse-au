@@ -4,14 +4,14 @@ Progress: [delivery plan](../delivery-plan.md). Recovery design: [ADR 0008](../a
 
 ## Reproduce
 
-Start the local PostGIS service and run from the repository root:
+Start the local PostGIS service and run from the repository root (or invoke the module from an installed checkout):
 
 ```powershell
 docker compose up -d --wait
 uv run --locked python -m scripts.benchmark_city
 ```
 
-The command reads `Settings.database_url`, creates a fresh randomly named `urbanpulse_bench_...` schema, migrates it, and imports only synthetic workloads there. It never activates a city import or migrates the application's schema. Its `finally` block removes only the schema created by that invocation, including when a measurement fails. A forced process kill can leave that temporary schema behind. The database role needs permission to create schemas.
+The command reads `Settings.database_url`, creates a fresh randomly named `urbanpulse_bench_...` schema, migrates it, and imports only synthetic workloads there. Before migration, the harness requires `current_schema()` and the effective search path to identify only its new schema. Migration uses that verified connection; every later store transaction repeats the check. Missing or changed connection options abort before application tables can be written. It never activates a city import or migrates the application's schema. Its `finally` block removes only the schema created by that invocation, including when a measurement fails. A forced process kill can leave that temporary schema behind. The database role needs permission to create schemas.
 
 Default cases combine 1, 10 and 30 planning snapshots with 10 and 100 records per snapshot. Each operation has one warmup and three measured repetitions. Run without concurrent tests or other benchmark jobs. A smaller boundary check is:
 
@@ -19,7 +19,7 @@ Default cases combine 1, 10 and 30 planning snapshots with 10 and 100 records pe
 uv run --locked python -m scripts.benchmark_city --histories 1 3 --records 2 --repeats 1 --output .local/benchmarks/city-small.json
 ```
 
-The default report is `.local/benchmarks/city.json` (ignored by Git). It includes all timing samples, medians/ranges, result fingerprints, workload/capture identities, source hashes and runtime version. It excludes connection URLs, credentials and workstation paths. Bounds are 1–60 snapshots, 1–1000 records, and 1–20 repetitions; larger combinations can take substantially longer.
+The default report is `.local/benchmarks/city.json` (ignored by Git). Capture storage, relative output paths, Git commands and source hashes resolve against repository `ROOT`; absolute output paths remain supported. The report includes all timing samples, medians/ranges, result fingerprints, workload/capture identities, source hashes, runtime version and a `worktree_dirty` flag sampled before measurement. Dirty includes untracked, non-ignored files; filenames and diff contents are not recorded. It excludes connection URLs, credentials and workstation paths. Bounds are 1–60 snapshots, 1–1000 records, and 1–20 repetitions; larger combinations can take substantially longer.
 
 ## Method
 
@@ -36,7 +36,7 @@ A PostGIS adapter is shared within each case, so spatial caches are warm after w
 
 ## Results
 
-Measured locally on 5 October 2026 with Windows and Python 3.12.15. Application baseline: `35a98097858922dc22f4acfe4fdb90668b27a2aa`; benchmark sources are introduced by this PR. Three repetitions per operation, with no concurrent test job. All durations below are milliseconds; cells show median [minimum–maximum].
+Measured locally on 5 October 2026 with Windows and Python 3.12.15. Application baseline: `35a98097858922dc22f4acfe4fdb90668b27a2aa`; benchmark sources were uncommitted during this measurement; production code matched that baseline. The original report predates `worktree_dirty`; future reports record it explicitly. Three repetitions per operation, with no concurrent test job. All durations below are milliseconds; cells show median [minimum–maximum].
 
 | Snapshots × records | Transition clocks | Load | Single snapshot | Composed replay |
 | --- | ---: | ---: | ---: | ---: |
@@ -67,3 +67,5 @@ Incremental reconstruction and input caching are separate candidates. Any cache 
 - Real PostGIS tests cover isolated import/replay without active-import selection and schema cleanup on success or failure.
 - Local checks: Ruff lint/format, mypy, 397 unit/API tests and 2 benchmark PostGIS tests passed.
 - Normal tests assert behavior, not timing thresholds; timing evidence is machine-dependent.
+
+Review regressions: 18 benchmark tests passed, including stripped connection options, changed sessions, off-root paths and clean/dirty Git metadata.

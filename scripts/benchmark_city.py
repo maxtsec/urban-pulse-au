@@ -19,7 +19,8 @@ from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
 
-from sqlalchemy import make_url, text
+from sqlalchemy import event, make_url, text
+from sqlalchemy.engine import Connection
 
 from scripts.benchmark_workload import WORKLOAD_VERSION, planning_history
 from urbanpulse.adapters.city_fixture import LocalCityCapture, capture_city
@@ -28,7 +29,7 @@ from urbanpulse.adapters.city_store import CityInputStore, encode, engine_for, m
 from urbanpulse.adapters.postgis import PostgisMembership
 from urbanpulse.application.city import CapturedCity, CityService
 from urbanpulse.application.composition import ComposedCityService, transition_clocks
-from urbanpulse.config import Settings
+from urbanpulse.config import ROOT, Settings
 from urbanpulse.location.planning import PlanningProjection
 
 
@@ -45,8 +46,19 @@ def isolated_store(database_url: str) -> Iterator[CityInputStore]:
         created = True
         url = make_url(database_url).update_query_dict({"options": f"-csearch_path={schema}"})
         private_url = url.render_as_string(hide_password=False)
-        migrate(private_url)
         engine = engine_for(private_url)
+
+        @event.listens_for(engine, "begin")
+        def verify_schema(connection: Connection) -> None:
+            actual, search_path = connection.execute(
+                text("SELECT current_schema(), current_schemas(false)")
+            ).one()
+            if actual != schema or list(search_path) != [schema]:
+                raise RuntimeError("benchmark schema isolation was not established")
+
+        # Migrate on the verified transaction, not a new unchecked connection.
+        with engine.begin() as connection:
+            migrate(private_url, connection=connection)
         yield CityInputStore(engine)
     finally:
         failed = sys.exc_info()[0] is not None
@@ -160,6 +172,20 @@ def benchmark_case(
     }
 
 
+def source_metadata() -> dict[str, Any]:
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+
+    return {
+        "revision": git("rev-parse", "HEAD"),
+        "worktree_dirty": bool(git("status", "--porcelain")),
+        "benchmark_source_sha256": {
+            name: hashlib.sha256((ROOT / "scripts" / name).read_bytes()).hexdigest()
+            for name in ("benchmark_city.py", "benchmark_workload.py")
+        },
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--histories", nargs="+", type=int, default=[1, 10, 30])
@@ -175,16 +201,13 @@ def main() -> None:
     ):
         parser.error("histories: 1..60; records: 1..1000; repeats: 1..20")
     settings = Settings()
-    capture_path = Path(".local/benchmarks/raw")
+    capture_path = ROOT / ".local/benchmarks/raw"
+    output = ROOT / args.output
+    metadata = source_metadata()
     base = LocalCityCapture(capture_path, capture_city(capture_path)).read()
-    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     report = {
         "workload_version": WORKLOAD_VERSION,
-        "benchmark_source_sha256": {
-            name: hashlib.sha256(Path("scripts", name).read_bytes()).hexdigest()
-            for name in ("benchmark_city.py", "benchmark_workload.py")
-        },
-        "revision": revision,
+        **metadata,
         "measured_at": datetime.now(UTC).isoformat(),
         "python": platform.python_version(),
         "platform": platform.system(),
@@ -206,8 +229,8 @@ def main() -> None:
                 )
                 report["cases"].append(case)
                 print(f"Measured {snapshots} snapshots x {records} records", flush=True)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print("Benchmark report saved; temporary database schema removed")
 
 
