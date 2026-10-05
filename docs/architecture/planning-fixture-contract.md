@@ -36,7 +36,7 @@ Weather and planning share capture timing, canonical payload hashing and an atom
 
 ## Area response and UI
 
-The existing `planning` object retains `state`, `as_of` and `description`, with additive `capture_state` in integrated scenarios. The `city` and `planning-outage` scenarios add current `records`, `unlocated_records`, `removed_records`, snapshot identity/history, last successful receipt, policy identifiers, attribution, projection outcomes and evidence. Original scenarios retain the disconnected planning profile. Weather and transport remain independently replayed in the integrated scenarios.
+The existing `planning` object retains `state`, `as_of` and `description`, with additive `capture_state` in integrated scenarios. The `city` and `planning-outage` scenarios add current `records`, `unlocated_records`, `removed_records`, snapshot identity/history, last successful receipt, policy identifiers, attribution, projection outcomes and evidence. Original scenarios retain the disconnected planning profile. Weather and transport remain independently replayed in the integrated scenarios. A central scenario policy controls included domains and transport empty/outage behavior; snapshot, evidence replay and API validation use that shared definition.
 
 The default **City overview** shows all three domains. Development sites use a separate building marker layer and accessible list with synchronized selection. Original statuses, snapshot dates and receipt times are separate labels. Missing locations never produce invented markers; missing source dates do not become receipt dates. Complete profile coverage can be current while current area conditions remain Unknown, and a planning outage cannot degrade otherwise Normal current conditions.
 
