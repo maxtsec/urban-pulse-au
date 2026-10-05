@@ -1,0 +1,299 @@
+{
+  "mode": "fixture",
+  "description": "Fictional DAM-shaped records and source dates; compressed receipt timeline, not live monthly changes",
+  "outage_at_seconds": 120,
+  "payloads": {
+    "initial": {
+      "event_id": "synthetic-planning-event-1",
+      "revision": 1,
+      "snapshot_id": "synthetic-planning-snapshot-1",
+      "as_of": "2026-09-01T00:00:00Z",
+      "complete": true,
+      "records": [
+        {
+          "development_key": "synthetic-a",
+          "name": "Demo riverside development",
+          "status": "Applied",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.961,
+            "latitude": -37.8225
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-b",
+          "name": "Demo neighbourhood building",
+          "status": "Approved",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.9628,
+            "latitude": -37.8255
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-c",
+          "name": "Demo mixed-use development",
+          "status": "Under construction",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.9595,
+            "latitude": -37.827
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-outside",
+          "name": "Demo outside-area development",
+          "status": "Applied",
+          "clue_small_area": "Melbourne (CBD)",
+          "position": {
+            "longitude": 144.965,
+            "latitude": -37.8
+          },
+          "year_completed": null
+        }
+      ]
+    },
+    "partial": {
+      "event_id": "synthetic-planning-event-2",
+      "revision": 2,
+      "snapshot_id": "synthetic-planning-snapshot-2",
+      "as_of": "2026-10-01T00:00:00Z",
+      "complete": false,
+      "records": [
+        {
+          "development_key": "synthetic-a",
+          "name": "Demo riverside development",
+          "status": "Applied",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.961,
+            "latitude": -37.8225
+          },
+          "year_completed": null
+        }
+      ]
+    },
+    "updated": {
+      "event_id": "synthetic-planning-event-2",
+      "revision": 2,
+      "snapshot_id": "synthetic-planning-snapshot-2",
+      "as_of": "2026-10-01T00:00:00Z",
+      "complete": true,
+      "records": [
+        {
+          "development_key": "synthetic-a",
+          "name": "Demo riverside development",
+          "status": "Approved",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.961,
+            "latitude": -37.8225
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-c",
+          "name": "Demo mixed-use development",
+          "status": "Completed",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.9595,
+            "latitude": -37.827
+          },
+          "year_completed": 2026
+        },
+        {
+          "development_key": "synthetic-outside",
+          "name": "Demo outside-area development",
+          "status": "Applied",
+          "clue_small_area": "Melbourne (CBD)",
+          "position": {
+            "longitude": 144.965,
+            "latitude": -37.8
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-d",
+          "name": "Demo project with missing location",
+          "status": "Proposed by source",
+          "clue_small_area": "Southbank",
+          "position": null,
+          "year_completed": null
+        }
+      ]
+    },
+    "invalid": {
+      "event_id": "synthetic-planning-event-3",
+      "revision": 3,
+      "snapshot_id": "synthetic-planning-snapshot-3",
+      "as_of": "2026-10-02T00:00:00Z",
+      "complete": true,
+      "records": [
+        {
+          "development_key": "synthetic-a",
+          "name": "Demo riverside development",
+          "status": "Approved",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.961,
+            "latitude": -37.8225
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-c",
+          "name": "Demo mixed-use development",
+          "status": "Completed",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.9595,
+            "latitude": -37.827
+          },
+          "year_completed": 2026
+        },
+        {
+          "development_key": "synthetic-outside",
+          "name": "Demo outside-area development",
+          "status": "Applied",
+          "clue_small_area": "Melbourne (CBD)",
+          "position": {
+            "longitude": 144.965,
+            "latitude": -37.8
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-d",
+          "name": "Demo newly located project",
+          "status": "Proposed by source",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.964,
+            "latitude": -37.825
+          },
+          "year_completed": null
+        },
+        null
+      ]
+    },
+    "recovered": {
+      "event_id": "synthetic-planning-event-3",
+      "revision": 3,
+      "snapshot_id": "synthetic-planning-snapshot-3",
+      "as_of": "2026-10-02T00:00:00Z",
+      "complete": true,
+      "records": [
+        {
+          "development_key": "synthetic-a",
+          "name": "Demo riverside development",
+          "status": "Approved",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.961,
+            "latitude": -37.8225
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-c",
+          "name": "Demo mixed-use development",
+          "status": "Completed",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.9595,
+            "latitude": -37.827
+          },
+          "year_completed": 2026
+        },
+        {
+          "development_key": "synthetic-outside",
+          "name": "Demo outside-area development",
+          "status": "Applied",
+          "clue_small_area": "Melbourne (CBD)",
+          "position": {
+            "longitude": 144.965,
+            "latitude": -37.8
+          },
+          "year_completed": null
+        },
+        {
+          "development_key": "synthetic-d",
+          "name": "Demo newly located project",
+          "status": "Proposed by source",
+          "clue_small_area": "Southbank",
+          "position": {
+            "longitude": 144.964,
+            "latitude": -37.825
+          },
+          "year_completed": null
+        }
+      ]
+    }
+  },
+  "frames": [
+    {
+      "id": "synthetic-planning-capture-0",
+      "kind": "capture",
+      "at_seconds": 0,
+      "received_at": "2026-10-04T00:00:00+00:00",
+      "payload_id": "initial"
+    },
+    {
+      "id": "synthetic-planning-redelivery-60",
+      "kind": "redelivery",
+      "at_seconds": 60,
+      "event_id": "synthetic-planning-event-1"
+    },
+    {
+      "id": "synthetic-planning-capture-90",
+      "kind": "capture",
+      "at_seconds": 90,
+      "received_at": "2026-10-04T00:01:30+00:00",
+      "payload_id": "initial"
+    },
+    {
+      "id": "synthetic-planning-capture-120",
+      "kind": "capture",
+      "at_seconds": 120,
+      "received_at": "2026-10-04T00:02:00+00:00",
+      "payload_id": "partial"
+    },
+    {
+      "id": "synthetic-planning-capture-150",
+      "kind": "capture",
+      "at_seconds": 150,
+      "received_at": "2026-10-04T00:02:30+00:00",
+      "payload_id": "updated"
+    },
+    {
+      "id": "synthetic-planning-capture-180",
+      "kind": "capture",
+      "at_seconds": 180,
+      "received_at": "2026-10-04T00:03:00+00:00",
+      "payload_id": "invalid"
+    },
+    {
+      "id": "synthetic-planning-stale-210",
+      "kind": "coverage",
+      "at_seconds": 210,
+      "state": "stale"
+    },
+    {
+      "id": "synthetic-planning-error-240",
+      "kind": "coverage",
+      "at_seconds": 240,
+      "state": "error"
+    },
+    {
+      "id": "synthetic-planning-capture-270",
+      "kind": "capture",
+      "at_seconds": 270,
+      "received_at": "2026-10-04T00:04:30+00:00",
+      "payload_id": "recovered"
+    }
+  ]
+}

@@ -22,6 +22,8 @@ For weather-source evolution: [ADR 0005](adr/0005-weather-source-policy.md) → 
 
 For the integrated weather replay: [CITY-02 walkthrough](demos/city-02.md), [fixture contract](architecture/weather-fixture-contract.md), [ADR 0006](adr/0006-weather-fixture-spatial-and-freshness.md) and [evidence](evidence/city-02-weather.md).
 
+For the planning slice: [ADR 0007](adr/0007-planning-fixture-profile.md), [planning contract](architecture/planning-fixture-contract.md) and [CITY-03 walkthrough](demos/city-03.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -40,6 +42,10 @@ For the integrated weather replay: [CITY-02 walkthrough](demos/city-02.md), [fix
 | [Weather fixture contract](architecture/weather-fixture-contract.md) | Weather payloads, replay, receipt semantics and API additions | Weather contracts or projection behavior changes |
 | [CITY-02 walkthrough](demos/city-02.md) | Integrated weather demo and acceptance cases | Fixture behavior or reproduction steps change |
 | [CITY-02 evidence](evidence/city-02-weather.md) | Dated weather, spatial and browser verification | A new checkpoint is verified |
+| [ADR 0007](adr/0007-planning-fixture-profile.md) | Accepted planning fixture scope, point membership and snapshot absence | Planning policy changes |
+| [Planning fixture contract](architecture/planning-fixture-contract.md) | Snapshot publication, atomic capture/profile semantics and API additions | Planning contracts or projection behavior changes |
+| [CITY-03 walkthrough](demos/city-03.md) | Three-domain fixture demo and planning acceptance cases | Fixture behavior or reproduction steps change |
+| [CITY-03 evidence](evidence/city-03-planning.md) | Dated planning, spatial and browser verification | A new checkpoint is verified |
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |

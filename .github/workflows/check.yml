@@ -42,4 +42,5 @@ jobs:
           path: |
             .local/city01/*.png
             .local/city02/*.png
+            .local/city03/*.png
             apps/web/test-results/

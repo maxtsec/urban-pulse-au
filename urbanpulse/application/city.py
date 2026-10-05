@@ -11,6 +11,8 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 
 from urbanpulse.application.city_replay import ServiceFrame, received, service_at
+from urbanpulse.application.planning import replay_planning
+from urbanpulse.application.planning_replay import PlanningNormalizer, planning_steps
 from urbanpulse.application.weather import replay_weather
 from urbanpulse.application.weather_replay import WeatherNormalizer, weather_evidence
 from urbanpulse.contracts.events import VehiclePositionChanged
@@ -22,7 +24,9 @@ AREA_ID = "au-vic-melbourne-clue-southbank"
 POLICY_VERSION = "southbank-fixture-v1"
 MAX_SECONDS = 360
 MAX_VEHICLES = 100
-SCENARIOS = frozenset({"journey", "empty", "outage", "weather", "weather-outage"})
+SCENARIOS = frozenset(
+    {"journey", "empty", "outage", "weather", "weather-outage", "city", "planning-outage"}
+)
 REQUIRED = frozenset({"transport_service", "weather_warnings"})
 
 
@@ -41,6 +45,7 @@ class CapturedCity:
     boundary: dict[str, Any]
     scenario: dict[str, Any]
     weather: dict[str, Any] | None = None
+    planning: dict[str, Any] | None = None
 
 
 class CityCapture(Protocol):
@@ -57,10 +62,12 @@ class CityService:
         capture: CityCapture,
         spatial: SpatialMembership,
         weather_normalizer: WeatherNormalizer | None = None,
+        planning_normalizer: PlanningNormalizer | None = None,
     ) -> None:
         self.capture = capture
         self.spatial = spatial
         self.weather_normalizer = weather_normalizer
+        self.planning_normalizer = planning_normalizer
 
     @cached_property
     def captured(self) -> CapturedCity:
@@ -167,7 +174,7 @@ class CityService:
         )
         weather = None
         weather_coverage = CoverageState.UNKNOWN
-        if scenario in {"weather", "weather-outage"}:
+        if scenario in {"weather", "weather-outage", "city", "planning-outage"}:
             if captured.weather is None or self.weather_normalizer is None:
                 raise ValueError("weather fixture adapter is not configured")
             weather, weather_facts, weather_coverage = replay_weather(
@@ -180,12 +187,29 @@ class CityService:
                 self.weather_normalizer,
             )
             facts += weather_facts
+        planning: dict[str, Any] = {
+            "state": "unknown",
+            "as_of": None,
+            "description": "Planning data not connected",
+        }
+        if scenario in {"city", "planning-outage"}:
+            if captured.planning is None or self.planning_normalizer is None:
+                raise ValueError("planning fixture adapter is not configured")
+            planning = replay_planning(
+                captured.planning,
+                seconds,
+                at,
+                scenario == "planning-outage",
+                boundary["geometry"],
+                self.spatial,
+                self.planning_normalizer,
+            )
         assessment = assess_area(
             facts=facts,
             coverage=(
                 Coverage("transport_service", transport_coverage),
                 Coverage("weather_warnings", weather_coverage),
-                Coverage("planning", CoverageState.UNKNOWN),
+                Coverage("planning", CoverageState(planning["state"])),
             ),
             required_inputs=REQUIRED,
             at=at,
@@ -199,18 +223,14 @@ class CityService:
             "geometry_url": f"/api/v1/areas/{AREA_ID}/boundaries/{revision}",
             "policy_version": POLICY_VERSION,
             "projection_version": hashlib.sha256(
-                f"city-projection-v5:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
+                f"city-projection-v6:{captured.capture_id}:{revision}:{POLICY_VERSION}".encode()
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},
             "assessment": asdict(assessment),
             "service_evidence": service_evidence,
             "weather": weather,
-            "planning": {
-                "state": "unknown",
-                "as_of": None,
-                "description": "Planning data not connected",
-            },
+            "planning": planning,
             "vehicles": vehicles[:MAX_VEHICLES],
             "positions_total": len(vehicles),
             "positions_limit": MAX_VEHICLES,
@@ -242,7 +262,7 @@ class CityService:
             for frame in self.service_frames
             if received(frame.at_seconds, seconds, scenario, outage_at)
         )
-        if scenario in {"weather", "weather-outage"}:
+        if scenario in {"weather", "weather-outage", "city", "planning-outage"}:
             if captured.weather is None or self.weather_normalizer is None:
                 raise ValueError("weather fixture adapter is not configured")
             at = datetime.fromisoformat(captured.scenario["started_at"]) + timedelta(
@@ -255,6 +275,22 @@ class CityService:
                     at,
                     scenario == "weather-outage",
                     self.weather_normalizer,
+                )
+            )
+        if scenario in {"city", "planning-outage"}:
+            if captured.planning is None or self.planning_normalizer is None:
+                raise ValueError("planning fixture adapter is not configured")
+            at = datetime.fromisoformat(captured.scenario["started_at"]) + timedelta(
+                seconds=seconds
+            )
+            events.extend(
+                step.evidence
+                for step in planning_steps(
+                    captured.planning,
+                    seconds,
+                    at,
+                    scenario == "planning-outage",
+                    self.planning_normalizer,
                 )
             )
         return {

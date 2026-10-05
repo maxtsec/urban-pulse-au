@@ -84,3 +84,8 @@ Implement these cases with CITY-02/CITY-04 under [ADR 0005](adr/0005-weather-sou
 ## Weather fixture verification
 
 CITY-02 regression cases exercise modelled readings without status effects; Advice and higher-severity mapping; exact cancellation/expiry boundaries; unchanged capture receipt versus original warning update times; duplicate/old/conflicting delivery; missing or invalid geography; product completeness; source outage without false recovery; and isolated rewind from retained captures. PostGIS tests cover containment, boundary/vertex contact, holes, MultiPolygon and invalid topology. Browser checks cover map layers, independent transport/weather reasons, lifecycle controls, credit/receipt display, mobile layout and offline fixture execution. See [dated evidence](evidence/city-02-weather.md).
+
+
+## Planning fixture verification
+
+CITY-03 covers atomic complete snapshots, partial/rejected/outage retention, unchanged recapture receipts, source-date ordering, original status preservation, missing coordinates, complete-empty versus missing snapshots, absent/reappearing records and deterministic rewind. Real PostGIS checks included points, edges/vertices and nearby excluded points without a buffer. Browser tests exercise the integrated view, building/list selection, layer visibility, absence history, independent current conditions, source dates, diagnostics/evidence and mobile layout. [Dated evidence](evidence/city-03-planning.md) records actual results.
