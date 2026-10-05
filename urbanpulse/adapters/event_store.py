@@ -5,6 +5,7 @@ import json
 import math
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 from uuid import uuid4
@@ -66,6 +67,12 @@ def values(event: EventReceipt) -> dict[str, Any]:
     }
 
 
+@dataclass(frozen=True)
+class PublicationResult:
+    id: str
+    created: bool
+
+
 class PostgresEventTransaction:
     """Owning SQL repositories can bind to connection; application ports expose no SQL."""
 
@@ -81,13 +88,26 @@ class PostgresEventTransaction:
         *,
         after: str | None = None,
     ) -> str:
+        return self.publish_with_status(context, wire, consumers, after=after).id
+
+    def publish_with_status(
+        self,
+        context: str,
+        wire: str,
+        consumers: Sequence[str],
+        *,
+        after: str | None = None,
+    ) -> PublicationResult:
+        """Expose creation under the publication lock without retaining a caller-side ID list."""
         try:
             return self._publish(context, wire, consumers, after)
         except Exception:
             self.failed = True
             raise
 
-    def _publish(self, context: str, wire: str, consumers: Sequence[str], after: str | None) -> str:
+    def _publish(
+        self, context: str, wire: str, consumers: Sequence[str], after: str | None
+    ) -> PublicationResult:
         validate_key(context)
         if isinstance(consumers, str) or not consumers or len(set(consumers)) != len(consumers):
             raise ValueError("publication requires distinct registered consumers")
@@ -110,7 +130,7 @@ class PostgresEventTransaction:
         if existing is not None:
             if receipt(existing) != incoming or existing["consumers"] != targets:
                 raise PublicationConflict("event identity or registered consumer set changed")
-            return str(existing["id"])
+            return PublicationResult(str(existing["id"]), False)
         aggregate = self.connection.execute(
             select(publications.c.id).where(
                 publications.c.context == context,
@@ -162,7 +182,7 @@ class PostgresEventTransaction:
                 for consumer in sorted(consumers)
             ],
         )
-        return publication_id
+        return PublicationResult(publication_id, True)
 
     def delivery_state(self, publication_id: str, consumer: str) -> str:
         state = self.connection.execute(

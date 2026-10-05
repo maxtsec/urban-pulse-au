@@ -1,10 +1,12 @@
 """Atomic city run staging and reconstruction; event tables remain owned by the queue adapter."""
 
 import json
+from dataclasses import dataclass
 from typing import Any
 
 import psycopg
 from sqlalchemy import select, update
+from sqlalchemy.engine import Connection
 
 from urbanpulse.adapters.city_run_tables import checkpoints, inbox, runs
 from urbanpulse.adapters.city_store import CityInputStore, encode
@@ -24,6 +26,7 @@ from urbanpulse.application.composition import area_event, semantic_state
 from urbanpulse.application.durable_delivery import (
     DeliveryClaim,
     EventTransaction,
+    PublicationConflict,
     StorageUnavailable,
     receipt_from_wire,
     validate_key,
@@ -35,6 +38,59 @@ def context(run_id: str) -> str:
     if len(run_id) > 100:
         raise ValueError("run ID exceeds 100 characters")
     return "city-run:" + run_id
+
+
+@dataclass(frozen=True)
+class CheckpointWork:
+    run: dict[str, Any]
+    checkpoint: dict[str, Any]
+
+
+def next_checkpoint(connection: Connection, run_id: str) -> dict[str, Any] | None:
+    row = (
+        connection.execute(
+            select(checkpoints)
+            .where(checkpoints.c.run_id == run_id, checkpoints.c.status != "complete")
+            .order_by(checkpoints.c.seconds)
+            .limit(1)
+        )
+        .mappings()
+        .one_or_none()
+    )
+    return dict(row) if row is not None else None
+
+
+def delivered_inputs(connection: Connection, run_id: str) -> dict[tuple[str, str], str]:
+    return {
+        (item["source"], item["event_id"]): item["envelope"]
+        for item in connection.execute(
+            select(inbox).where(inbox.c.run_id == run_id, inbox.c.consumer == CONSUMER)
+        ).mappings()
+    }
+
+
+def inputs_ready(transaction: PostgresEventTransaction, row: dict[str, Any]) -> bool:
+    return all(
+        transaction.delivery_state(identity, CONSUMER) == "complete"
+        for identity in json.loads(row["publications"])
+    )
+
+
+def unchanged(transaction: PostgresEventTransaction, work: CheckpointWork) -> bool:
+    """Fence both commits and error reports against another worker/producer's progress."""
+    connection = transaction.connection
+    run_id = work.run["id"]
+    lock(connection, "city-run", run_id)
+    current = (
+        connection.execute(select(runs).where(runs.c.id == run_id).with_for_update())
+        .mappings()
+        .one_or_none()
+    )
+    return (
+        current is not None
+        and dict(current) == work.run
+        and next_checkpoint(connection, run_id) == work.checkpoint
+    )
 
 
 class PostgresCityRuns:
@@ -95,10 +151,25 @@ class PostgresCityRuns:
             return dict(row)
 
     def advance(self, run_id: str, target: int) -> None:
-        model = self.model(self.read_run(run_id))
+        if type(target) is not int:
+            raise ValueError("checkpoint target must be an integer")
+        initial = self.read_run(run_id)
+        if target < initial["target"]:
+            raise ValueError("durable clock cannot rewind")
+        model = self.model(initial)
         values = clocks(model.inputs, target)
-        # Preparation is read-only; publication and the monotonic cursor commit together below.
-        plans = {value: model.plan(value) for value in values}
+        with self.queue.transaction() as transaction:
+            existing = set(
+                transaction.connection.execute(
+                    select(checkpoints.c.seconds).where(checkpoints.c.run_id == run_id)
+                ).scalars()
+            )
+        # Only missing, unfinished clocks need preparation. Recheck after taking the lock.
+        plans = {
+            value: model.plan(value)
+            for value in values
+            if value > initial["completed"] and value not in existing
+        }
         with self.queue.transaction() as transaction:
             connection = transaction.connection
             lock(connection, "city-run", run_id)
@@ -107,6 +178,18 @@ class PostgresCityRuns:
                 .mappings()
                 .one()
             )
+            if any(
+                run[key] != initial[key]
+                for key in (
+                    "scope",
+                    "input_hash",
+                    "scenario",
+                    "boundary_revision",
+                    "rule_version",
+                    "run_version",
+                )
+            ):
+                raise ValueError("run identity changed during preparation")
             if target < run["target"]:
                 raise ValueError("durable clock cannot rewind")
             existing = set(
@@ -134,30 +217,18 @@ class PostgresCityRuns:
 
     def activate(self, transaction: PostgresEventTransaction, run: dict[str, Any]) -> bool:
         connection = transaction.connection
-        row = (
-            connection.execute(
-                select(checkpoints)
-                .where(
-                    checkpoints.c.run_id == run["id"],
-                    checkpoints.c.status != "complete",
-                )
-                .order_by(checkpoints.c.seconds)
-                .limit(1)
-            )
-            .mappings()
-            .one_or_none()
-        )
+        row = next_checkpoint(connection, run["id"])
         if row is None or row["status"] != "scheduled" or row["error"] is not None:
             return False
-        known = json.loads(run["publications"])
         last = run["last_publication"]
         required = []
         for wire in json.loads(row["manifest"]):
-            publication = transaction.publish(context(run["id"]), wire, (CONSUMER,), after=last)
-            required.append(publication)
-            if publication not in known:
-                known.append(publication)
-                last = publication
+            publication = transaction.publish_with_status(
+                context(run["id"]), wire, (CONSUMER,), after=last
+            )
+            required.append(publication.id)
+            if publication.created:
+                last = publication.id
         connection.execute(
             update(checkpoints)
             .where(
@@ -170,7 +241,6 @@ class PostgresCityRuns:
             update(runs)
             .where(runs.c.id == run["id"])
             .values(
-                publications=encode(known),
                 last_publication=last,
             )
         )
@@ -211,86 +281,91 @@ class PostgresCityRuns:
                 raise StorageUnavailable("spatial database unavailable") from error
         return False
 
-    def finish(self, run_id: str) -> bool:
+    def read_work(self, run_id: str) -> CheckpointWork | None:
         with self.queue.transaction() as transaction:
             connection = transaction.connection
-            lock(connection, "city-run", run_id)
-            run = dict(
-                connection.execute(select(runs).where(runs.c.id == run_id).with_for_update())
-                .mappings()
-                .one()
-            )
-            row = (
-                connection.execute(
-                    select(checkpoints)
-                    .where(
-                        checkpoints.c.run_id == run_id,
-                        checkpoints.c.status != "complete",
-                    )
-                    .order_by(checkpoints.c.seconds)
-                    .limit(1)
-                )
-                .mappings()
-                .one_or_none()
-            )
+            connection.exec_driver_sql("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            run = connection.execute(select(runs).where(runs.c.id == run_id)).mappings().one()
+            row = next_checkpoint(connection, run_id)
             if row is None or row["error"] is not None:
-                return False
-            if row["status"] == "scheduled":
-                return self.activate(transaction, run)
-            if any(
-                transaction.delivery_state(identity, CONSUMER) != "complete"
-                for identity in json.loads(row["publications"])
-            ):
-                return False
-            try:
-                model = self.model(run)
-                delivered = {
-                    (item["source"], item["event_id"]): item["envelope"]
-                    for item in connection.execute(
-                        select(inbox).where(inbox.c.run_id == run_id, inbox.c.consumer == CONSUMER)
-                    ).mappings()
-                }
-                view = model.evaluate(row["seconds"], CheckpointPublisher(delivered))
-            except ValueError:
-                connection.execute(
-                    update(checkpoints)
-                    .where(checkpoints.c.run_id == run_id, checkpoints.c.seconds == row["seconds"])
-                    .values(error="checkpoint-reconstruction-unavailable")
-                )
-                return False
+                return None
+            return CheckpointWork(dict(run), row)
+
+    def finish(self, run_id: str) -> bool:
+        work = self.read_work(run_id)
+        if work is None:
+            return False
+        try:
+            if work.checkpoint["status"] == "scheduled":
+                with self.queue.transaction() as transaction:
+                    return unchanged(transaction, work) and self.activate(transaction, work.run)
+            with self.queue.transaction() as transaction:
+                if not inputs_ready(transaction, work.checkpoint):
+                    return False
+                delivered = delivered_inputs(transaction.connection, run_id)
+            # Loading/hash verification, PostGIS and projection work hold no run/queue locks.
+            model = self.model(work.run)
+            view = model.evaluate(work.checkpoint["seconds"], CheckpointPublisher(delivered))
             semantic = encode(semantic_state(view))
-            history = json.loads(run["area_events"])
-            last_result = run["last_result_publication"]
-            if semantic != run["semantic"]:
-                event = area_event(view, len(history) + 1)
-                last_result = transaction.publish(
-                    context(run_id), event.model_dump_json(), (RESULT_CONSUMER,), after=last_result
-                )
+            history = json.loads(work.run["area_events"])
+            event = area_event(view, len(history) + 1) if semantic != work.run["semantic"] else None
+            if event is not None:
                 history.append(event.model_dump(mode="json"))
             view["composition"].update(
                 area_events=history, delivery="postgres-outbox", recovery="durable-city-checkpoint"
             )
-            connection.execute(
-                update(checkpoints)
-                .where(
-                    checkpoints.c.run_id == run_id,
-                    checkpoints.c.seconds == row["seconds"],
+            result = encode(view)
+            with self.queue.transaction() as transaction:
+                connection = transaction.connection
+                if not unchanged(transaction, work) or not inputs_ready(
+                    transaction, work.checkpoint
+                ):
+                    return False
+                if delivered_inputs(connection, run_id) != delivered:
+                    return False
+                last_result = work.run["last_result_publication"]
+                if event is not None:
+                    last_result = transaction.publish(
+                        context(run_id),
+                        event.model_dump_json(),
+                        (RESULT_CONSUMER,),
+                        after=last_result,
+                    )
+                connection.execute(
+                    update(checkpoints)
+                    .where(
+                        checkpoints.c.run_id == run_id,
+                        checkpoints.c.seconds == work.checkpoint["seconds"],
+                    )
+                    .values(status="complete", result=result)
                 )
-                .values(status="complete", result=encode(view))
-            )
-            connection.execute(
-                update(runs)
-                .where(runs.c.id == run_id)
-                .values(
-                    completed=row["seconds"],
+                updated = dict(
+                    completed=work.checkpoint["seconds"],
                     semantic=semantic,
                     last_result_publication=last_result,
                     area_events=encode(history),
                 )
+                connection.execute(update(runs).where(runs.c.id == run_id).values(**updated))
+                self.activate(transaction, {**work.run, **updated})
+            return True
+        except (ValueError, LookupError, TypeError) as error:
+            # Roll back poisoned publication transactions before writing diagnostics.
+            category = (
+                "checkpoint-publication-conflict"
+                if isinstance(error, PublicationConflict)
+                else "checkpoint-reconstruction-unavailable"
             )
-            run.update(completed=row["seconds"], semantic=semantic, area_events=encode(history))
-            self.activate(transaction, run)
-        return True
+            with self.queue.transaction() as transaction:
+                if unchanged(transaction, work):
+                    transaction.connection.execute(
+                        update(checkpoints)
+                        .where(
+                            checkpoints.c.run_id == run_id,
+                            checkpoints.c.seconds == work.checkpoint["seconds"],
+                        )
+                        .values(error=category)
+                    )
+            return False
 
     def inspect(self, run_id: str, seconds: int | None = None) -> dict[str, Any]:
         context(run_id)
@@ -315,7 +390,9 @@ class PostgresCityRuns:
             for row in rows:
                 blocked = [
                     identity
-                    for identity in json.loads(row["publications"])
+                    for identity in (
+                        json.loads(row["publications"]) if row["error"] is None else []
+                    )
                     if row["status"] == "pending"
                     and transaction.delivery_state(identity, CONSUMER) == "dead-letter"
                 ]
