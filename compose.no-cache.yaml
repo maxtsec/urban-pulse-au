@@ -1,0 +1,10 @@
+# Use with compose.yaml and --profile app for a Redis-free fixture demo.
+services:
+  redis:
+    profiles: [cache]
+  api:
+    environment:
+      CACHE_ENABLED: "false"
+    depends_on: !override
+      postgres: {condition: service_healthy}
+      city-init: {condition: service_completed_successfully}

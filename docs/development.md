@@ -41,12 +41,28 @@ npm.cmd --prefix apps/web run dev
 | `http://127.0.0.1:5173`        | Southbank fixture map and area panel through the Vite proxy             |
 | `http://127.0.0.1:8000/docs`   | Generated API documentation                                |
 | `/health/live` on port 8000    | Process liveness with a fixture label                      |
-| `/health/ready` on port 8000   | Checks both PostGIS and Redis; returns 503 if either fails |
+| `/health/ready` on port 8000   | Checks PostGIS and Redis when cache is enabled; dependency failure returns 503 |
 | `/api/v1/fixture` on port 8000 | Reads the static JSON fixture directly                     |
 
-Readiness is separate from the fixture response. The original `/api/v1/fixture` works without databases; `/api/v1/areas/au-vic-melbourne-clue-southbank` requires PostGIS, migrated city tables and an explicitly imported fixture scope. Redis is not used by city queries. The target cache-outage behavior is defined in the [brief](../project_brief.md#8-redis-and-graceful-degradation).
+Readiness is separate from the fixture response. The original `/api/v1/fixture` works without databases; `/api/v1/areas/au-vic-melbourne-clue-southbank` requires PostGIS, migrated city tables and an explicitly imported fixture scope. Redis is not used by city queries. `CACHE_ENABLED` defaults to `true`; with `false`, readiness skips Redis and reports `redis: disabled`, while PostGIS remains required. The target cache-outage behavior is defined in the [brief](../project_brief.md#8-redis-and-graceful-degradation).
 
 VS Code tasks: **Dev: services**, **Dev: API + Web**, **Dev: Dagster**, and **Check**. F5 runs the API debugger. The interpreter is `.venv/Scripts/python.exe`. Markdown preview is **Ctrl+Shift+V**; side-by-side preview is **Ctrl+K V**.
+
+## Run the fixture demo without Redis
+
+For a host-run API, set `CACHE_ENABLED=false` in the local `.env` or process environment and start PostgreSQL. Restart the API after changing deployment settings. Existing city migration/import requirements still apply.
+
+For the Compose app, use the matching configuration so both readiness and startup dependencies omit Redis:
+
+```powershell
+docker compose -f compose.yaml -f compose.no-cache.yaml --profile app up --build -d --wait
+```
+
+The overlay disables cache, removes the API's Redis dependency and puts Redis behind the inactive `cache` profile. It retains PostgreSQL and the initializer dependencies. If Redis from an earlier default stack is already running, stop it separately with `docker compose stop redis`; changing profiles does not stop existing containers. The overlay starts no Redis container on a clean stack. Use the same Compose files for subsequent app commands.
+
+Return to the default enabled mode with `docker compose --profile app up -d --wait`. It starts Redis and recreates the API with cache enabled. Base Compose explicitly sets `CACHE_ENABLED=true`, so changing only the root `.env` does not change its dependency graph; use the overlay for a Redis-free stack.
+
+With cache enabled, a Redis outage makes readiness return 503. With cache disabled, readiness returns 200 with `redis: disabled` only when PostGIS is available. Database outage still makes readiness and city queries return 503; liveness remains 200. Basic readiness does not establish that city imports exist, so hosted deployment must also verify a real city response. No cache-aside or automatic cache fallback is introduced by this switch.
 
 ## City input setup and recovery
 
@@ -61,7 +77,7 @@ The import normalizes the retained synthetic bundle once, atomically saves owned
 
 The city API reads a consistent persisted export and reconstructs request-local projections. Restart requires PostgreSQL and its selected import, not local pointer files, the original fixture payload or normalizers. Old `current-import.json` files are ignored. Missing schema/imports make city endpoints return 503 with setup guidance; database failure never becomes a successful empty city. Retain complete fixture scopes; selective history pruning is unsupported. Alembic downgrade removes the CITY-04 tables and should only be used when intentionally resetting local fixture state.
 
-`/health/ready` checks PostGIS and Redis only, without reading city history. It may return 200 before migration/import while city endpoints return 503. Redis remains outside the city query path.
+`/health/ready` checks PostGIS and the enabled cache, without reading city history. It may return 200 before migration/import while city endpoints return 503. Redis remains outside the city query path.
 
 Before upgrading observation storage, stop old API/import processes, run migration `0003_observation_codec`, and restart with the updated code. Existing valid selections need no reimport. The migration preserves unsupported older normalizer exports and rejects ambiguous or corrupt supported history; [storage compatibility and rollback](architecture/observation-storage.md) explains the checks.
 
@@ -73,7 +89,8 @@ Read [CITY-04](demos/city-04.md) for event/restart verification.
 
 | Setting                                                         | Current consumer and behavior                                                         |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `DATABASE_URL`, `REDIS_URL`                                     | API settings; read environment variables and root `.env`                              |
+| `DATABASE_URL`, `REDIS_URL`                                     | API settings; read environment variables and root `.env`; `REDIS_URL` is unused when cache is disabled |
+| `CACHE_ENABLED` | Defaults to `true`; `false` skips Redis readiness without skipping PostGIS or city import requirements. Invalid boolean values are rejected. Base Compose explicitly enables it; the no-cache overlay disables it. |
 | `RAW_STORAGE_PATH`                                              | City API/worker settings read `.env`; city bundles use `<path>/city`. Original smoke worker uses process environment only; default `.local/raw` |
 | `VITE_API_PROXY`                                                | Vite process environment; defaults to `http://127.0.0.1:8000`                         |
 | `GOOGLE_CLOUD_PROJECT`, `BIGQUERY_DATASET`, `BIGQUERY_LOCATION` | dbt process environment; `.env` is not loaded by dbt                                  |

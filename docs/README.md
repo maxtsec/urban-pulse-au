@@ -89,6 +89,7 @@ For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](ad
 | [Planning copy evidence](evidence/event-01-planning-copy-cost.md) | Immutable retained history, rollback guarantees and before/after measurements | Planning representation or verified performance changes |
 | [ADR 0010: hosted fixture demo](adr/0010-hosted-fixture-demo.md) | Accepted managed hosting/IAP, image identity, deployment and rollback acceptance | Accepted topology or deployment requirements change |
 | [DEMO-01 web packaging evidence](evidence/demo-01-web-build.md) | Static asset target, build-context exclusions and container verification | Web packaging or its verified checks change |
+| [Optional cache evidence](evidence/demo-01-optional-cache.md) | Explicit cache modes, readiness failures and Redis-free Compose verification | Cache mode or its dependency checks change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
