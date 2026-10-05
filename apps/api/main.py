@@ -1,17 +1,33 @@
 """Local environment smoke API; fixture data is always explicitly labelled."""
 
 import json
-from typing import Any
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any, cast
 
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import ValidationError
 from redis import Redis
 from redis.exceptions import RedisError
 
 from apps.api.city import router
 from urbanpulse.config import ROOT, Settings
 
-app = FastAPI(title="UrbanPulse AU", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    try:
+        application.state.settings = Settings()
+    except ValidationError:
+        # ValidationError text includes input values, which may contain credentials.
+        raise RuntimeError(
+            "Invalid application configuration; check environment settings"
+        ) from None
+    yield
+
+
+app = FastAPI(title="UrbanPulse AU", version="0.1.0", lifespan=lifespan)
 app.include_router(router)
 
 
@@ -21,8 +37,8 @@ def live() -> dict[str, str]:
 
 
 @app.get("/health/ready")
-def ready() -> dict[str, str]:
-    settings = Settings()
+def ready(request: Request) -> dict[str, str]:
+    settings = cast(Settings, request.app.state.settings)
     try:
         with psycopg.connect(settings.database_url, connect_timeout=3) as connection:
             connection.execute("SELECT PostGIS_Version()").fetchone()

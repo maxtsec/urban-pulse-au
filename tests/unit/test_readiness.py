@@ -1,5 +1,9 @@
 """Basic API readiness is independent of city fixture import and reconstruction."""
 
+import os
+import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import psycopg
@@ -101,3 +105,52 @@ def test_enabled_cache_ping_failure_is_not_ready(monkeypatch, failure):
         response = client.get("/health/ready")
         assert response.status_code == 503
         assert response.json() == {"detail": "Local dependencies are unavailable"}
+
+
+def test_invalid_cache_configuration_stops_startup_before_dependency_checks(monkeypatch):
+    monkeypatch.setenv("CACHE_ENABLED", "disabled")
+    postgres, redis = MagicMock(), MagicMock()
+    monkeypatch.setattr("apps.api.main.psycopg.connect", postgres)
+    monkeypatch.setattr("apps.api.main.Redis.from_url", redis)
+    with pytest.raises(RuntimeError, match="Invalid application configuration"):
+        with TestClient(app):
+            pytest.fail("invalid settings must not start the application")
+    postgres.assert_not_called()
+    redis.assert_not_called()
+
+
+def test_readiness_reuses_settings_validated_at_startup(monkeypatch):
+    settings = MagicMock(return_value=Settings(_env_file=None, cache_enabled=False))
+    monkeypatch.setattr("apps.api.main.Settings", settings)
+    monkeypatch.setattr("apps.api.main.psycopg.connect", MagicMock())
+    with TestClient(app) as client:
+        for _ in range(2):
+            assert client.get("/health/ready").json()["redis"] == "disabled"
+    settings.assert_called_once_with()
+
+
+def test_uvicorn_exits_on_invalid_configuration_without_logging_input_values():
+    invalid = "synthetic-sensitive-invalid-value"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "apps.api.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "0",
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        env={**os.environ, "CACHE_ENABLED": invalid},
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "Invalid application configuration" in output
+    assert "Application startup failed" in output
+    assert invalid not in output
+    assert "ValidationError" not in output
