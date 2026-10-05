@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).parents[2]
@@ -64,12 +65,13 @@ def test_only_publish_job_requests_oidc_and_authentication_follows_build_and_smo
     assert steps[auth]["with"]["access_token_lifetime"] == "900s"
 
 
-def test_publishing_actions_are_pinned_and_checkout_does_not_persist_credentials():
-    for job in workflow("images")["jobs"].values():
+@pytest.mark.parametrize("name", ["images", "check"])
+def test_actions_are_pinned_in_publishing_and_its_verification_gate(name):
+    for job in workflow(name)["jobs"].values():
         for step in job.get("steps", []):
             if "uses" in step:
                 assert re.fullmatch(r"[\w-]+/[\w-]+@[0-9a-f]{40}", step["uses"])
-                if step["uses"].startswith("actions/checkout@"):
+                if name == "images" and step["uses"].startswith("actions/checkout@"):
                     assert step["with"]["persist-credentials"] == "false"
 
 

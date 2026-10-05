@@ -203,3 +203,43 @@ def test_manifest_output_is_deterministic_and_round_trips(tmp_path: Path):
     publication.write_json(target, publication.assemble(BUILD, [record("web"), record("api")]))
     assert target.read_bytes() == first
     assert json.loads(first) == value
+
+
+def test_assembly_appends_both_immutable_references_to_run_summary(tmp_path, monkeypatch):
+    summary = tmp_path / "summary.md"
+    summary.write_text("Existing summary\n", encoding="utf-8")
+    directory = tmp_path / "records"
+    web = publication.component_record(
+        BUILD, "web", f"{BUILD.image_repository}/web@sha256:" + "e" * 64
+    )
+    for component, value in [("api", record("api")), ("web", web)]:
+        publication.write_json(directory / f"{component}.json", value)
+    for name, value in environment().items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.setattr("sys.argv", ["publication", "assemble", "--directory", str(directory)])
+    publication.main()
+    output = summary.read_text(encoding="utf-8")
+    assert output.startswith("Existing summary\n")
+    assert BUILD.source_sha in output
+    assert record("api")["reference"] in output
+    assert web["reference"] in output
+    assert CONFIG_ID not in output
+    assert json.loads((directory / "image-publication.json").read_text()) == publication.assemble(
+        BUILD, [record("api"), web]
+    )
+
+
+def test_invalid_assembly_does_not_write_a_success_summary(tmp_path, monkeypatch):
+    summary = tmp_path / "summary.md"
+    for component in ["api", "web"]:
+        build = BUILD if component == "api" else replace(BUILD, run_attempt="1")
+        publication.write_json(tmp_path / f"{component}.json", record(component, build))
+    for name, value in environment().items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.setattr("sys.argv", ["publication", "assemble", "--directory", str(tmp_path)])
+    with pytest.raises(ValueError, match="source, run and attempt"):
+        publication.main()
+    assert not summary.exists()
+    assert not (tmp_path / "image-publication.json").exists()

@@ -244,6 +244,11 @@ def main() -> None:
         records = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
         manifest = assemble(build, records)
         write_json(args.directory / "image-publication.json", manifest)
+        if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
+            with Path(summary_path).open("a", encoding="utf-8") as summary:
+                summary.write(f"Source commit: `{build.source_sha}`\n\n")
+                for component, image in sorted(manifest["images"].items()):
+                    summary.write(f"- **{component}**: `{image['reference']}`\n")
         print(f"Verified API and web publication for {build.source_sha}")
         return
     if args.component is None:
