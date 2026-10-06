@@ -24,3 +24,5 @@ Validation passed: **495 unit tests**, **160 integration tests**, Ruff lint/form
 The existing real-entrypoint role test also covers a complete durable worker replay and matching read-only API snapshots. Reproduce against an isolated local PostGIS server with `uv run pytest -m integration -q tests/integration/test_api_pool.py tests/integration/test_demo_database.py`. No cloud credentials are required.
 
 Managed Cloud Run saturation/overlap, service-identity authentication and bounded Job execution remain separate deployment checks. No cloud resources or SQL grants are changed by this implementation.
+
+Deployment follow-up: [probe wiring and checkout tuning](../architecture/demo-cloud-resource-plan.md#probe-wiring-and-checkout-tuning) requires startup `/health/ready`, liveness `/health/live`, and managed concurrency-4 measurements before choosing the final checkout wait. The local pass does not establish a managed p95 or demonstrate that one second is sufficient there.
