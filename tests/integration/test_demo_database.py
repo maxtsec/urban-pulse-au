@@ -27,7 +27,7 @@ pytestmark = pytest.mark.integration
 
 
 @contextmanager
-def provision_database():
+def provision_database(*, migrate_schema=True):
     original = os.environ.get(
         "URBANPULSE_TEST_DATABASE_URL",
         "postgresql://urbanpulse:urbanpulse_local@127.0.0.1:5432/urbanpulse",
@@ -48,11 +48,12 @@ def provision_database():
             .render_as_string(hide_password=False)
             for purpose, name in role_names(prefix).items()
         }
-        with psycopg.connect(urls["migrate"], connect_timeout=3) as migration:
-            configure_defaults(migration, database=database, prefix=prefix)
-        invoke(urls["migrate"], "urbanpulse.adapters.city_store", "migrate")
-        with psycopg.connect(urls["migrate"], connect_timeout=3) as migration:
-            grant_access(migration, database=database, prefix=prefix)
+        if migrate_schema:
+            with psycopg.connect(urls["migrate"], connect_timeout=3) as migration:
+                configure_defaults(migration, database=database, prefix=prefix)
+            invoke(urls["migrate"], "urbanpulse.adapters.city_store", "migrate")
+            with psycopg.connect(urls["migrate"], connect_timeout=3) as migration:
+                grant_access(migration, database=database, prefix=prefix)
         yield database, prefix, url, urls
     finally:
         # Only this test's random database and roles; never drop the caller's database.

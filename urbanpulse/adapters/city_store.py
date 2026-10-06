@@ -282,6 +282,12 @@ class CityInputStore:
                 self._activate(connection, activate, scope)
         return scope
 
+    def select_import(self, scope: str, name: str = "city-fixture") -> None:
+        """Verify retained immutable inputs before publishing the active pointer."""
+        self.load(scope)
+        with self.engine.begin() as connection:
+            self._activate(connection, name, scope)
+
     @staticmethod
     def _activate(connection: Connection, name: str, scope: str) -> None:
         statement = pg_insert(active_imports).values(name=name, scope=scope)

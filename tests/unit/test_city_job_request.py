@@ -33,7 +33,7 @@ def test_already_cancelled_job_does_not_start_a_process(monkeypatch):
     def forbidden(*args):
         pytest.fail("cancelled invocation must not spawn work")
 
-    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", forbidden)
+    monkeypatch.setattr("workers.job_runtime.multiprocessing.get_context", forbidden)
     stop = threading.Event()
     stop.set()
     assert supervise(JobRequest("demo", "a" * 64, "city", 0), stop) == "interrupted"
@@ -43,7 +43,7 @@ def test_child_returns_only_redacted_configuration_failure(monkeypatch):
     monkeypatch.setenv("CACHE_ENABLED", "synthetic-sensitive-invalid-value")
     output = MagicMock()
     child(JobRequest("demo", "a" * 64, "city", 0), 0, output)
-    output.send.assert_called_once_with("invalid-configuration")
+    output.send.assert_called_once_with({"status": "invalid-configuration"})
     output.close.assert_called_once_with()
 
 
@@ -56,9 +56,9 @@ def test_finished_child_result_wins_over_late_parent_observation(monkeypatch, re
     process.is_alive.return_value = False
     process.exitcode = 0
     incoming.poll.return_value = True
-    incoming.recv.return_value = result
-    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", lambda _: runtime)
-    monkeypatch.setattr("workers.city.job.time.monotonic", MagicMock(side_effect=[0, 541]))
+    incoming.recv.return_value = {"status": result}
+    monkeypatch.setattr("workers.job_runtime.multiprocessing.get_context", lambda _: runtime)
+    monkeypatch.setattr("workers.job_runtime.time.monotonic", MagicMock(side_effect=[0, 541]))
     assert supervise(JobRequest("demo", "a" * 64, "city", 0), threading.Event()) == result
     process.terminate.assert_not_called()
     incoming.close.assert_called_once()
@@ -74,8 +74,8 @@ def test_expired_job_without_a_readable_result_is_still_timeout(monkeypatch, has
     process.exitcode = 0
     incoming.poll.return_value = has_result
     incoming.recv.side_effect = EOFError
-    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", lambda _: runtime)
-    monkeypatch.setattr("workers.city.job.time.monotonic", MagicMock(side_effect=[0, 541]))
+    monkeypatch.setattr("workers.job_runtime.multiprocessing.get_context", lambda _: runtime)
+    monkeypatch.setattr("workers.job_runtime.time.monotonic", MagicMock(side_effect=[0, 541]))
     assert (
         supervise(JobRequest("demo", "a" * 64, "city", 0), threading.Event()) == "deadline-exceeded"
     )
@@ -89,8 +89,8 @@ def test_child_exit_during_deadline_check_preserves_its_result(monkeypatch):
     process.is_alive.side_effect = [True, False, False, False]
     process.exitcode = 0
     incoming.poll.return_value = True
-    incoming.recv.return_value = "complete"
-    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", lambda _: runtime)
-    monkeypatch.setattr("workers.city.job.time.monotonic", MagicMock(side_effect=[0, 541]))
+    incoming.recv.return_value = {"status": "complete"}
+    monkeypatch.setattr("workers.job_runtime.multiprocessing.get_context", lambda _: runtime)
+    monkeypatch.setattr("workers.job_runtime.time.monotonic", MagicMock(side_effect=[0, 541]))
     assert supervise(JobRequest("demo", "a" * 64, "city", 0), threading.Event()) == "complete"
     process.terminate.assert_not_called()
