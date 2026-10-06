@@ -79,16 +79,39 @@ def test_real_migration_repeat_and_import_are_safe_and_runtime_readable(initiali
             connection.execute("DELETE FROM city04_imports WHERE false")
 
 
-def test_import_identity_mismatch_preserves_active_pointer(initialized):
-    _, _, admin, _ = initialized
-    assert run_job(initialized, "import")[0] == 0
-    with psycopg.connect(admin) as connection:
-        before = connection.execute("SELECT * FROM city04_active_imports").fetchall()
-    code, result = run_job(initialized, "import", **{"expected-import-id": "0" * 64})
-    assert code != 0
-    assert result["status"] == "invalid-run-or-inputs"
-    with psycopg.connect(admin) as connection:
-        assert connection.execute("SELECT * FROM city04_active_imports").fetchall() == before
+@pytest.mark.parametrize("selected", [False, True])
+def test_import_identity_mismatch_writes_no_history_or_pointer(selected, tmp_path):
+    with provision_database() as provisioned:
+        _, _, admin, urls = provisioned
+        if selected:
+            captured = LocalCityCapture(tmp_path, capture_city(tmp_path)).read()
+            previous = replace(captured, capture_id=uuid4().hex * 2)
+            engine = engine_for(urls["import"])
+            try:
+                store = CityInputStore(engine)
+                scope = store.save(
+                    previous,
+                    prepare_import(previous, PostgisMembership(urls["import"], engine=engine)),
+                )
+                store.select_import(scope)
+            finally:
+                engine.dispose()
+
+        tables = ["city04_imports", "city04_active_imports"] + [
+            f"city04_{owner}_{kind}"
+            for owner in ("transport", "weather", "planning")
+            for kind in ("revisions", "observations")
+        ]
+        with psycopg.connect(admin) as connection:
+            before = {
+                table: connection.execute(f"SELECT * FROM {table}").fetchall() for table in tables
+            }
+        code, result = run_job(provisioned, "import", **{"expected-import-id": "0" * 64})
+        assert code != 0
+        assert result["status"] == "invalid-run-or-inputs"
+        with psycopg.connect(admin) as connection:
+            for table in tables:
+                assert connection.execute(f"SELECT * FROM {table}").fetchall() == before[table]
 
 
 @pytest.mark.parametrize("operation", ["migrate", "import"])

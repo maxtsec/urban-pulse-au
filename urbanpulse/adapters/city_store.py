@@ -215,6 +215,11 @@ class DomainExport:
         ]
 
 
+def import_identity(capture_id: str) -> str:
+    """Identify an import before normalization or persistence."""
+    return payload_hash([capture_id, NORMALIZER_VERSION])
+
+
 class CityInputStore:
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
@@ -226,7 +231,7 @@ class CityInputStore:
         *,
         activate: str | None = None,
     ) -> str:
-        scope = payload_hash([captured.capture_id, NORMALIZER_VERSION])
+        scope = import_identity(captured.capture_id)
         info = {
             "boundary": captured.boundary,
             "scenario": {

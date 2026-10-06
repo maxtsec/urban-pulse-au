@@ -15,7 +15,7 @@ from alembic.script import ScriptDirectory
 
 from urbanpulse.adapters.city_fixture import LocalCityCapture, capture_city
 from urbanpulse.adapters.city_import import prepare_import
-from urbanpulse.adapters.city_store import CityInputStore, migrate
+from urbanpulse.adapters.city_store import CityInputStore, import_identity, migrate
 from urbanpulse.adapters.demo_database import (
     EXPECTED_REVISION,
     configure_defaults,
@@ -82,12 +82,16 @@ def execute(request: InitializationRequest) -> dict[str, str]:
         with tempfile.TemporaryDirectory(prefix="urbanpulse-import-") as temporary:
             directory = Path(temporary)
             captured = LocalCityCapture(directory, capture_city(directory)).read()
+            expected_scope = import_identity(captured.capture_id)
+            if (
+                request.expected_import_id is not None
+                and expected_scope != request.expected_import_id
+            ):
+                raise ValueError("import differs from requested identity")
             store = CityInputStore(database.engine)
             scope = store.save(
                 captured, prepare_import(captured, PostgisMembership(url, engine=database.engine))
             )
-            if request.expected_import_id is not None and scope != request.expected_import_id:
-                raise ValueError("import differs from requested identity")
             store.select_import(scope)
             if store.active_scope() != scope:
                 raise ValueError("active fixture selection differs from verified import")
