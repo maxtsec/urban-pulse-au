@@ -10,8 +10,10 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import ValidationError
 from redis import Redis
 from redis.exceptions import RedisError
+from sqlalchemy.exc import SQLAlchemyError
 
 from apps.api.city import router
+from apps.api.database import ApiDatabase
 from urbanpulse.config import ROOT, Settings
 
 
@@ -19,12 +21,16 @@ from urbanpulse.config import ROOT, Settings
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
         application.state.settings = Settings()
-    except ValidationError:
+        application.state.database = ApiDatabase(application.state.settings.database_url)
+    except (ValidationError, SQLAlchemyError, ValueError):
         # ValidationError text includes input values, which may contain credentials.
         raise RuntimeError(
             "Invalid application configuration; check environment settings"
         ) from None
-    yield
+    try:
+        yield
+    finally:
+        application.state.database.close()
 
 
 app = FastAPI(title="UrbanPulse AU", version="0.1.0", lifespan=lifespan)
@@ -40,9 +46,8 @@ def live() -> dict[str, str]:
 def ready(request: Request) -> dict[str, str]:
     settings = cast(Settings, request.app.state.settings)
     try:
-        with psycopg.connect(settings.database_url, connect_timeout=3) as connection:
-            connection.execute("SELECT PostGIS_Version()").fetchone()
-    except (psycopg.Error, OSError) as exc:
+        cast(ApiDatabase, request.app.state.database).probe()
+    except (psycopg.Error, SQLAlchemyError, OSError) as exc:
         raise HTTPException(status_code=503, detail="PostGIS is unavailable") from exc
     if settings.cache_enabled:
         try:

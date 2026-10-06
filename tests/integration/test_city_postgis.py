@@ -55,7 +55,7 @@ def test_invalid_or_wrong_geometry_is_rejected(spatial, geometry):
 
 def test_capture_projection_api_uses_real_membership_and_clock(monkeypatch, capture, spatial):
     service = CityService(capture, spatial)
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service)
     with TestClient(app) as client:
         initial = client.get(f"/api/v1/areas/{AREA_ID}").json()
         moved = client.get(f"/api/v1/areas/{AREA_ID}?seconds=60").json()
@@ -124,7 +124,7 @@ def test_spatial_cache_reuses_identical_input_but_rechecks_new_geometry(
 
 def test_real_api_outage_keeps_known_fact_past_unreceived_resolution(monkeypatch, capture, spatial):
     service = CityService(capture, spatial)
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service)
     with TestClient(app) as client:
         before = client.get(f"/api/v1/areas/{AREA_ID}?seconds=60").json()
         outage = client.get(f"/api/v1/areas/{AREA_ID}?seconds=200&scenario=outage").json()

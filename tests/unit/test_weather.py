@@ -113,7 +113,7 @@ def test_outage_retains_known_warning_until_expiry_without_future_cancellation(
 
 def test_replay_clock_is_isolated_and_evidence_does_not_leak_future(captured, monkeypatch):
     city = service(captured)
-    monkeypatch.setattr("apps.api.city.city_service", lambda: city)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: city)
     with TestClient(app) as client:
         initial = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=30").json()
         client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=360")
@@ -268,7 +268,7 @@ def test_weather_evidence_does_not_require_spatial_service_or_projections(captur
             raise psycopg.OperationalError("private details")
 
     city = service(captured, Broken())
-    monkeypatch.setattr("apps.api.city.city_service", lambda: city)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: city)
     with TestClient(app) as client:
         area = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=60")
         assert area.status_code == 503 and "private" not in area.text
@@ -315,7 +315,7 @@ def test_broken_fixture_references_are_503_but_unknown_capture_is_404(
         captured.weather["frames"][3]["event_id"] = "private-missing-event"
     else:
         del captured.scenario["service_stop"]
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service(captured))
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service(captured))
     with TestClient(app) as client:
         area = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=120")
         evidence = client.get(
@@ -354,7 +354,7 @@ def test_non_object_warning_rejects_whole_capture_in_area_and_evidence(
 ):
     records = captured.weather["payloads"]["cancel"]
     records.insert(0 if first else len(records), invalid)
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service(captured))
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service(captured))
     with TestClient(app) as client:
         response = client.get(f"/api/v1/areas/{AREA_ID}?scenario=weather&seconds=150")
         assert response.status_code == 200

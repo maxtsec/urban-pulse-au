@@ -1,17 +1,31 @@
 """Bounded memoization of fixture geometry/point checks against real PostGIS."""
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 import psycopg
+from sqlalchemy.engine import Engine
 
 
 class PostgisMembership:
-    def __init__(self, database_url: str) -> None:
+    def __init__(self, database_url: str, *, engine: Engine | None = None) -> None:
         self.database_url = database_url
+        self.engine = engine
         self._cached_overlap = lru_cache(maxsize=64)(self._query_overlap)
         self._cached_covers = lru_cache(maxsize=32)(self._query_covers)
+
+    @contextmanager
+    def _connection(self) -> Iterator[psycopg.Connection[Any]]:
+        if self.engine is None:
+            with psycopg.connect(self.database_url, connect_timeout=3) as connection:
+                yield connection
+        else:
+            # The engine owns checkout and transaction cleanup; never close its raw driver.
+            with self.engine.begin() as pooled:
+                yield cast(psycopg.Connection[Any], pooled.connection.driver_connection)
 
     def covers(self, geometry: dict[str, Any], points: list[tuple[float, float]]) -> list[bool]:
         encoded = json.dumps(geometry, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -21,7 +35,7 @@ class PostgisMembership:
         self, encoded: str, points: tuple[tuple[float, float], ...]
     ) -> tuple[bool, ...]:
         # Only geometry/point results are cached, never time-dependent conditions or DB failures.
-        with psycopg.connect(self.database_url, connect_timeout=3) as connection:
+        with self._connection() as connection:
             connection.execute("SET LOCAL statement_timeout = '3000ms'")
             row = connection.execute(
                 """WITH boundary AS MATERIALIZED (
@@ -54,7 +68,7 @@ class PostgisMembership:
         return self._cached_overlap(*encoded)
 
     def _query_overlap(self, area: str, warning: str) -> bool | None:
-        with psycopg.connect(self.database_url, connect_timeout=3) as connection:
+        with self._connection() as connection:
             connection.execute("SET LOCAL statement_timeout = '3000ms'")
             row = connection.execute(
                 """WITH shapes AS MATERIALIZED (

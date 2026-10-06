@@ -22,7 +22,7 @@ def isolated_settings(monkeypatch):
 
 
 def test_ready_does_not_load_city_history_and_smoke_fixture_still_works(monkeypatch):
-    monkeypatch.setattr("apps.api.main.psycopg.connect", MagicMock())
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", MagicMock())
     monkeypatch.setattr("apps.api.main.Redis.from_url", MagicMock())
 
     class EmptyStore:
@@ -32,7 +32,7 @@ def test_ready_does_not_load_city_history_and_smoke_fixture_still_works(monkeypa
         def load(self, scope):
             pytest.fail("readiness must not load city history")
 
-    monkeypatch.setattr("apps.api.city.input_store", lambda: EmptyStore())
+    monkeypatch.setattr("apps.api.city.input_store", lambda request: EmptyStore())
     with TestClient(app) as client:
         assert client.get("/health/ready").json() == {
             "status": "ok",
@@ -50,7 +50,7 @@ def test_dependency_failure_is_still_not_ready(monkeypatch, dependency):
         side_effect=psycopg.OperationalError() if dependency == "postgres" else None
     )
     redis = MagicMock(side_effect=RedisError() if dependency == "redis" else None)
-    monkeypatch.setattr("apps.api.main.psycopg.connect", postgres)
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", postgres)
     monkeypatch.setattr("apps.api.main.Redis.from_url", redis)
     with TestClient(app) as client:
         assert client.get("/health/ready").status_code == 503
@@ -60,9 +60,9 @@ def test_dependency_failure_is_still_not_ready(monkeypatch, dependency):
 def test_postgis_query_failure_is_not_ready_in_either_mode(monkeypatch, cache_enabled):
     monkeypatch.setenv("CACHE_ENABLED", cache_enabled)
     postgres = MagicMock()
-    postgres.return_value.__enter__.return_value.execute.side_effect = psycopg.OperationalError()
+    postgres.side_effect = psycopg.OperationalError()
     redis = MagicMock()
-    monkeypatch.setattr("apps.api.main.psycopg.connect", postgres)
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", postgres)
     monkeypatch.setattr("apps.api.main.Redis.from_url", redis)
     with TestClient(app) as client:
         response = client.get("/health/ready")
@@ -77,7 +77,7 @@ def test_disabled_cache_never_constructs_redis_client(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "unused-even-if-invalid")
     postgres = MagicMock()
     redis = MagicMock(side_effect=AssertionError("Redis must not be contacted"))
-    monkeypatch.setattr("apps.api.main.psycopg.connect", postgres)
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", postgres)
     monkeypatch.setattr("apps.api.main.Redis.from_url", redis)
     with TestClient(app) as client:
         response = client.get("/health/ready")
@@ -89,9 +89,7 @@ def test_disabled_cache_never_constructs_redis_client(monkeypatch):
             "mode": "fixture",
         }
         assert client.get("/api/v1/fixture").status_code == 200
-    postgres.return_value.__enter__.return_value.execute.assert_called_once_with(
-        "SELECT PostGIS_Version()"
-    )
+    postgres.assert_called_once_with()
     redis.assert_not_called()
 
 
@@ -99,7 +97,7 @@ def test_disabled_cache_never_constructs_redis_client(monkeypatch):
 def test_enabled_cache_ping_failure_is_not_ready(monkeypatch, failure):
     redis = MagicMock()
     redis.return_value.__enter__.return_value.ping.side_effect = failure
-    monkeypatch.setattr("apps.api.main.psycopg.connect", MagicMock())
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", MagicMock())
     monkeypatch.setattr("apps.api.main.Redis.from_url", redis)
     with TestClient(app) as client:
         response = client.get("/health/ready")
@@ -110,7 +108,7 @@ def test_enabled_cache_ping_failure_is_not_ready(monkeypatch, failure):
 def test_invalid_cache_configuration_stops_startup_before_dependency_checks(monkeypatch):
     monkeypatch.setenv("CACHE_ENABLED", "disabled")
     postgres, redis = MagicMock(), MagicMock()
-    monkeypatch.setattr("apps.api.main.psycopg.connect", postgres)
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", postgres)
     monkeypatch.setattr("apps.api.main.Redis.from_url", redis)
     with pytest.raises(RuntimeError, match="Invalid application configuration"):
         with TestClient(app):
@@ -122,14 +120,15 @@ def test_invalid_cache_configuration_stops_startup_before_dependency_checks(monk
 def test_readiness_reuses_settings_validated_at_startup(monkeypatch):
     settings = MagicMock(return_value=Settings(_env_file=None, cache_enabled=False))
     monkeypatch.setattr("apps.api.main.Settings", settings)
-    monkeypatch.setattr("apps.api.main.psycopg.connect", MagicMock())
+    monkeypatch.setattr("apps.api.main.ApiDatabase.probe", MagicMock())
     with TestClient(app) as client:
         for _ in range(2):
             assert client.get("/health/ready").json()["redis"] == "disabled"
     settings.assert_called_once_with()
 
 
-def test_uvicorn_exits_on_invalid_configuration_without_logging_input_values():
+@pytest.mark.parametrize("setting", ["CACHE_ENABLED", "DATABASE_URL"])
+def test_uvicorn_exits_on_invalid_configuration_without_logging_input_values(setting):
     invalid = "synthetic-sensitive-invalid-value"
     result = subprocess.run(
         [
@@ -143,7 +142,7 @@ def test_uvicorn_exits_on_invalid_configuration_without_logging_input_values():
             "0",
         ],
         cwd=Path(__file__).resolve().parents[2],
-        env={**os.environ, "CACHE_ENABLED": invalid},
+        env={**os.environ, setting: invalid},
         capture_output=True,
         text=True,
         timeout=15,

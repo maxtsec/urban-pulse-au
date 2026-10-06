@@ -106,7 +106,7 @@ def test_geometry_revision_ignores_metadata_and_detects_coordinate_changes(captu
 @pytest.fixture
 def client(monkeypatch, captured):
     service = CityService(MemoryCapture(captured), FixedMembership())
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service)
     with TestClient(app) as client:
         yield client
 
@@ -140,7 +140,7 @@ def test_unavailable_spatial_service_is_503_without_leaking_details(monkeypatch,
             raise OSError("private connection details")
 
     service = CityService(MemoryCapture(captured), FailedMembership())
-    monkeypatch.setattr("apps.api.city.city_service", lambda: service)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service)
     with TestClient(app) as client:
         response = client.get(f"/api/v1/areas/{AREA_ID}")
     assert response.status_code == 503
