@@ -4,6 +4,8 @@ Verified: 6 October 2026 (Australia/Sydney). Procedure: [initialization Jobs](..
 
 Validation passed: **520 unit tests**, **180 PostGIS integration tests**, Ruff lint/format, strict mypy over **61 source files**, and **603 relative documentation links**. The 11 initialization cases were rerun from roles/PostGIS only after removing prerequisite default-grant setup from the test helper. Real Compose smoke passed under `python -O`, including shared-supervisor worker execution and isolated resource cleanup. Separately, the built Linux application image completed migration, import and a worker target of 360 using the corresponding restricted logins; migration/import were also repeated from a fresh roles/PostGIS-only database.
 
+Import-identity regression verification: 520 unit tests and 54 targeted real-PostGIS tests passed after moving the identity check before persistence, with Ruff and strict mypy passing. The targeted set includes initialization (12 cases), city input storage, finite worker jobs and restricted database access. Both new mismatch cases reproduced unwanted rows before the fix and now leave all retained rows unchanged.
+
 The integration module `tests/integration/test_initialization_jobs.py` runs the actual finite CLI in child processes against disposable PostGIS databases with independently generated migration/import/worker/runtime SQL logins. It starts from PostGIS and roles only, so all seven migrations and grants are exercised through the new entrypoint.
 
 | Case | Observed result |
@@ -13,7 +15,7 @@ The integration module `tests/integration/test_initialization_jobs.py` runs the 
 | Incorrect identity | Wrong database, SQL role or revision exits nonzero |
 | Shared mutation lane | Migration and import both refuse while a worker session holds the lock |
 | Grant failure | Unexpected table stops grant refresh and rolls back all seven migrations; removing the test obstacle permits retry |
-| Import identity mismatch | Incorrect requested hash fails without changing the active pointer |
+| Import identity mismatch | Incorrect requested hash fails before persistence; both an empty database and a database with a different selected import retain exactly the same import, revision, observation and pointer rows |
 | Hard deadline | A blocked real SQL read is terminated; active selection is preserved and a later invocation succeeds |
 | Invalid staged history | Corrupted unselected history fails verification and cannot replace the active import |
 
