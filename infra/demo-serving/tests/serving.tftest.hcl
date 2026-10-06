@@ -94,14 +94,25 @@ run "protected_named_operator_stage" {
     condition = (
       toset(google_cloud_run_v2_service.demo.template[0].volumes[0].cloud_sql_instance[0].instances) == toset([var.foundation.database_connection_name]) &&
       alltrue([for c in google_cloud_run_v2_service.demo.template[0].containers : c.name == "api" ? (
-        c.volume_mounts[0].mount_path == "/cloudsql" &&
         one([for e in c.env : e if e.name == "DATABASE_URL"]).value_source[0].secret_key_ref[0].secret == var.foundation.database_secret_ids.runtime &&
         one([for e in c.env : e if e.name == "DATABASE_URL"]).value_source[0].secret_key_ref[0].version == "1" &&
         one([for e in c.env : e.value if e.name == "CACHE_ENABLED"]) == "false" &&
         one([for e in c.env : e.value if e.name == "URBANPULSE_MODE"]) == "fixture"
-      ) : length(c.volume_mounts) == 0 && length(c.env) == 1])
+      ) : length(c.env) == 1])
     )
-    error_message = "Only the API gets the numbered runtime secret/socket; no job credential or Redis dependency."
+    error_message = "Only the API receives the numbered runtime database secret; no job credential or Redis dependency."
+  }
+  assert {
+    condition = (
+      length(google_cloud_run_v2_service.demo.template[0].volumes) == 1 &&
+      google_cloud_run_v2_service.demo.template[0].volumes[0].name == "cloudsql" &&
+      alltrue([for c in google_cloud_run_v2_service.demo.template[0].containers : c.name == "web" ? (
+        length(c.volume_mounts) == 1 &&
+        one(c.volume_mounts).name == "cloudsql" &&
+        one(c.volume_mounts).mount_path == "/cloudsql"
+      ) : length(c.volume_mounts) == 0])
+    )
+    error_message = "Match the verified Cloud Run v2 SQL mount representation; assigning it to API recreates persistent drift."
   }
   assert {
     condition = (

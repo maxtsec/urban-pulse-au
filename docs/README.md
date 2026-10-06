@@ -119,7 +119,7 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [ADR 0013](adr/0013-named-consumer-iap-access.md) | Accepted consumer-account OAuth and named operator access boundary | Audience or OAuth ownership changes through review |
 | [Consumer IAP evidence](evidence/demo-01-consumer-iap.md) | Closed bootstrap and explicit-user mocked plan checks | OAuth/access validation is repeated |
 | [Managed serving runbook](runbooks/managed-demo-serving.md) | IAP/sidecar inputs, private candidate deployment, promotion and rollback acceptance | Serving configuration or deployment procedure changes |
-| [Managed serving evidence](evidence/demo-01-managed-serving.md) | Mocked topology/access/traffic tests and local runtime checks | A serving boundary is verified |
+| [Managed serving evidence](evidence/demo-01-managed-serving.md) | Mocked topology/access/traffic tests, local runtime checks and managed bootstrap/read-back evidence | A serving boundary is verified |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 

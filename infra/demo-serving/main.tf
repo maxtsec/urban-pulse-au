@@ -47,6 +47,12 @@ resource "google_cloud_run_v2_service" "demo" {
       name       = "web"
       image      = var.web_image
       depends_on = ["api"]
+      # Cloud Run v2 reports the managed SQL mount on web in this two-container service.
+      # Match that read-back; API readiness verifies socket access, not this field's location.
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
       ports {
         name           = "http1"
         container_port = 8080
@@ -92,10 +98,6 @@ resource "google_cloud_run_v2_service" "demo" {
         limits            = { cpu = "1", memory = "512Mi" }
         cpu_idle          = true
         startup_cpu_boost = false
-      }
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
       }
       env {
         name  = "URBANPULSE_MODE"

@@ -4,7 +4,9 @@ Decisions: [ADR 0010](../adr/0010-hosted-fixture-demo.md), [ADR 0012](../adr/001
 
 ## Runtime boundary
 
-Caddy is the only ingress container, port 8080, and proxies to the API on localhost:8000. The API declares no ingress port; listening on all instance interfaces supports its own platform probes without adding a separate public API endpoint. Caddy starts after the API startup probe succeeds. API and web share one runtime identity; only the API receives the numbered database URL and socket mount, but both containers share the identity's permissions. This is packaging separation, not a credential security boundary against a compromised sidecar.
+Caddy is the only ingress container, port 8080, and proxies to the API on localhost:8000. The API declares no ingress port; listening on all instance interfaces supports its own platform probes without adding a separate public API endpoint. Caddy starts after the API startup probe succeeds. API and web share one runtime identity; only the API receives the numbered database URL, but both containers share the identity's permissions. This is packaging separation, not a credential security boundary against a compromised sidecar.
+
+In the verified two-container service, Cloud Run v2 returns the managed `/cloudsql` mount under `web`, although the creation request assigned it to `api`. Terraform declares the observed representation to avoid a repeated update on every plan. The API still passed its database-backed readiness probe; the mount field does not establish socket isolation between containers. Keep the named `cloudsql` volume/instance, container order and API-only secret injection intact. See the [managed read-back evidence](../evidence/demo-01-managed-serving.md#managed-bootstrap-and-cloud-sql-read-back). For a new service, provider change or reordered containers, repeat raw service/revision inspection, API readiness and the post-apply no-change plan; the mocked checks cannot establish platform behavior.
 
 Both containers use startup `/health/ready` and liveness `/health/live` on their own ports. Startup allows 24 attempts at five-second intervals; liveness uses three attempts at 30-second intervals. Each probe has a four-second timeout. Database/pool exhaustion must produce readiness 503 without changing liveness to a database check. Request timeout is 60 seconds; Caddy retains its 30-second upstream response-header limit. The API binds `0.0.0.0:8000` for platform probe reachability and runs one Uvicorn process, pool size two, zero overflow and the existing one-second checkout wait.
 
@@ -57,7 +59,7 @@ Before and after apply, back up any local state to the existing private backup l
 terraform -chdir=infra/demo-serving apply serving.tfplan
 ```
 
-Inspect real service settings, IAM and both image digests afterwards, confirm no reviewer binding or inherited IAP access exists, and confirm a fresh plan has no changes. No creation/apply/execution command belongs in validation CI. Definition deletion is protected; decommissioning needs its own review.
+Inspect real service settings, IAM and both image digests afterwards, confirm no reviewer binding or inherited IAP access exists, and confirm a fresh plan has no changes. Inspect the Cloud SQL volume and each container's returned mounts alongside API readiness; do not apply a repeated mount-only diff or hide it with `ignore_changes`. Preserve the request/read-back evidence and review a configuration correction first. No creation/apply/execution command belongs in validation CI. Definition deletion is protected; decommissioning needs its own review.
 
 ## Custom OAuth bootstrap and operator access
 
