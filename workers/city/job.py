@@ -117,19 +117,22 @@ def supervise(request: JobRequest, stop: threading.Event) -> str:
             if stop.is_set():
                 return "interrupted"
             if time.monotonic() >= deadline:
-                return "deadline-exceeded"
+                # The child may have exited since is_alive() was checked above.
+                if process.is_alive():
+                    return "deadline-exceeded"
+                break
             process.join(timeout=0.05)
         if stop.is_set():
             return "interrupted"
+        # A completed child result takes precedence over late observation by the parent.
+        if process.exitcode == 0 and incoming.poll():
+            try:
+                return str(incoming.recv())
+            except EOFError:
+                pass
         if time.monotonic() >= deadline:
             return "deadline-exceeded"
-        if process.exitcode != 0 or not incoming.poll():
-            return "execution-failed"
-        try:
-            result = incoming.recv()
-        except EOFError:
-            return "execution-failed"
-        return str(result)
+        return "execution-failed"
     finally:
         # Terminate only the child owned by this invocation; keep cleanup below the task deadline.
         if started:

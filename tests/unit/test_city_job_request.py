@@ -45,3 +45,52 @@ def test_child_returns_only_redacted_configuration_failure(monkeypatch):
     child(JobRequest("demo", "a" * 64, "city", 0), 0, output)
     output.send.assert_called_once_with("invalid-configuration")
     output.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("result", ["complete", "dead-letter"])
+def test_finished_child_result_wins_over_late_parent_observation(monkeypatch, result):
+    runtime = MagicMock()
+    incoming, outgoing = MagicMock(), MagicMock()
+    runtime.Pipe.return_value = incoming, outgoing
+    process = runtime.Process.return_value
+    process.is_alive.return_value = False
+    process.exitcode = 0
+    incoming.poll.return_value = True
+    incoming.recv.return_value = result
+    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", lambda _: runtime)
+    monkeypatch.setattr("workers.city.job.time.monotonic", MagicMock(side_effect=[0, 541]))
+    assert supervise(JobRequest("demo", "a" * 64, "city", 0), threading.Event()) == result
+    process.terminate.assert_not_called()
+    incoming.close.assert_called_once()
+
+
+@pytest.mark.parametrize("has_result", [False, True])
+def test_expired_job_without_a_readable_result_is_still_timeout(monkeypatch, has_result):
+    runtime = MagicMock()
+    incoming, outgoing = MagicMock(), MagicMock()
+    runtime.Pipe.return_value = incoming, outgoing
+    process = runtime.Process.return_value
+    process.is_alive.return_value = False
+    process.exitcode = 0
+    incoming.poll.return_value = has_result
+    incoming.recv.side_effect = EOFError
+    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", lambda _: runtime)
+    monkeypatch.setattr("workers.city.job.time.monotonic", MagicMock(side_effect=[0, 541]))
+    assert (
+        supervise(JobRequest("demo", "a" * 64, "city", 0), threading.Event()) == "deadline-exceeded"
+    )
+
+
+def test_child_exit_during_deadline_check_preserves_its_result(monkeypatch):
+    runtime = MagicMock()
+    incoming, outgoing = MagicMock(), MagicMock()
+    runtime.Pipe.return_value = incoming, outgoing
+    process = runtime.Process.return_value
+    process.is_alive.side_effect = [True, False, False, False]
+    process.exitcode = 0
+    incoming.poll.return_value = True
+    incoming.recv.return_value = "complete"
+    monkeypatch.setattr("workers.city.job.multiprocessing.get_context", lambda _: runtime)
+    monkeypatch.setattr("workers.city.job.time.monotonic", MagicMock(side_effect=[0, 541]))
+    assert supervise(JobRequest("demo", "a" * 64, "city", 0), threading.Event()) == "complete"
+    process.terminate.assert_not_called()
