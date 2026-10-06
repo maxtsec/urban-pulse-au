@@ -1085,11 +1085,24 @@ svg {
     left: var(--gutter);
     text-align: right;
   }
+  .layers-menu {
+    position: static;
+  }
+  .layers-popover {
+    top: calc(100% + 8px);
+    left: 0;
+    right: auto;
+    width: min(260px, 100%);
+  }
   .selection-card {
+    position: fixed;
+    z-index: 20;
+    max-height: 50dvh;
+    overflow-y: auto;
     left: var(--gutter);
     right: var(--gutter);
     width: auto;
-    bottom: 132px;
+    bottom: var(--gutter);
   }
   .details-panel {
     position: static;

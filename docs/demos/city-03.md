@@ -26,3 +26,5 @@ Select **Planning outage** at 270s. Its planning timeline markers show the last 
 Run `scripts/check.ps1` and `scripts/check-city.ps1`. Coverage includes contract/ordering failures, atomic absence handling, complete empty versus missing snapshots, real PostGIS point edges/vertices, rewind/restart, database-independent evidence, map/list selection, layer toggles, missing locations, source dates and mobile layout. Browser screenshots are written under `.local/city03/` and included in CI's city-browser-evidence artifact.
 
 See the [contract](../architecture/planning-fixture-contract.md), [architect decision](../adr/0007-planning-fixture-profile.md), [evidence](../evidence/city-03-planning.md) and [delivery plan](../delivery-plan.md).
+
+On narrow screens, the selected record appears in a bottom card that stays visible while the development list is scrolled. Close it with **Clear selection**.

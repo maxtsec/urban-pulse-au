@@ -21,3 +21,13 @@
 !src/style.css
 !src/vite-env.d.ts
 !Caddyfile
+
+!src/AreaOverview.tsx
+!src/DetailsPanel.tsx
+!src/LayersMenu.tsx
+!src/SelectionCard.tsx
+!src/Timeline.tsx
+!src/TramList.tsx
+!src/conditions.ts
+!src/labels.ts
+!src/moments.ts

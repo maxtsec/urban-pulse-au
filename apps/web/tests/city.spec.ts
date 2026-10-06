@@ -444,3 +444,33 @@ test('detail tabs support arrow-key navigation', async ({ page }) => {
     'true',
   );
 });
+
+for (const width of [320, 390]) {
+  for (const scenario of ['journey', 'city']) {
+    test(`layers remain operable at ${width}px in ${scenario}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 740 });
+      await page.goto('/?scenario=' + scenario);
+      await expect(page.getByTestId('clock')).toHaveText('11:00:00');
+      const checkbox = await layer(page, 'Tram positions');
+      await expect(checkbox).toBeInViewport();
+      await checkbox.uncheck();
+      await expect(page.locator('.tram-marker')).toHaveCount(0);
+      await checkbox.check();
+      await expect(page.locator('.tram-marker')).not.toHaveCount(0);
+      if (scenario === 'city') {
+        const warnings = page.getByRole('checkbox', {
+          name: 'Warning areas',
+          exact: true,
+        });
+        await expect(warnings).toBeInViewport();
+        await warnings.uncheck();
+        await expect(warnings).not.toBeChecked();
+      }
+      const rect = await page.locator('.layers-popover').boundingBox();
+      expect(rect!.x).toBeGreaterThanOrEqual(0);
+      expect(rect!.x + rect!.width).toBeLessThanOrEqual(width);
+    });
+  }
+}
