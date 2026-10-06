@@ -105,6 +105,31 @@ def verify_city_checkpoints(run, city, read, api):
     run("stop", "city-worker")
 
 
+def verify_city_job(command, city, expected):
+    """Execute the finite entrypoint in the built Linux image, after legacy workers stop."""
+    selected = city("create", "compose-finite", "--scenario", "city")
+    result = command(
+        "city-worker",
+        "workers.city.job",
+        "compose-finite",
+        "--scope",
+        selected["scope"],
+        "--seconds",
+        "360",
+        "--timeout-seconds",
+        "40",
+    )
+    require_equal(result.get("status"), "complete", "Finite worker result")
+    completed = city("inspect", "compose-finite")
+    require_equal(completed["completed"], 360, "Finite target")
+    actual = completed["snapshot"]
+    expected = json.loads(json.dumps(expected))
+    for view in (actual, expected):
+        view["composition"].pop("delivery")
+        view["composition"].pop("recovery", None)
+    require_equal(actual, expected, "Finite worker/API parity")
+
+
 def verify_cache_modes(base, run, read, url, route, view):
     """Exercise enabled failure, a Redis-free app graph, and database failure/recovery."""
     healthy = {"status": "ok", "postgis": "ok", "redis": "ok", "mode": "fixture"}
@@ -352,6 +377,8 @@ def main() -> None:
             require_equal(read(api + route), view, "Recovery worker isolation")
             print("Checking durable city checkpoints and persisted expiry", flush=True)
             verify_city_checkpoints(run, city, read, api)
+            print("Checking finite worker Job in the built image", flush=True)
+            verify_city_job(command, city, view)
             metrics = city("metrics")
             if not isinstance(metrics, dict) or not isinstance(metrics.get("consumers"), list):
                 raise RuntimeError("city metrics must return registered consumer summaries")
@@ -369,7 +396,7 @@ def main() -> None:
             verify_cache_modes(base, run, read, url, route, view)
             print(
                 "Compose smoke passed: cold readiness, initializer, city/boundary/evidence, "
-                "proxy, recreation, city checkpoints/expiry, worker replay "
+                "proxy, recreation, city checkpoints/expiry, finite worker Job, worker replay "
                 "and database restart recovery, optional cache modes",
                 flush=True,
             )
