@@ -11,3 +11,5 @@ Verified locally on 6 October 2026. Scope: [ADR 0014](../adr/0014-managed-demo-c
 - All 673 local documentation targets checked at the final implementation pass resolved. Whitespace checks passed.
 
 This verifies implementation behavior locally. No bucket/deployer was provisioned, backend/state was migrated, GitHub environment was changed, CD was enabled, or hosted acceptance was repeated. Live federation, least-privilege API compatibility and a first managed workflow execution are activation evidence, not results of mocks. Merge does not deploy or change the accepted running demo.
+
+Review corrections: all 590 unit tests and pinned actionlint passed, including 41 CD cases, including unchanged-input preservation with/without a retained candidate, cumulative Git tree comparison and deletions, missing-history rejection, informative lock contention and workflow metadata. The runbook now covers a hard termination before intent or failure records exist. No live lock recovery or cloud change was performed.

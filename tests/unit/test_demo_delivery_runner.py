@@ -1,11 +1,13 @@
 """Exercise durable intent/lock and failure handling through the real runner entrypoint."""
 
 import json
+import subprocess
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from google.api_core.exceptions import PreconditionFailed
 
 from scripts import demo_delivery_runner as runner
 from tests.unit.test_demo_delivery import BUILD, MANIFEST, METADATA, candidate_plan, current
@@ -17,7 +19,8 @@ class Blob:
         self.value = None
 
     def upload_from_string(self, value, if_generation_match):
-        assert if_generation_match == (self.generation or 0)
+        if if_generation_match != (self.generation or 0):
+            raise PreconditionFailed("generation differs")
         self.generation = (self.generation or 0) + 1
         self.value = value
 
@@ -39,6 +42,7 @@ class Blob:
 
 def setup_runner(monkeypatch, tmp_path, failure=None):
     monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner, "image_inputs_changed", lambda *_: True)
     monkeypatch.setattr(runner.time, "sleep", lambda _: None)
     (tmp_path / "infra/demo-serving").mkdir(parents=True)
     environment = {
@@ -212,10 +216,13 @@ def test_active_operation_lock_rejects_overlapping_delivery(monkeypatch, tmp_pat
     lock = Blob()
     lock.upload_from_string(encode({"id": "other"}), 0)
     blobs["delivery/operation.lock"] = lock
-    with pytest.raises(AssertionError):
+    with pytest.raises(runner.DeliveryLocked, match="pre-intent lock recovery"):
         runner.main()
     assert not calls
     assert json.loads(lock.value)["id"] == "other"
+    assert json.loads(blobs["delivery/current.json"].value)["in_progress"] is None
+    assert "existing operation" in (tmp_path / "summary").read_text(encoding="utf-8")
+    assert not any(name.endswith("failure.json") for name in blobs)
 
 
 def test_readback_waits_for_candidate_traffic_metadata(monkeypatch):
@@ -245,3 +252,76 @@ def test_readback_waits_for_candidate_traffic_metadata(monkeypatch):
     monkeypatch.setattr(runner.time, "sleep", waits.append)
     runner.read_back(SimpleNamespace(get=get), "https://example/service", inputs, "candidate")
     assert waits == [5]
+
+
+@pytest.mark.parametrize("has_candidate", [False, True])
+def test_unchanged_image_inputs_preserve_retained_candidate(monkeypatch, tmp_path, has_candidate):
+    blobs, calls = setup_runner(monkeypatch, tmp_path)
+    before = current()
+    if has_candidate:
+        inputs, _ = candidate_plan()
+        inputs["source_sha"] = "d" * 40
+        before["candidate"] = {"revision": "reviewing", "inputs": inputs}
+        before["inputs"] = inputs
+    blobs["delivery/current.json"].upload_from_string(json.dumps(before), 1)
+    compared = []
+
+    def unchanged(*args):
+        compared.append(args)
+        return False
+
+    monkeypatch.setattr(runner, "image_inputs_changed", unchanged)
+    runner.main()
+    assert compared == [("d" * 40 if has_candidate else "a" * 40, BUILD.source_sha)]
+    assert json.loads(blobs["delivery/current.json"].value) == before
+    assert blobs["delivery/operation.lock"].value is None
+    assert not calls  # No image pull, Terraform plan/apply or state write.
+    assert "Candidate skipped" in (tmp_path / "summary").read_text(encoding="utf-8")
+
+
+def test_failed_mutation_lock_identifies_its_workflow_and_creation_time(monkeypatch, tmp_path):
+    blobs, _ = setup_runner(monkeypatch, tmp_path, "apply")
+    with pytest.raises(RuntimeError):
+        runner.main()
+    lock = json.loads(blobs["delivery/operation.lock"].value)
+    assert lock["workflow_run"].endswith("/actions/runs/10/attempts/1")
+    assert lock["created_at"]
+    assert lock["configuration_sha"] == BUILD.source_sha
+
+
+def test_image_filter_compares_retained_trees_and_detects_deletions(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+
+    def git(*args):
+        return subprocess.run(
+            ["git", *args], cwd=tmp_path, text=True, capture_output=True, check=True
+        ).stdout.strip()
+
+    git("init")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.invalid")
+    (tmp_path / "README.md").write_text("initial", encoding="utf-8")
+    (tmp_path / "apps/api").mkdir(parents=True)
+    api = tmp_path / "apps/api/main.py"
+    api.write_text("initial", encoding="utf-8")
+
+    def commit():
+        git("add", ".")
+        git("commit", "-m", "fixture")
+        return git("rev-parse", "HEAD")
+
+    first = commit()
+    (tmp_path / "README.md").write_text("docs only", encoding="utf-8")
+    docs = commit()
+    assert not runner.image_inputs_changed(first, docs)
+    api.write_text("new behavior", encoding="utf-8")
+    application = commit()
+    assert runner.image_inputs_changed(docs, application)
+    (tmp_path / "README.md").write_text("more docs", encoding="utf-8")
+    later = commit()
+    assert not runner.image_inputs_changed(application, later)
+    assert runner.image_inputs_changed(first, later)  # Cumulative delta from retained revision.
+    api.unlink()
+    assert runner.image_inputs_changed(later, commit())
+    with pytest.raises(runner.CommandFailure):
+        runner.image_inputs_changed("f" * 40, later)  # Missing history must fail closed.
