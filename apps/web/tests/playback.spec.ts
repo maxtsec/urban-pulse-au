@@ -145,32 +145,60 @@ test('pausing during a glide places the tram at its observation', async ({
   expect(await tramPosition(page)).toEqual(later);
 });
 
-
-test('enabling reduced motion during a glide immediately shows the observation', async ({ page }) => {
+test('enabling reduced motion during a glide immediately shows the observation', async ({
+  page,
+}) => {
   const { next } = await observedPositions(page);
-  await page.getByRole('button', { name: 'Play scenario', exact: true }).click();
-  await expect(page.getByTestId('clock')).toHaveText('11:00:30', { timeout: 10000 });
+  await page
+    .getByRole('button', { name: 'Play scenario', exact: true })
+    .click();
+  await expect(page.getByTestId('clock')).toHaveText('11:00:30', {
+    timeout: 10000,
+  });
   expect(distance(await tramPosition(page), next)).toBeGreaterThan(1);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
   expect(distance(await tramPosition(page), next)).toBeLessThan(1);
 });
 
-test('moving labels remain separate from other map markers', async ({page}) => {
+test('moving labels remain separate from other map markers', async ({
+  page,
+}) => {
   await observedPositions(page);
-  await page.getByRole('button', { name: 'Play scenario', exact: true }).click();
-  await expect(page.getByTestId('clock')).toHaveText('11:00:30', { timeout: 10000 });
+  await page
+    .getByRole('button', { name: 'Play scenario', exact: true })
+    .click();
+  await expect(page.getByTestId('clock')).toHaveText('11:00:30', {
+    timeout: 10000,
+  });
   const collisions = await page.evaluate(async () => {
     let collisions = 0;
     const start = performance.now();
-    while(performance.now() - start < 1200) {
+    while (performance.now() - start < 1200) {
       await new Promise(requestAnimationFrame);
-      const icons = [...document.querySelectorAll('.tram-marker img, .development-marker')].map(node=>node.getBoundingClientRect());
-      const labels = [...document.querySelectorAll('.tram-marker:not(.label-collapsed) .marker-label')].map(node=>node.getBoundingClientRect());
-      for(let i=0;i<labels.length;i++) {
-        const a=labels[i];
-        for(const b of [...icons, ...labels.slice(i+1)]) {
-          if(a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) collisions++;
+      const icons = [
+        ...document.querySelectorAll('.tram-marker img, .development-marker'),
+      ].map((node) => node.getBoundingClientRect());
+      const labels = [
+        ...document.querySelectorAll(
+          '.tram-marker:not(.label-collapsed) .marker-label',
+        ),
+      ].map((node) => node.getBoundingClientRect());
+      for (let i = 0; i < labels.length; i++) {
+        const a = labels[i];
+        for (const b of [...icons, ...labels.slice(i + 1)]) {
+          if (
+            a.left < b.right &&
+            a.right > b.left &&
+            a.top < b.bottom &&
+            a.bottom > b.top
+          )
+            collisions++;
         }
       }
     }
@@ -179,18 +207,21 @@ test('moving labels remain separate from other map markers', async ({page}) => {
   expect(collisions).toBe(0);
 });
 
-
-test('reduced motion progress stays on the displayed snapshot', async ({ page }) => {
+test('reduced motion progress stays on the displayed snapshot', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?scenario=journey');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   const fill = page.getByTestId('playback-progress');
   const initial = (await fill.boundingBox())!.width;
-  await page.getByRole('button', { name: 'Play scenario', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Play scenario', exact: true })
+    .click();
   await page.waitForTimeout(250);
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   expect((await fill.boundingBox())!.width).toBe(initial);
   await expect(page.getByTestId('clock')).toHaveText('11:00:15');
   const width = (await page.locator('.slider-rail').boundingBox())!.width;
-  expect((await fill.boundingBox())!.width).toBeCloseTo(width * 15 / 360, 1);
+  expect((await fill.boundingBox())!.width).toBeCloseTo((width * 15) / 360, 1);
 });
