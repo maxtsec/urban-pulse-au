@@ -19,8 +19,12 @@ def check_job_evidence(stderr: str, status: str) -> None:
     assert datetime.fromisoformat(start["runner_entered_at"]).tzinfo is not None
     assert datetime.fromisoformat(finish["cleanup_completed_at"]).tzinfo is not None
     assert 0 <= finish["cleanup_elapsed_seconds"] <= finish["runner_elapsed_seconds"]
-    assert datetime.fromisoformat(finish["deadline_started_at"]).tzinfo is not None
-    assert 0 <= finish["deadline_offset_seconds"] <= finish["runner_elapsed_seconds"]
+    if finish["deadline_started_at"] is None:
+        assert finish["deadline_offset_seconds"] is None
+        assert status == "interrupted"
+    else:
+        assert datetime.fromisoformat(finish["deadline_started_at"]).tzinfo is not None
+        assert 0 <= finish["deadline_offset_seconds"] <= finish["runner_elapsed_seconds"]
     memory = finish["memory"]
     assert memory["scope"] == "current_cgroup_including_descendants"
     for name in ("cgroup_lifetime_peak_bytes", "sampled_max_bytes"):

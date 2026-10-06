@@ -2,8 +2,10 @@
 
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import wraps
 from pathlib import Path, PurePosixPath
 from time import perf_counter
 from uuid import uuid4
@@ -97,7 +99,25 @@ def emit_observation(record: dict[str, object]) -> None:
         pass
 
 
+def best_effort[**P](method: Callable[P, None]) -> Callable[P, None]:
+    """Fence telemetry failures, including future readers/clocks/serialization code.
+
+    Apply only to observation methods, never to the operation being observed.
+    Process-control BaseExceptions deliberately remain visible.
+    """
+
+    @wraps(method)
+    def guarded(*args: P.args, **kwargs: P.kwargs) -> None:
+        try:
+            method(*args, **kwargs)
+        except Exception:
+            pass
+
+    return guarded
+
+
 class JobObservation:
+    @best_effort
     def __init__(self, timeout_seconds: int) -> None:
         self.entered_at = utc_now()
         self.started = perf_counter()
@@ -119,19 +139,24 @@ class JobObservation:
             }
         )
 
+    @best_effort
     def sample(self) -> None:
         value = self.memory.current() if self.memory else None
         if value is not None:
             self.sampled_peak = max(self.sampled_peak or 0, value)
             self.samples += 1
 
+    @best_effort
     def arm_deadline(self) -> None:
-        self.deadline_started_at = utc_now()
-        self.deadline_offset_seconds = perf_counter() - self.started
+        entered_at = utc_now()
+        offset = perf_counter() - self.started
+        self.deadline_started_at, self.deadline_offset_seconds = entered_at, offset
 
+    @best_effort
     def begin_cleanup(self) -> None:
         self.cleanup_started = perf_counter()
 
+    @best_effort
     def finish(self, outcome: str) -> None:
         self.sample()
         finished = perf_counter()
