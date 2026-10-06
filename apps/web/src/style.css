@@ -1173,3 +1173,42 @@ svg {
     animation: none !important;
   }
 }
+
+.map-credit[open] {
+  max-width: min(460px, calc(100vw - 32px));
+}
+.map-credit summary {
+  cursor: pointer;
+}
+.map-credit div {
+  margin: 4px 0;
+}
+.building-notice {
+  position: absolute;
+  bottom: 190px;
+  left: 20px;
+  max-width: 300px;
+  background: white;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.legend-swatch.building {
+  background: #a0a7ad80;
+  border: 1px solid #70787e;
+}
+.layers-popover {
+  max-height: min(70vh, 600px);
+  overflow-y: auto;
+}
+.layers-note dd {
+  margin: 0 0 6px;
+}
+.layers-note dt {
+  font-weight: 600;
+}
+
+.chip[aria-pressed='true'] {
+  background: #303638;
+  color: white;
+}

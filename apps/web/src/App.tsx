@@ -46,7 +46,9 @@ export function App() {
   const [selectedDevelopment, setSelectedDevelopment] = useState<string | null>(
     null,
   );
+  const [threeDimensional, setThreeDimensional] = useState(false);
   const [layers, setLayers] = useState<Layers>({
+    buildings: true,
     vehicles: true,
     boundary: true,
     tracks: true,
@@ -233,6 +235,8 @@ export function App() {
               onSelectDevelopment={selectDevelopment}
               insets={insets}
               glideMs={playing && !reducedMotion ? GLIDE_MS : 0}
+              threeDimensional={threeDimensional}
+              showBuildings={layers.buildings}
             />
           )}
           {visible && geometry.isPending && (
@@ -299,8 +303,19 @@ export function App() {
             )}
             <span className="map-top-spacer" />
             {visible && (
+              <button
+                className="chip"
+                aria-label="3D view"
+                aria-pressed={threeDimensional}
+                onClick={() => setThreeDimensional(!threeDimensional)}
+              >
+                3D
+              </button>
+            )}
+            {visible && (
               <LayersMenu
                 layers={layers}
+                threeDimensional={threeDimensional}
                 onChange={setLayers}
                 hasPlanning={Boolean(records)}
                 hasWarnings={Boolean(visible.weather)}

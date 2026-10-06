@@ -40,6 +40,8 @@ The modular backend uses the same event contracts in process during the MVP and 
 | 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
 | 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                                               |
 
+MAP-01: [Southbank 3D building context](docs/demos/map-01.md) submitted for review; [source and rendering evidence](docs/evidence/map-01-building-massing.md).
+
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
 The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. City overview combines modelled weather, warning lifecycles and a planning profile with source dates and building markers. Original single-domain scenarios remain available. The protected hosted fixture demo is available to its named operator; live capture and continuous delivery follow the [delivery plan](docs/delivery-plan.md).

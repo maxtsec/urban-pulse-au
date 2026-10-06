@@ -32,3 +32,6 @@
 !src/labels.ts
 !src/moments.ts
 !src/useReducedMotion.ts
+
+!src/buildings.ts
+!src/assets/southbank-buildings.geojson

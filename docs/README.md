@@ -36,6 +36,8 @@ For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For 
 
 For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md), [image publishing operations](runbooks/image-publishing.md) and [publication evidence](evidence/demo-01-image-publishing.md) and [accepted resource choices](adr/0012-managed-demo-resource-profile.md), the [resource plan](architecture/demo-cloud-resource-plan.md) and [foundation operations](runbooks/demo-foundation.md), followed by [private database initialization](runbooks/demo-database.md).
 
+For the building layer: [MAP-01 walkthrough](demos/map-01.md) and [fixture/rendering evidence](evidence/map-01-building-massing.md).
+
 For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
 
 For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [managed delivery evidence](evidence/cd-01-managed-delivery.md).
@@ -125,6 +127,8 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [Managed CD runbook](runbooks/managed-demo-cd.md) | Backend migration, workflow activation, private records and failure recovery | Delivery implementation or operating procedure changes |
 | [Managed CD evidence](evidence/demo-01-continuous-delivery.md) | Offline guards, runner failure tests and activation limits | Deployment validation changes |
 | [CD operational evidence](evidence/cd-01-managed-delivery.md) | Exact publication, candidate and promotion runs, retained rollback and validation limits | A managed delivery milestone is verified |
+| [MAP-01 walkthrough](demos/map-01.md) | 2D/3D controls, building scope and fallback | Map interactions change |
+| [MAP-01 evidence](evidence/map-01-building-massing.md) | Building provenance, extrusion/packaging tests and rendering measurements | Fixture or renderer changes |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 

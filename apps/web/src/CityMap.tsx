@@ -53,6 +53,8 @@ type Props = {
    * the previous observed point to the new one for this long; 0 places it directly.
    */
   glideMs: number;
+  threeDimensional: boolean;
+  showBuildings: boolean;
 };
 
 type Observed = { lngLat: [number, number]; freshness: Vehicle['freshness'] };
@@ -77,13 +79,20 @@ export function CityMap({
   onSelectDevelopment,
   insets,
   glideMs,
+  threeDimensional,
+  showBuildings,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const contextLost = useRef(false);
   const markers = useRef<Map<string, maplibregl.Marker>>(new Map());
   const developmentMarkers = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [ready, setReady] = useState<maplibregl.Map | null>(null);
   const [failed, setFailed] = useState(false);
+  const [buildingState, setBuildingState] = useState<
+    'hidden' | 'loading' | 'ready' | 'unavailable'
+  >('hidden');
+  const buildingAbort = useRef<AbortController | null>(null);
   const initialInsets = useRef(insets);
   const labelOrder = useRef<string[]>([]);
   const frame = useRef(0);
@@ -95,7 +104,7 @@ export function CityMap({
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(() => {
       const instance = map.current;
-      if (!instance) return;
+      if (!instance || contextLost.current) return;
       const canvas = instance.getContainer();
       const point = (marker: maplibregl.Marker) =>
         instance.project(marker.getLngLat());
@@ -171,11 +180,13 @@ export function CityMap({
         refreshExpiredTiles: false,
       });
       map.current = instance;
+      contextLost.current = false;
       instance.addControl(
-        new maplibregl.NavigationControl({ showCompass: false }),
+        new maplibregl.NavigationControl({ showCompass: true }),
         'bottom-right',
       );
       instance.on('load', () => {
+        if (contextLost.current) return;
         instance.addSource('southbank', {
           type: 'geojson',
           data: boundary.feature,
@@ -261,6 +272,15 @@ export function CityMap({
         setReady(instance);
         setFailed(false);
       });
+      instance.getCanvas().addEventListener('webglcontextlost', () => {
+        // MapLibre may discard its style; subsequent selection/replay effects
+        // must leave the accessible UI alive rather than calling that style.
+        contextLost.current = true;
+        cancelAnimationFrame(frame.current);
+        glides.current.forEach((id) => cancelAnimationFrame(id));
+        glides.current.clear();
+        setFailed(true);
+      });
       instance.on('move', layoutLabels);
       instance.on('error', () => setFailed(true));
     } catch {
@@ -282,6 +302,7 @@ export function CityMap({
       markers.current.clear();
       developmentMarkers.current.forEach((marker) => marker.remove());
       developmentMarkers.current.clear();
+      buildingAbort.current?.abort();
       map.current = null;
       instance.remove();
     };
@@ -289,7 +310,7 @@ export function CityMap({
 
   useEffect(() => {
     const instance = map.current;
-    if (!instance || ready !== instance) return;
+    if (!instance || ready !== instance || contextLost.current) return;
     for (const layer of ['area-fill', 'area-line']) {
       instance.setLayoutProperty(
         layer,
@@ -409,7 +430,7 @@ export function CityMap({
   ]);
 
   useEffect(() => {
-    if (glideMs > 0 || glides.current.size === 0) return;
+    if (contextLost.current || glideMs > 0 || glides.current.size === 0) return;
     for (const [id, frameId] of glides.current) {
       cancelAnimationFrame(frameId);
       const target = observed.current.get(id);
@@ -421,7 +442,7 @@ export function CityMap({
 
   useEffect(() => {
     const instance = map.current;
-    if (!instance || ready !== instance) return;
+    if (!instance || ready !== instance || contextLost.current) return;
     const visible = showPlanning
       ? developments.filter(
           (record) => record.position && record.applicable === true,
@@ -472,6 +493,50 @@ export function CityMap({
     layoutLabels,
   ]);
 
+  useEffect(() => {
+    if (!ready || ready !== map.current || contextLost.current) return;
+    const pitch = threeDimensional ? 55 : 0;
+    const bearing = threeDimensional ? -15 : 0;
+    // Do not create a camera animation on initial 2D load. Even a zero-distance
+    // ease emits movement events and changes marker pixel rounding mid-frame.
+    if (ready.getPitch() === pitch && ready.getBearing() === bearing) return;
+    ready.easeTo({ pitch, bearing, duration: reducedMotion() ? 0 : 400 });
+  }, [ready, threeDimensional]);
+
+  useEffect(() => {
+    if (
+      !ready ||
+      ready !== map.current ||
+      contextLost.current ||
+      !threeDimensional ||
+      !showBuildings
+    )
+      return;
+    const controller = new AbortController();
+    buildingAbort.current = controller;
+    // Defer state updates and the large rendering chunk until this view is requested.
+    Promise.resolve().then(async () => {
+      if (controller.signal.aborted) return;
+      setBuildingState('loading');
+      try {
+        const { addBuildings } = await import('./buildings');
+        await addBuildings(
+          ready,
+          controller.signal,
+          () => {
+            if (!controller.signal.aborted) setBuildingState('unavailable');
+          },
+          () => {
+            if (!controller.signal.aborted) setBuildingState('ready');
+          },
+        );
+      } catch {
+        if (!controller.signal.aborted) setBuildingState('unavailable');
+      }
+    });
+    return () => controller.abort();
+  }, [ready, threeDimensional, showBuildings]);
+
   const visibleWarnings = useMemo(
     () =>
       showWarnings
@@ -483,7 +548,7 @@ export function CityMap({
   );
   useEffect(() => {
     const instance = map.current;
-    if (!instance || ready !== instance) return;
+    if (!instance || ready !== instance || contextLost.current) return;
     const source = instance.getSource('warnings') as maplibregl.GeoJSONSource;
     source.setData({
       type: 'FeatureCollection',
@@ -502,19 +567,41 @@ export function CityMap({
         ref={container}
         aria-label="Southbank city map"
         data-testid="map"
+        data-view={threeDimensional ? '3d' : '2d'}
+        data-buildings={
+          threeDimensional && showBuildings ? buildingState : 'hidden'
+        }
       />
+      {threeDimensional && showBuildings && buildingState === 'unavailable' && (
+        <p className="building-notice" role="status">
+          Buildings unavailable. Switch to 2D and back to retry; city details
+          remain available.
+        </p>
+      )}
       {failed && (
         <p className="map-fallback" role="status">
           Map unavailable. The details panel retains tram observations and
           development information.
         </p>
       )}
-      <div className="map-credit">
-        Boundary:{' '}
-        <a href={boundary.feature.properties.source_url}>City of Melbourne</a> ·{' '}
-        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> ·
-        Illustrative tracks · No basemap
-      </div>
+      <details className="map-credit">
+        <summary>Map credits</summary>
+        <div>
+          Boundary:{' '}
+          <a href={boundary.feature.properties.source_url}>City of Melbourne</a>{' '}
+          · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>{' '}
+          · Illustrative tracks · No basemap
+        </div>
+        <div>
+          Buildings:{' '}
+          <a href="https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/">
+            City of Melbourne
+          </a>{' '}
+          · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>{' '}
+          · captured 2018–2023, filtered and converted. Recent construction may
+          be missing. Visual context only.
+        </div>
+      </details>
     </div>
   );
 }
