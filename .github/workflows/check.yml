@@ -71,6 +71,9 @@ jobs:
       - run: terraform -chdir=infra/demo-jobs init -backend=false -input=false -lockfile=readonly
       - run: terraform -chdir=infra/demo-jobs validate
       - run: terraform -chdir=infra/demo-jobs test
+      - run: terraform -chdir=infra/demo-serving init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=infra/demo-serving validate
+      - run: terraform -chdir=infra/demo-serving test
 
   compose:
     runs-on: ubuntu-latest

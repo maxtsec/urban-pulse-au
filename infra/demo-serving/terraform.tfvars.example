@@ -1,0 +1,30 @@
+# Place reviewed real values in ignored terraform.tfvars; do not copy credentials.
+project_id = "example-project"
+foundation = {
+  database_connection_name = "example-project:australia-southeast2:urbanpulse-demo-pg17"
+  database_name            = "urbanpulse"
+  identities = {
+    runtime = "urbanpulse-demo-runtime@example-project.iam.gserviceaccount.com"
+    migrate = "urbanpulse-demo-migrate@example-project.iam.gserviceaccount.com"
+    import  = "urbanpulse-demo-import@example-project.iam.gserviceaccount.com"
+    worker  = "urbanpulse-demo-worker@example-project.iam.gserviceaccount.com"
+  }
+  database_secret_ids = {
+    runtime = "urbanpulse-demo-runtime-database-url"
+    migrate = "urbanpulse-demo-migrate-database-url"
+    import  = "urbanpulse-demo-import-database-url"
+    worker  = "urbanpulse-demo-worker-database-url"
+  }
+}
+# These hashes are placeholders, never deploy them.
+api_image     = "australia-southeast2-docker.pkg.dev/example-project/urbanpulse/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+source_sha    = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+import_id     = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+web_image              = "australia-southeast2-docker.pkg.dev/example-project/urbanpulse/web@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+runtime_secret_version = "1"
+release_id             = "sha-bbbbbbbbbbbb-r1"
+# First creation only: explicitly select its sole revision, acceptance operators only.
+# Later candidates: retain the last verified serving revision until promotion.
+serving_revision       = "urbanpulse-demo-sha-bbbbbbbbbbbb-r1"
+organization_domain    = "example.com"
+iap_members            = ["user:operator@example.com"]

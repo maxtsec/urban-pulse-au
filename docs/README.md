@@ -116,6 +116,9 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
+| [Managed serving runbook](runbooks/managed-demo-serving.md) | IAP/sidecar inputs, private candidate deployment, promotion and rollback acceptance | Serving configuration or deployment procedure changes |
+| [Managed serving evidence](evidence/demo-01-managed-serving.md) | Mocked topology/access/traffic tests and local runtime checks | A serving boundary is verified |
+
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
 Label fixture/live inputs and preserve the scope of dated evidence. The project brief uses revision numbers; software releases use version tags such as `v1.0.0`.
