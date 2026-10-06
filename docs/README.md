@@ -34,7 +34,7 @@ For replay performance: [bounded history measurements and reproduction](evidence
 
 For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For production V1: [release policy](delivery-plan.md#release-policy).
 
-For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md), [image publishing operations](runbooks/image-publishing.md) and [publication evidence](evidence/demo-01-image-publishing.md) and [accepted resource choices](adr/0012-managed-demo-resource-profile.md), the [resource plan](architecture/demo-cloud-resource-plan.md) and [foundation operations](runbooks/demo-foundation.md).
+For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md), [image publishing operations](runbooks/image-publishing.md) and [publication evidence](evidence/demo-01-image-publishing.md) and [accepted resource choices](adr/0012-managed-demo-resource-profile.md), the [resource plan](architecture/demo-cloud-resource-plan.md) and [foundation operations](runbooks/demo-foundation.md), followed by [private database initialization](runbooks/demo-database.md).
 
 For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
 
@@ -102,6 +102,8 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [Managed resource plan](architecture/demo-cloud-resource-plan.md) | Foundation ownership, connection envelope and deployment prerequisites | Resource/runtime controls or deployment gates change |
 | [Foundation runbook](runbooks/demo-foundation.md) | Credential-free validation, reviewed plan/apply procedure and post-apply checks | Foundation operation or ownership changes |
 | [Foundation evidence](evidence/demo-01-cloud-foundation.md) | Mocked resource/identity/recovery tests and their live-verification limits | A foundation acceptance boundary is verified |
+| [Database initialization runbook](runbooks/demo-database.md) | SQL privilege matrix, private credential/extension setup and recovery procedure | Database privileges or initialization steps change |
+| [Database initialization evidence](evidence/demo-01-database-bootstrap.md) | Actual foundation apply, managed PostGIS, SQL login caps and spatial compatibility | A managed database boundary is verified |
 | [Image publishing](runbooks/image-publishing.md) | Main CI gate, federation configuration, immutable image records and failed-attempt recovery | Publishing workflow or record semantics change |
 | [Image publishing evidence](evidence/demo-01-image-publishing.md) | Local container/registry verification and distinct live federation acceptance | A publication boundary is verified |
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
