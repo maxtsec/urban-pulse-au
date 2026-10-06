@@ -111,6 +111,17 @@ The legend states that animated tram positions are shown 30 seconds behind the s
 
 The current area API exposes only the latest position per vehicle, and the transport event/fixture has no trip identity. MAP-02 first requires an accepted public transport-contract change and trip-complete fixtures linked to a verified GTFS release. The [input proposal](../architecture/tram-animation-input-contract.md) covers that prerequisite, continuous scenario-clock playback over complete bounded windows, display-time trip transitions, revision acceptance and API-placement choices with [payload estimates](../evidence/map-02-animation-payload.md). The clock/query protocol, field format and bounds remain Proposed; merging the document does not accept them. Option B would also require approval to amend this ADR's unchanged-request rule for view toggles.
 
+#### 2D playback transitions
+
+Accepted on 6 October 2026 as a bounded exception for the current 2D map, until MAP-02 replaces it. Playback advances the fixture clock in 15-second steps, so observed tram markers would otherwise jump.
+
+- While playback is running, a tram marker whose previous and new observations are both `current` glides in a straight line from the previous observed point to the new one over 1.5 seconds of wall-clock time, shorter than one playback step. It never moves past the new observation.
+- Seeking, scrubbing, moment jumps, scenario changes, pausing, stale, expired or unknown-time observations and `prefers-reduced-motion` place the marker at its observation immediately. Pausing mid-glide snaps it there.
+- The glide is presentation, not an observation: it follows no track, and the tram list, selection details, freshness, counts and API keep the observed values. The map legend says that movement between observed positions is animated, not observed.
+- The playback progress bar moves continuously towards the next step; the clock text always shows the displayed snapshot's scenario clock.
+
+This exception does not change the 3D tram rules above: the 3D layer still uses the display delay and interpolates only along matched shapes.
+
 #### Weather gating
 
 Rain and warning animation use different inputs and fail independently. Warning-feed coverage (`weather.coverage`) never switches rain on or off.
@@ -153,6 +164,7 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 - Current warning coverage with no reading, or with a reading more than 60 minutes old: no rain, labelled "No current modelled reading"; warnings follow their lifecycle.
 - A current reading with zero precipitation: no rain, labelled as a dry modelled reading. Scheduled, cancelled and expired warnings never pulse.
 - Reduced motion starts static; WebGL failure shows the existing fallback; keyboard selection works in 2D and 3D.
+- 2D playback transitions: a glide passes only through points between two consecutive current observations and ends on the new one; seeking or pausing places the tram on its observation; the clock text never shows an intermediate time.
 - Enabling 3D and animation makes no request outside the application origin, and all credits are visible.
 - Measure bundle size, fixture size, frame rate and memory on desktop and mobile emulation before accepting each MAP item; simplify geometry or reduce particles only if measurements require it.
 
@@ -165,5 +177,6 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 | Animation | The five classes and their rules, as written above |
 | Simulated traffic | MAP-05 in scope, under the simulated class and its labelling rule |
 | First building layer | `Structure` only; other footprint types need their own rendering rule and decision |
+| 2D playback transitions | Bounded straight-line glide between consecutive current observations during playback and a continuous progress bar, labelled as animation; replaced by MAP-02 |
 
 This decision does not decide A-02's public basemap, live data sources, DAM-to-building matching or any live-data animation. See the [source register](../source-register.md#map-context-sources) and [delivery plan](../delivery-plan.md).

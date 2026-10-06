@@ -66,11 +66,15 @@ export function LayersMenu({
           </span>
         </div>
         {layers.tracks && (
-          <p className="layers-note">
+          <p className="layers-note" data-testid="tracks-note">
             Illustrative tracks. Tram positions are synthetic fixture
             observations.
           </p>
         )}
+        <p className="layers-note" data-testid="motion-note">
+          During playback, trams glide between observed positions. The movement
+          is animated, not observed; details show the observation.
+        </p>
       </div>
     </details>
   );

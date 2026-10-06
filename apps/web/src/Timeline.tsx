@@ -7,6 +7,10 @@ type Props = {
   seconds: number;
   endSeconds: number;
   playing: boolean;
+  /** True while playback waits to advance; the progress bar glides to `nextSeconds`. */
+  advancing: boolean;
+  nextSeconds: number;
+  stepMs: number;
   canPlay: boolean;
   moments: Moment[];
   onPlay: () => void;
@@ -18,6 +22,9 @@ export function Timeline({
   seconds,
   endSeconds,
   playing,
+  advancing,
+  nextSeconds,
+  stepMs,
   canPlay,
   moments,
   onPlay,
@@ -29,6 +36,12 @@ export function Timeline({
     const ratio = endSeconds ? value / endSeconds : 0;
     return `calc(${ratio * 100}% + ${(0.5 - ratio) * THUMB}px)`;
   };
+  // Progress is presentation only: the clock text stays at the displayed snapshot.
+  const progress = endSeconds
+    ? ((advancing ? nextSeconds : seconds) / endSeconds) * 100
+    : 0;
+  const motion = (property: string) =>
+    advancing ? `${property} ${stepMs}ms linear` : 'none';
   return (
     <section className="timeline" aria-label="Scenario playback">
       <div className="timeline-buttons">
@@ -88,15 +101,28 @@ export function Timeline({
             </button>
           ))}
         </div>
-        <input
-          aria-label="Scenario time"
-          type="range"
-          min="0"
-          max={endSeconds}
-          step="15"
-          value={seconds}
-          onChange={(event) => onJump(Number(event.target.value))}
-        />
+        <div className="slider">
+          <input
+            aria-label="Scenario time"
+            type="range"
+            min="0"
+            max={endSeconds}
+            step="15"
+            value={seconds}
+            onChange={(event) => onJump(Number(event.target.value))}
+          />
+          <div className="slider-rail" aria-hidden="true">
+            <div
+              className="slider-fill"
+              data-testid="playback-progress"
+              style={{ width: `${progress}%`, transition: motion('width') }}
+            />
+            <div
+              className="slider-head"
+              style={{ left: `${progress}%`, transition: motion('left') }}
+            />
+          </div>
+        </div>
       </div>
       <output className="timeline-elapsed">
         {seconds}s<span> / {endSeconds}s</span>
