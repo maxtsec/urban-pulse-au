@@ -32,3 +32,6 @@ apps/web/playwright-report/
 
 # Federated credentials are temporary workflow material.
 **/gha-creds-*.json
+
+# Explicitly enabled serving remote backend; bucket supplied privately.
+infra/demo-serving/backend.tf

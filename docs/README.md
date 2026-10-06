@@ -115,11 +115,13 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [Image publishing evidence](evidence/demo-01-image-publishing.md) | Local container/registry verification and distinct live federation acceptance | A publication boundary is verified |
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
-
 | [ADR 0013](adr/0013-named-consumer-iap-access.md) | Accepted consumer-account OAuth and named operator access boundary | Audience or OAuth ownership changes through review |
 | [Consumer IAP evidence](evidence/demo-01-consumer-iap.md) | Closed bootstrap and explicit-user mocked plan checks | OAuth/access validation is repeated |
 | [Managed serving runbook](runbooks/managed-demo-serving.md) | IAP/sidecar inputs, private candidate deployment, promotion and rollback acceptance | Serving configuration or deployment procedure changes |
 | [Managed serving evidence](evidence/demo-01-managed-serving.md) | Mocked topology/access/traffic tests, local runtime checks and managed bootstrap/read-back evidence | A serving boundary is verified |
+| [ADR 0014](adr/0014-managed-demo-continuous-delivery.md) | Accepted remote-state and candidate/promotion direction | Deployment ownership or security boundary changes |
+| [Managed CD runbook](runbooks/managed-demo-cd.md) | Backend migration, workflow activation, private records and failure recovery | Delivery implementation or operating procedure changes |
+| [Managed CD evidence](evidence/demo-01-continuous-delivery.md) | Offline guards, runner failure tests and activation limits | Deployment validation changes |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 

@@ -1,0 +1,62 @@
+name: Execute protected demo delivery
+on:
+  workflow_call:
+    inputs:
+      operation:
+        required: true
+        type: string
+      publication_run:
+        type: string
+        default: ''
+      publication_attempt:
+        type: string
+        default: ''
+      candidate_revision:
+        type: string
+        default: ''
+      accepted:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  deliver:
+    if: inputs.operation == 'candidate' || inputs.operation == 'promote'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.operation == 'candidate' && 'demo-candidate' || 'demo-promotion' }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: '0.12.23'
+      - run: uv sync --locked --no-default-groups
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Guard, plan and execute the selected delivery operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DELIVERY_OPERATION: ${{ inputs.operation }}
+          PUBLICATION_RUN: ${{ inputs.publication_run }}
+          PUBLICATION_ATTEMPT: ${{ inputs.publication_attempt }}
+          CANDIDATE_REVISION: ${{ inputs.candidate_revision }}
+          ACCEPTED_CANDIDATE: ${{ inputs.accepted }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          DEMO_STATE_BUCKET: ${{ vars.DEMO_STATE_BUCKET }}
+        run: uv run --locked --no-default-groups python -m scripts.demo_delivery_runner
