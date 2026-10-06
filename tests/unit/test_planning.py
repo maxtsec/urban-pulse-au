@@ -123,7 +123,7 @@ def test_outage_cannot_learn_future_planning_changes(captured, seconds):
 @pytest.mark.parametrize("invalid", [None, [], "invalid", 3, {}, True])
 def test_non_object_or_missing_record_rejects_whole_snapshot(captured, invalid, monkeypatch):
     captured.planning["payloads"]["updated"]["records"].append(invalid)
-    monkeypatch.setattr("apps.api.city.city_service", lambda: city(captured))
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: city(captured))
     with TestClient(app) as client:
         response = client.get(f"/api/v1/areas/{AREA_ID}?scenario=city&seconds=150")
         assert response.status_code == 200
@@ -269,7 +269,7 @@ def test_replay_restart_rewind_and_evidence_are_deterministic(captured, monkeypa
 
 def test_missing_bundle_reference_returns_503_and_unknown_capture_404(captured, monkeypatch):
     captured.planning["frames"][0]["payload_id"] = "private-missing"
-    monkeypatch.setattr("apps.api.city.city_service", lambda: city(captured))
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: city(captured))
     with TestClient(app) as client:
         for url in [f"/api/v1/areas/{AREA_ID}", f"/api/v1/fixture/captures/{captured.capture_id}"]:
             response = client.get(url + "?scenario=city&seconds=0")
@@ -335,7 +335,7 @@ def test_scenario_registry_api_snapshot_and_evidence_agree(captured, monkeypatch
     from urbanpulse.application.scenarios import SCENARIOS, Scenario
 
     assert set(Scenario) == set(SCENARIOS)
-    monkeypatch.setattr("apps.api.city.city_service", lambda: city(captured))
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: city(captured))
     with TestClient(app) as client:
         schema = client.get("/openapi.json").json()
         assert set(schema["components"]["schemas"]["Scenario"]["enum"]) == set(SCENARIOS)

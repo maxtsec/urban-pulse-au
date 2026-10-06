@@ -128,10 +128,10 @@ def test_failed_composition_returns_503_and_fresh_reconstruction_recovers(inputs
         ),
         inputs,
     )
-    monkeypatch.setattr("apps.api.city.city_service", lambda: failed)
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: failed)
     with TestClient(app) as client:
         assert client.get(f"/api/v1/areas/{AREA_ID}?scenario=city").status_code == 503
-        monkeypatch.setattr("apps.api.city.city_service", lambda: service(inputs))
+        monkeypatch.setattr("apps.api.city.city_service", lambda request: service(inputs))
         assert client.get(f"/api/v1/areas/{AREA_ID}?scenario=city").status_code == 200
 
 
@@ -165,7 +165,7 @@ def test_missing_selected_import_is_503_without_implicit_setup(monkeypatch):
         def load(self, scope):
             pytest.fail("missing selection must not load history")
 
-    monkeypatch.setattr("apps.api.city.input_store", lambda: Store())
+    monkeypatch.setattr("apps.api.city.input_store", lambda request: Store())
     with TestClient(app) as client:
         response = client.get(f"/api/v1/areas/{AREA_ID}")
     assert response.status_code == 503
@@ -179,7 +179,7 @@ def test_database_unavailability_is_503_without_empty_fixture_fallback(monkeypat
         def active_scope(self):
             raise OperationalError("read", {}, Exception("database unavailable"))
 
-    monkeypatch.setattr("apps.api.city.input_store", lambda: Store())
+    monkeypatch.setattr("apps.api.city.input_store", lambda request: Store())
     with TestClient(app) as client:
         response = client.get(f"/api/v1/areas/{AREA_ID}")
     assert response.status_code == 503

@@ -25,7 +25,7 @@ Disk auto-growth is disabled to keep the initial footprint explicit. Check utili
 
 ## Connection envelope
 
-The foundation exports this deployment contract. Serving/job implementation must consume and verify it; **the current API is not yet connection-bounded to this profile**. Its SQLAlchemy defaults allow 5 pooled connections plus 10 overflow per engine, while PostGIS and readiness open separate direct connections. Counting only the pool would understate usage.
+The foundation exports this deployment contract. The API implementation uses one process-lifetime pool shared by input reads, PostGIS and readiness: two connections, zero overflow and a one-second checkout wait. Serving configuration must still enforce one process and the instance/revision envelope below. Job pools and execution locks are separate requirements. See the [API pool evidence](../evidence/demo-01-api-pool.md).
 
 | Consumer | Required configuration | Planned maximum connections |
 | --- | --- | ---: |

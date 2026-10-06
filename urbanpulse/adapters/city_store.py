@@ -93,10 +93,15 @@ Event = (
 EVENT: TypeAdapter[Event] = TypeAdapter(Event)
 
 
-def engine_for(url: str) -> Engine:
+def engine_for(
+    url: str, *, pool_size: int = 5, max_overflow: int = 10, pool_timeout: float = 30
+) -> Engine:
     return create_engine(
         url.replace("postgresql://", "postgresql+psycopg://", 1),
         pool_pre_ping=True,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
         connect_args={"connect_timeout": 3},
         isolation_level="REPEATABLE READ",
         hide_parameters=True,

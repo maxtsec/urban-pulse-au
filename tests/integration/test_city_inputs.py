@@ -257,7 +257,8 @@ def test_unselected_import_cannot_change_active_city(stored):
 def test_api_reuses_spatial_cache_but_still_loads_inputs_per_request(stored, monkeypatch):
     from types import SimpleNamespace
 
-    from apps.api.city import city_service, spatial_membership
+    from apps.api.city import city_service
+    from apps.api.database import ApiDatabase
 
     store, save, captured, rows, spatial = stored
     scope = save()
@@ -280,19 +281,20 @@ def test_api_reuses_spatial_cache_but_still_loads_inputs_per_request(stored, mon
     monkeypatch.setattr(PostgisMembership, "_query_covers", query_covers)
     monkeypatch.setattr(PostgisMembership, "_query_overlap", query_overlap)
     monkeypatch.setattr(
-        "apps.api.city.input_store", lambda: SimpleNamespace(active_scope=lambda: scope, load=load)
+        "apps.api.city.input_store",
+        lambda request: SimpleNamespace(active_scope=lambda: scope, load=load),
     )
-    monkeypatch.setattr("apps.api.city.Settings", lambda: SimpleNamespace(database_url=URL))
-    spatial_membership.cache_clear()
+    database = ApiDatabase(URL)
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(database=database)))
     try:
-        first = city_service().snapshot(180, "city")
+        first = city_service(request).snapshot(180, "city")
         spatial_counts = (queries["covers"], queries["overlap"])
         assert all(spatial_counts)
-        assert city_service().snapshot(180, "city") == first
+        assert city_service(request).snapshot(180, "city") == first
         assert (queries["covers"], queries["overlap"]) == spatial_counts
         assert queries["loads"] == 2
     finally:
-        spatial_membership.cache_clear()
+        database.close()
 
 
 def test_new_codec_preserves_literal_reference_fields_in_every_domain(stored):
