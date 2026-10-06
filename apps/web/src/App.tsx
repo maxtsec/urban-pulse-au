@@ -18,6 +18,7 @@ import { WeatherPanel } from './WeatherPanel';
 import { WeatherSummary } from './WeatherSummary';
 import { conditionLabel, missingCoverage } from './conditions';
 import { scenarioMoments } from './moments';
+import { useReducedMotion } from './useReducedMotion';
 
 const EMPTY_WARNINGS: Warning[] = [];
 const EMPTY_DEVELOPMENTS: Development[] = [];
@@ -35,6 +36,7 @@ function mapInsets(): Insets {
 }
 
 export function App() {
+  const reducedMotion = useReducedMotion();
   const [seconds, setSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [scenario, setScenario] = useState(initialScenario);
@@ -204,7 +206,7 @@ export function App() {
               selectedDevelopment={selectedDevelopment}
               onSelectDevelopment={selectDevelopment}
               insets={insets}
-              glideMs={playing ? GLIDE_MS : 0}
+              glideMs={playing && !reducedMotion ? GLIDE_MS : 0}
             />
           )}
           {visible && geometry.isPending && (
@@ -330,7 +332,7 @@ export function App() {
             seconds={seconds}
             endSeconds={endSeconds}
             playing={playing}
-            advancing={advancing}
+            advancing={advancing && !reducedMotion}
             nextSeconds={nextSeconds}
             stepMs={PLAY_STEP_MS}
             canPlay={!(result.isError || result.isPlaceholderData || !snapshot)}

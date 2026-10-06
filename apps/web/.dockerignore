@@ -31,3 +31,4 @@
 !src/conditions.ts
 !src/labels.ts
 !src/moments.ts
+!src/useReducedMotion.ts
