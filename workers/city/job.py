@@ -1,28 +1,24 @@
 """Finite, manually invoked fixture worker; success means the selected target is delivered."""
 
 import argparse
-import multiprocessing
 import signal
 import threading
 import time
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
 
-import psycopg
-from pydantic import ValidationError
-from sqlalchemy.exc import SQLAlchemyError
-
 from urbanpulse.adapters.city_runs import PostgresCityRuns, context
 from urbanpulse.adapters.city_store import CityInputStore
 from urbanpulse.adapters.event_recovery import PostgresRecoveryStore
-from urbanpulse.adapters.job_database import JobBusy, JobDatabase, JobSessionLost
+from urbanpulse.adapters.job_database import JobDatabase
 from urbanpulse.adapters.postgis import PostgisMembership
 from urbanpulse.application.city import MAX_SECONDS
 from urbanpulse.application.city_checkpoints import CONSUMER, RESULT_CONSUMER
-from urbanpulse.application.durable_delivery import StorageUnavailable
 from urbanpulse.application.event_worker import EventWorker
 from urbanpulse.application.scenarios import Scenario
 from urbanpulse.config import Settings
+from workers.job_runtime import report
+from workers.job_runtime import supervise as supervise_process
 from workers.runtime import emit
 
 
@@ -80,71 +76,11 @@ def execute(request: JobRequest, deadline: float) -> str:
 
 
 def child(request: JobRequest, deadline: float, output: Connection) -> None:
-    try:
-        status = execute(request, deadline)
-    except JobBusy:
-        status = "busy"
-    except JobSessionLost:
-        status = "session-lost"
-    except (StorageUnavailable, SQLAlchemyError, psycopg.Error, OSError):
-        status = "database-unavailable"
-    except ValidationError:
-        status = "invalid-configuration"
-    except (ValueError, LookupError):
-        status = "invalid-run-or-inputs"
-    except Exception:
-        # Never forward exception text, connection strings or fixture payloads to logs.
-        status = "execution-failed"
-    try:
-        output.send(status)
-    finally:
-        output.close()
+    report(lambda: {"status": execute(request, deadline)}, output)
 
 
 def supervise(request: JobRequest, stop: threading.Event) -> str:
-    if stop.is_set():
-        return "interrupted"
-    deadline = time.monotonic() + request.timeout_seconds
-    runtime = multiprocessing.get_context("spawn")
-    incoming, outgoing = runtime.Pipe(duplex=False)
-    process = runtime.Process(target=child, args=(request, deadline, outgoing))
-    started = False
-    try:
-        process.start()
-        started = True
-        outgoing.close()
-        while process.is_alive():
-            if stop.is_set():
-                return "interrupted"
-            if time.monotonic() >= deadline:
-                # The child may have exited since is_alive() was checked above.
-                if process.is_alive():
-                    return "deadline-exceeded"
-                break
-            process.join(timeout=0.05)
-        if stop.is_set():
-            return "interrupted"
-        # A completed child result takes precedence over late observation by the parent.
-        if process.exitcode == 0 and incoming.poll():
-            try:
-                return str(incoming.recv())
-            except EOFError:
-                pass
-        if time.monotonic() >= deadline:
-            return "deadline-exceeded"
-        return "execution-failed"
-    finally:
-        # Terminate only the child owned by this invocation; keep cleanup below the task deadline.
-        if started:
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=5)
-            if process.is_alive():
-                process.kill()
-                process.join(timeout=5)
-            process.close()
-        incoming.close()
-        outgoing.close()
+    return supervise_process(request, stop, child)["status"]
 
 
 def main() -> int:

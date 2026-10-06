@@ -65,7 +65,7 @@ Initial IAP access is an **explicit allowlist of organization accounts/groups**,
 
 The worker is manually triggered as a Cloud Run Job: one task, parallelism one, retries zero and a 600-second task timeout, with one active execution enforced separately. The [finite worker runner](../runbooks/city-job.md) takes an explicit fixture run/target, drains its input and result lanes, holds a session-bound execution lock and exits zero only after verified completion. Its local supervisor deadline is at most 540 seconds, leaving cleanup time within the future task limit. Failures, dead letters or deadline expiry must produce a nonzero result with redacted diagnostics. The current single-sweep `--once` is **not** a completion criterion. No scheduler, worker pool or always-on service is selected.
 
-Migration/import Jobs still need bounded deadlines and serialization, using the same database-wide mutation lock as the finite worker. Current `city_store migrate` lacks the deployment migration lock required by ADR 0010; add bounded lock acquisition, schema verification and failure/no-promotion tests before creating a runnable Job. Never run migrations on API startup.
+The [finite migration/import runners](../runbooks/initialization-jobs.md) use the same database-wide session lock and supervisor as the worker, with one physical connection each. Migration verifies the image/reviewed revision and commits schema plus grants together; import verifies staged immutable inputs before selecting them. Require their successful results before promotion. The legacy `city_store migrate` and ingestion commands do not acquire this lock and must not overlap managed Jobs. Never run migrations on API startup.
 
 ## Implementation and apply sequence
 

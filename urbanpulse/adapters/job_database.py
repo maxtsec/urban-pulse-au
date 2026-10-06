@@ -8,7 +8,7 @@ from sqlalchemy import event
 from urbanpulse.adapters.city_store import engine_for
 from urbanpulse.application.durable_delivery import StorageUnavailable
 
-# Database-wide demo mutation lane, shared with future migration/import job runners.
+# Database-wide demo mutation lane, shared by migration/import/worker job runners.
 DEMO_JOB_LOCK = (850601, 1)
 
 

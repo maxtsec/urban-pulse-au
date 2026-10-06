@@ -22,7 +22,7 @@ The runner takes database-wide session advisory lock `(850601, 1)` before applic
 
 A second lock-aware mutation Job fails promptly as `busy`. Transactions may commit while the session lock remains held. If the physical connection is lost, the runner refuses replacement connections and exits; it cannot reconnect and continue writes without its original lock. Closing the child/session releases the lock. This requires session-preserving connectivity, such as the selected managed Cloud SQL connector; transaction-pooling middleware is unsupported. [PostgreSQL advisory-lock behavior](https://www.postgresql.org/docs/17/explicit-locking.html#ADVISORY-LOCKS).
 
-Migration/import Job wrappers must join this same mutation lane in their later implementation. Existing development CLIs and continuous workers do not participate in it: stop them before this runner is used against that database. Do not claim global serialization while a legacy writer is still enabled. No migration, new grants or additional database role is introduced by this runner.
+[Migration/import Jobs](initialization-jobs.md) join this same mutation lane and use the same finite supervisor. Existing development CLIs and continuous workers do not participate in it: stop them before this runner is used against that database. Do not claim global serialization while a legacy writer is still enabled. No migration, new grants or additional database role is introduced by this runner.
 
 ## Deadline, cancellation and recovery
 
