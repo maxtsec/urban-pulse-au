@@ -148,7 +148,7 @@ def main() -> None:
         "dataset_id": "2023-building-footprints",
         "source_url": "https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/",
         "export_url": DATASET + "/exports/geojson",
-        "export_query": {"where": export_query(json.loads(BOUNDARY.read_text()))},
+        "export_query": {"where": export_query(json.loads(BOUNDARY.read_text(encoding="utf-8")))},
         "retrieved_on": args.retrieved_on.isoformat(),
         "licence": "CC BY 4.0",
         "licence_url": "https://creativecommons.org/licenses/by/4.0/",

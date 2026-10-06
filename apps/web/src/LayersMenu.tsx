@@ -78,9 +78,9 @@ export function LayersMenu({
         )}
         {threeDimensional && (
           <p className="layers-note">
-            Observed � historical building massing, captured 2018�2023. Drag
-            with the right mouse button to rotate; use the compass to reset
-            north. Tram markers retain the existing fixture positions.
+            Observed: historical building massing, captured 2018-2023. Drag with
+            the right mouse button to rotate; use the compass to reset north.
+            Tram markers retain the existing fixture positions.
           </p>
         )}
         <details className="layers-note">
@@ -92,20 +92,31 @@ export function LayersMenu({
               current.
             </dd>
             <dt>Interpolated</dt>
-            <dd>Between received positions on a verified path (MAP-02).</dd>
+            <dd>
+              Between received positions on a verified path (MAP-02). The
+              temporary 2D playback glide follows no track and is presentation
+              only.
+            </dd>
             <dt>Modelled</dt>
             <dd>Weather model output, not a station observation.</dd>
             <dt>Simulated</dt>
             <dd>
-              Illustrative activity with no measured traffic meaning (MAP-05).
+              Generated activity with no source data, such as road traffic
+              (MAP-05).
             </dd>
-            <dt>Decorative</dt>
-            <dd>Presentation effects with no data meaning.</dd>
+            <dt>Illustrative</dt>
+            <dd>
+              Decorative representation of a recorded status, such as
+              construction cranes (planned).
+            </dd>
           </dl>
         </details>
         <p className="layers-note" data-testid="motion-note">
-          During playback, trams glide between observed positions. The movement
-          is animated, not observed; details show the observation.
+          In 2D playback, current trams glide in a straight line between
+          received observations over 1.5 seconds, without following tracks. This
+          is animated, not observed. Seeking, pausing, reduced motion or
+          non-current positions show the observation directly; details always
+          show observed values.
         </p>
       </div>
     </details>

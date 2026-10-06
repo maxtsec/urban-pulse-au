@@ -126,3 +126,30 @@ test('mobile reduced-motion view retains visible controls and local building con
     fullPage: true,
   });
 });
+
+test('map legend uses the approved classes and explains the temporary 2D glide', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=city');
+  await page.getByRole('button', { name: '3D view', exact: true }).click();
+  await page.locator('.layers-menu > summary').click();
+  await page.getByText('Map display classes', { exact: true }).click();
+  const legend = page.locator('.layers-popover');
+  await expect(legend).toContainText(
+    'Observed: historical building massing, captured 2018-2023',
+  );
+  await expect(legend.locator('dt')).toHaveText([
+    'Observed',
+    'Interpolated',
+    'Modelled',
+    'Simulated',
+    'Illustrative',
+  ]);
+  await expect(legend).toContainText(
+    'Decorative representation of a recorded status',
+  );
+  await expect(legend).toContainText(
+    'temporary 2D playback glide follows no track',
+  );
+  await expect(legend).not.toContainText('\uFFFD');
+});
