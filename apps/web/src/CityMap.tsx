@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
@@ -6,10 +6,23 @@ import type { Development, Vehicle, Warning } from './city';
 import tramIcon from './assets/tram.svg';
 import buildingIcon from './assets/building.svg';
 import { fixtureTracks } from './fixture-tracks';
+import { placeLabels } from './labels';
+import type { Box } from './labels';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Emit the worker and its imports as local build assets.
 maplibregl.setWorkerUrl(workerUrl);
+
+const TRAM_ICON = { halfWidth: 13, halfHeight: 16 };
+const SITE_HALF = 15;
+const FRESHNESS_ORDER = ['current', 'stale', 'unknown', 'expired'];
+
+export type Insets = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+};
 
 export type Boundary = {
   revision: string;
@@ -33,6 +46,8 @@ type Props = {
   showPlanning: boolean;
   selectedDevelopment: string | null;
   onSelectDevelopment: (id: string) => void;
+  /** Screen space covered by floating controls; the initial view fits inside the rest. */
+  insets: Insets;
 };
 
 export function CityMap({
@@ -49,6 +64,7 @@ export function CityMap({
   showPlanning,
   selectedDevelopment,
   onSelectDevelopment,
+  insets,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -56,6 +72,67 @@ export function CityMap({
   const developmentMarkers = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [ready, setReady] = useState<maplibregl.Map | null>(null);
   const [failed, setFailed] = useState(false);
+  const initialInsets = useRef(insets);
+  const labelOrder = useRef<string[]>([]);
+  const frame = useRef(0);
+
+  // Recompute label sides from current screen positions after any camera or marker change.
+  const layoutLabels = useCallback(() => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const instance = map.current;
+      if (!instance) return;
+      const canvas = instance.getContainer();
+      const point = (marker: maplibregl.Marker) =>
+        instance.project(marker.getLngLat());
+      const obstacles: Box[] = [];
+      for (const marker of markers.current.values()) {
+        const { x, y } = point(marker);
+        obstacles.push({
+          x: x - TRAM_ICON.halfWidth,
+          y: y - TRAM_ICON.halfHeight,
+          w: TRAM_ICON.halfWidth * 2,
+          h: TRAM_ICON.halfHeight * 2,
+        });
+      }
+      for (const marker of developmentMarkers.current.values()) {
+        const { x, y } = point(marker);
+        obstacles.push({
+          x: x - SITE_HALF,
+          y: y - SITE_HALF,
+          w: SITE_HALF * 2,
+          h: SITE_HALF * 2,
+        });
+      }
+      const requests = labelOrder.current.flatMap((id) => {
+        const marker = markers.current.get(id);
+        const label = marker
+          ?.getElement()
+          .querySelector<HTMLElement>('.marker-label');
+        if (!marker || !label) return [];
+        const { x, y } = point(marker);
+        return [
+          { id, x, y, width: label.offsetWidth, height: label.offsetHeight },
+        ];
+      });
+      const placement = placeLabels(requests, obstacles, TRAM_ICON, {
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+      });
+      for (const [id, offset] of placement) {
+        const element = markers.current.get(id)!.getElement();
+        element.classList.toggle('label-collapsed', offset === null);
+        if (offset) {
+          element.style.setProperty('--label-x', `${offset.dx}px`);
+          element.style.setProperty('--label-y', `${offset.dy}px`);
+        } else {
+          // A collapsed label reappears on hover/focus at the default right side.
+          element.style.removeProperty('--label-x');
+          element.style.removeProperty('--label-y');
+        }
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!container.current) return;
@@ -70,7 +147,7 @@ export function CityMap({
             {
               id: 'background',
               type: 'background',
-              paint: { 'background-color': '#fafafa' },
+              paint: { 'background-color': '#eef1ef' },
             },
           ],
         },
@@ -82,7 +159,7 @@ export function CityMap({
       map.current = instance;
       instance.addControl(
         new maplibregl.NavigationControl({ showCompass: false }),
-        'top-right',
+        'bottom-right',
       );
       instance.on('load', () => {
         instance.addSource('southbank', {
@@ -93,15 +170,15 @@ export function CityMap({
           id: 'area-fill',
           type: 'fill',
           source: 'southbank',
-          paint: { 'fill-color': '#eeeeee', 'fill-opacity': 0.72 },
+          paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.85 },
         });
         instance.addLayer({
           id: 'area-line',
           type: 'line',
           source: 'southbank',
           paint: {
-            'line-color': '#b5b5b5',
-            'line-width': 2,
+            'line-color': '#7d8a85',
+            'line-width': 1.5,
             'line-dasharray': [3, 2],
           },
         });
@@ -113,14 +190,14 @@ export function CityMap({
           id: 'warning-fill',
           type: 'fill',
           source: 'warnings',
-          paint: { 'fill-color': '#666666', 'fill-opacity': 0.16 },
+          paint: { 'fill-color': '#d9822b', 'fill-opacity': 0.14 },
         });
         instance.addLayer({
           id: 'warning-line',
           type: 'line',
           source: 'warnings',
           paint: {
-            'line-color': '#555555',
+            'line-color': '#b8661c',
             'line-width': 2,
             'line-dasharray': [2, 2],
           },
@@ -134,8 +211,8 @@ export function CityMap({
           type: 'line',
           source: 'fixture-tracks',
           paint: {
-            'line-color': '#b5b5b5',
-            'line-width': 10,
+            'line-color': '#c3cbc8',
+            'line-width': 9,
             'line-dasharray': [0.15, 1.3],
           },
         });
@@ -144,14 +221,14 @@ export function CityMap({
           type: 'line',
           source: 'fixture-tracks',
           layout: { 'line-join': 'round' },
-          paint: { 'line-color': '#999999', 'line-width': 5 },
+          paint: { 'line-color': '#a3aeaa', 'line-width': 4.5 },
         });
         instance.addLayer({
           id: 'track-center',
           type: 'line',
           source: 'fixture-tracks',
           layout: { 'line-join': 'round' },
-          paint: { 'line-color': '#fafafa', 'line-width': 2.5 },
+          paint: { 'line-color': '#ffffff', 'line-width': 2 },
         });
         const bounds = new maplibregl.LngLatBounds();
         const polygons =
@@ -163,18 +240,26 @@ export function CityMap({
             ring.forEach((point) => bounds.extend([point[0], point[1]])),
           ),
         );
-        instance.fitBounds(bounds, { padding: 50, duration: 0 });
+        instance.fitBounds(bounds, {
+          padding: initialInsets.current,
+          duration: 0,
+        });
         setReady(instance);
         setFailed(false);
       });
+      instance.on('move', layoutLabels);
       instance.on('error', () => setFailed(true));
     } catch {
       setFailed(true);
       return;
     }
-    const resize = new ResizeObserver(() => instance.resize());
+    const resize = new ResizeObserver(() => {
+      instance.resize();
+      layoutLabels();
+    });
     resize.observe(container.current);
     return () => {
+      cancelAnimationFrame(frame.current);
       resize.disconnect();
       markers.current.forEach((marker) => marker.remove());
       markers.current.clear();
@@ -183,7 +268,7 @@ export function CityMap({
       map.current = null;
       instance.remove();
     };
-  }, [boundary]);
+  }, [boundary, layoutLabels]);
 
   useEffect(() => {
     const instance = map.current;
@@ -225,6 +310,7 @@ export function CityMap({
         icon.draggable = false;
         icon.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span');
+        label.className = 'marker-label';
         label.textContent = vehicle.label;
         button.append(icon, label);
         button.addEventListener('click', () => onSelect(vehicle.id));
@@ -238,6 +324,17 @@ export function CityMap({
       button.setAttribute('aria-pressed', String(vehicle.id === selected));
       marker.setLngLat([vehicle.longitude, vehicle.latitude]);
     });
+    // The selected tram claims its preferred label side first, then fresher observations.
+    labelOrder.current = [...visible]
+      .sort(
+        (a, b) =>
+          Number(b.id === selected) - Number(a.id === selected) ||
+          FRESHNESS_ORDER.indexOf(a.freshness) -
+            FRESHNESS_ORDER.indexOf(b.freshness) ||
+          a.label.localeCompare(b.label),
+      )
+      .map((vehicle) => vehicle.id);
+    layoutLabels();
   }, [
     ready,
     vehicles,
@@ -246,6 +343,7 @@ export function CityMap({
     showVehicles,
     showBoundary,
     showTracks,
+    layoutLabels,
   ]);
 
   useEffect(() => {
@@ -291,12 +389,14 @@ export function CityMap({
       button.className = `development-marker ${record.development_key === selectedDevelopment ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
       marker.setLngLat([record.position!.longitude, record.position!.latitude]);
     }
+    layoutLabels();
   }, [
     ready,
     developments,
     showPlanning,
     selectedDevelopment,
     onSelectDevelopment,
+    layoutLabels,
   ]);
 
   const visibleWarnings = useMemo(
@@ -330,44 +430,17 @@ export function CityMap({
         aria-label="Southbank city map"
         data-testid="map"
       />
-      <div className="map-caption">Southbank CLUE boundary</div>
       {failed && (
         <p className="map-fallback" role="status">
-          Map unavailable. The lists below retain tram observations and
+          Map unavailable. The details panel retains tram observations and
           development information.
         </p>
       )}
-      <div className="map-legend">
-        {showPlanning && developments.length > 0 && (
-          <span data-testid="planning-map-count">
-            {developments.length} developments
-          </span>
-        )}
-        {showWarnings && warnings.length > 0 && (
-          <span data-testid="warning-map-count">
-            {visibleWarnings.length} active warning areas
-          </span>
-        )}
-        {showTracks && (
-          <span>
-            <i className="legend-track" /> Illustrative tracks
-          </span>
-        )}
-        <span>
-          <i className="legend-dot" /> Current
-        </span>
-        <span>
-          <i className="legend-dot stale" /> Stale
-        </span>
-        <span>
-          <i className="legend-dot unknown" /> Time unknown
-        </span>
-      </div>
       <div className="map-credit">
         Boundary:{' '}
         <a href={boundary.feature.properties.source_url}>City of Melbourne</a> ·{' '}
         <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> ·
-        No basemap
+        Illustrative tracks · No basemap
       </div>
     </div>
   );

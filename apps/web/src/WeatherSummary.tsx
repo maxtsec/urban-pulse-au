@@ -1,60 +1,44 @@
 import { displayDateTime } from './city';
 import type { WeatherSnapshot } from './city';
 
+/** Compact modelled reading shown on the map; it never changes warning coverage. */
 export function WeatherSummary({
   weather,
-  onShowWeather,
 }: {
   weather: WeatherSnapshot | null;
-  onShowWeather: () => void;
 }) {
   const reading = weather?.reading;
   return (
-    <section className="weather-summary" aria-label="Weather summary">
-      <div className="weather-summary-title">
-        <h2>Modelled weather information</h2>
-        <span>Southbank · Synthetic demo</span>
-      </div>
+    <section
+      className="chip weather-chip"
+      aria-label="Weather summary"
+      title={
+        reading
+          ? `Modelled for ${displayDateTime(reading.valid_at)} by Open-Meteo. Informational only; separate from warning coverage.`
+          : undefined
+      }
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path
+          d="M6 15h8a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 5 9a3 3 0 0 0 1 6z"
+          fill="none"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+      </svg>
       {reading ? (
         <>
-          <dl className="weather-metrics">
-            <div>
-              <dt>Temperature</dt>
-              <dd>
-                {reading.temperature_c}
-                <small> °C</small>
-              </dd>
-            </div>
-            <div>
-              <dt>Rainfall</dt>
-              <dd>
-                {reading.precipitation_mm}
-                <small> mm</small>
-              </dd>
-            </div>
-            <div>
-              <dt>Wind</dt>
-              <dd>
-                {reading.wind_kmh}
-                <small> km/h</small>
-              </dd>
-            </div>
-          </dl>
-          <p className="weather-summary-source">
-            Modelled for {displayDateTime(reading.valid_at)} ·{' '}
-            <a href={reading.source_url}>Open-Meteo</a> · Informational only;
-            separate from warning coverage.
-          </p>
+          <span className="chip-caption">Modelled</span>
+          <span className="weather-values">
+            <strong>{reading.temperature_c} °C</strong>
+            <span>{reading.precipitation_mm} mm</span>
+            <span>{reading.wind_kmh} km/h</span>
+          </span>
         </>
       ) : weather ? (
-        <p className="weather-summary-empty">
-          No modelled weather reading received at this scenario time.
-        </p>
+        <span>No modelled weather reading received</span>
       ) : (
-        <div className="weather-summary-empty">
-          <p>Weather information is not included in this transport scenario.</p>
-          <button onClick={onShowWeather}>Show weather</button>
-        </div>
+        <span>Weather not included in this transport scenario</span>
       )}
     </section>
   );

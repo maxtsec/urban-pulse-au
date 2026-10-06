@@ -4,13 +4,13 @@ import type { WeatherSnapshot } from './city';
 export function WeatherPanel({ weather }: { weather: WeatherSnapshot }) {
   return (
     <section className="weather-card" aria-label="Weather details">
-      <div className="card-heading">
+      <div className="panel-heading">
         <h2>Weather warnings</h2>
-        <span className="count-chip">Synthetic fixture</span>
+        <span className="panel-note">Synthetic fixture</span>
       </div>
       <div className="warning-heading">
         <h3>Warning coverage</h3>
-        <span className={`coverage-pill ${weather.coverage}`}>
+        <span className={`status-pill ${weather.coverage}`}>
           {weather.coverage}
         </span>
       </div>
@@ -38,7 +38,7 @@ export function WeatherPanel({ weather }: { weather: WeatherSnapshot }) {
           >
             <div className="warning-heading">
               <h4>{warning.headline}</h4>
-              <span className="coverage-pill">{warning.lifecycle}</span>
+              <span className="status-pill">{warning.lifecycle}</span>
             </div>
             <p>
               <strong>{warning.level}</strong> ·{' '}

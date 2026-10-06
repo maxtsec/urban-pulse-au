@@ -21,20 +21,15 @@ export function ScenarioPicker({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="scenario-switcher" role="group" aria-label="Scenario">
-      <span className="scenario-label">Explore a scenario</span>
-      <div className="scenario-buttons">
+    <label className="chip scenario-picker">
+      <span className="chip-caption">Scenario</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
         {scenarios.map((scenario) => (
-          <button
-            key={scenario.id}
-            type="button"
-            aria-pressed={value === scenario.id}
-            onClick={() => onChange(scenario.id)}
-          >
+          <option key={scenario.id} value={scenario.id}>
             {scenario.label}
-          </button>
+          </option>
         ))}
-      </div>
-    </div>
+      </select>
+    </label>
   );
 }

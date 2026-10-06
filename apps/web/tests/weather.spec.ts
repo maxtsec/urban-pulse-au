@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
+import {
+  chooseScenario,
+  closeLayers,
+  condition,
+  layer,
+  moment,
+  openTab,
+  scenarioPicker,
+} from './helpers';
 
 test('weather lifecycle changes the area view and map with independent coverage', async ({
   page,
@@ -15,78 +24,59 @@ test('weather lifecycle changes the area view and map with independent coverage'
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/?scenario=weather');
-  await page
-    .getByRole('group', { name: 'Scenario', exact: true })
-    .getByRole('button', { name: 'Weather warnings', exact: true })
-    .click();
   const details = page.getByRole('region', { name: 'Weather details' });
+  const reasons = page.getByTestId('condition');
   await expect(
-    page
-      .getByRole('region', { name: 'Weather summary' })
-      .getByText('Modelled weather information'),
-  ).toBeVisible();
-  await expect(page.locator('.condition-box strong')).toHaveText('Unknown');
-  await page.getByRole('button', { name: '30s · Advice', exact: true }).click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Normal');
+    page.getByRole('region', { name: 'Weather summary' }),
+  ).toContainText('18 °C');
+  await expect(condition(page)).toHaveText('Unknown');
+  await moment(page, '30s · Advice').click();
+  await expect(condition(page)).toHaveText('Normal');
+  await openTab(page, 'Warnings');
   await expect(
     details.getByText('Informational warning; not a degradation reason.'),
   ).toBeVisible();
   await expect(page.getByTestId('warning-map-count')).toHaveText(
-    '1 active warning areas',
+    '1 active warning area',
   );
-  await page
-    .getByRole('checkbox', { name: 'Warning areas', exact: true })
-    .uncheck();
+  await (await layer(page, 'Warning areas')).uncheck();
   await expect(page.getByTestId('warning-map-count')).toHaveCount(0);
   await expect(details.getByRole('article')).toHaveCount(1);
-  await page
-    .getByRole('checkbox', { name: 'Warning areas', exact: true })
-    .check();
-  await page
-    .getByRole('button', { name: '60s · Watch and Act', exact: true })
-    .click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Degraded');
-  await expect(page.locator('.reason')).toHaveCount(2);
-  await page
-    .getByRole('button', { name: '150s · Cancelled', exact: true })
-    .click();
+  await (await layer(page, 'Warning areas')).check();
+  await closeLayers(page);
+  await moment(page, '60s · Watch and Act').click();
+  await expect(condition(page)).toHaveText('Degraded');
+  await expect(reasons).toContainText('2 active reasons');
+  await moment(page, '150s · Cancelled').click();
   await expect(details.getByText('cancelled', { exact: true })).toBeVisible();
-  await expect(page.locator('.reason')).toHaveCount(1);
+  await expect(reasons).toContainText('1 active reason');
   await expect(page.getByTestId('warning-map-count')).toHaveText(
     '0 active warning areas',
   );
-  await page
-    .getByRole('button', { name: '180s · Emergency Warning', exact: true })
-    .click();
+  await moment(page, '180s · Emergency Warning').click();
+  await expect(reasons).toContainText('1 active reason');
+  await expect(page.getByTestId('warning-map-count')).toHaveText(
+    '1 active warning area',
+  );
+  await openTab(page, 'Overview');
   await expect(page.locator('.reason')).toHaveCount(1);
   await expect(page.locator('.reason')).toContainText('Emergency Warning');
-  await expect(page.getByTestId('warning-map-count')).toHaveText(
-    '1 active warning areas',
-  );
   await mkdir('../../.local/city02', { recursive: true });
   await page.screenshot({
     path: '../../.local/city02/weather-desktop.png',
     fullPage: true,
   });
-  await page
-    .getByRole('button', {
-      name: '240s · Expired, coverage stale',
-      exact: true,
-    })
-    .click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Unknown');
+  await openTab(page, 'Warnings');
+  await moment(page, '240s · Expired, coverage stale').click();
+  await expect(condition(page)).toHaveText('Unknown');
   await expect(details.locator('.warning-heading').first()).toContainText(
     'stale',
   );
   await expect(details.getByText('expired', { exact: true })).toBeVisible();
-  await page
-    .getByRole('button', { name: '270s · Coverage restored', exact: true })
-    .click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Normal');
-  await page
-    .getByRole('button', { name: '330s · Incomplete coverage', exact: true })
-    .click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Unknown');
+  await moment(page, '270s · Coverage restored').click();
+  await expect(condition(page)).toHaveText('Normal');
+  await moment(page, '330s · Incomplete coverage').click();
+  await expect(condition(page)).toHaveText('Unknown');
   await expect(details.getByText(/Area applicability unknown/)).toBeVisible();
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
@@ -96,15 +86,11 @@ test('outage keeps received warning and attribution without leaking cancellation
   page,
 }) => {
   await page.goto('/?scenario=weather');
-  await page
-    .getByRole('group', { name: 'Scenario', exact: true })
-    .getByRole('button', { name: 'Weather outage', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: '180s · Emergency Warning', exact: true })
-    .click();
+  await chooseScenario(page, 'Weather outage');
+  await moment(page, '180s · Emergency Warning').click();
+  await openTab(page, 'Warnings');
   const details = page.getByRole('region', { name: 'Weather details' });
-  await expect(page.locator('.condition-box strong')).toHaveText('Degraded');
+  await expect(condition(page)).toHaveText('Degraded');
   await expect(
     details.getByText('Watch and Act', { exact: true }),
   ).toBeVisible();
@@ -123,13 +109,8 @@ test('outage keeps received warning and attribution without leaking cancellation
   await expect(details.locator('.weather-receipt')).toContainText(
     /AEDT|GMT\+11/,
   );
-  await page
-    .getByRole('button', {
-      name: '240s · Expired, coverage stale',
-      exact: true,
-    })
-    .click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Unknown');
+  await moment(page, '240s · Expired, coverage stale').click();
+  await expect(condition(page)).toHaveText('Unknown');
   await expect(details.locator('.weather-receipt')).toContainText('11:01:00');
   await expect(details.locator('.warning-heading').first()).toContainText(
     'error',
@@ -141,15 +122,10 @@ test('weather details are usable on a small screen and replay keeps original rec
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?scenario=weather');
-  await page
-    .getByRole('group', { name: 'Scenario', exact: true })
-    .getByRole('button', { name: 'Weather warnings', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: '270s · Coverage restored', exact: true })
-    .click();
-  await expect(page.locator('.condition-box strong')).toHaveText('Normal');
-  await page.getByRole('button', { name: '30s · Advice', exact: true }).click();
+  await moment(page, '270s · Coverage restored').click();
+  await expect(condition(page)).toHaveText('Normal');
+  await moment(page, '30s · Advice').click();
+  await openTab(page, 'Warnings');
   await expect(page.locator('.weather-receipt')).toContainText('11:00:30');
   expect(
     await page.evaluate(
@@ -167,35 +143,26 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`weather is visible on arrival without scrolling at ${viewport.width}px`, async ({
+  test(`weather and conditions are on the map on arrival at ${viewport.width}px`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     await page.goto('/?scenario=weather');
-    const scenarios = page.getByRole('group', {
-      name: 'Scenario',
-      exact: true,
-    });
-    await expect(
-      scenarios.getByRole('button', { name: 'Weather warnings', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('combobox')).toHaveCount(0);
+    await expect(scenarioPicker(page)).toHaveValue('weather');
     const summary = page.getByRole('region', { name: 'Weather summary' });
     await expect(summary).toContainText('18 °C');
-    const bounds = await summary.boundingBox();
-    expect(bounds!.y).toBeGreaterThanOrEqual(0);
-    expect(bounds!.y + bounds!.height).toBeLessThan(viewport.height);
+    const map = (await page.locator('.map-area').boundingBox())!;
+    for (const overlay of [summary, page.getByTestId('condition')]) {
+      const bounds = (await overlay.boundingBox())!;
+      expect(bounds.y).toBeGreaterThanOrEqual(map.y);
+      expect(bounds.y + bounds.height).toBeLessThan(viewport.height);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+    }
+    expect(map.height).toBeGreaterThan(viewport.height * 0.6);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(viewport.width);
-    if (viewport.width > 760) {
-      const map = await page.locator('.map-card').boundingBox();
-      const warnings = await page
-        .getByRole('region', { name: 'Weather details' })
-        .boundingBox();
-      expect(warnings!.y - (map!.y + map!.height)).toBeLessThanOrEqual(16);
-    }
     await mkdir('../../.local/city02', { recursive: true });
     await page.screenshot({
       path: `../../.local/city02/arrival-${viewport.width}.png`,
@@ -204,29 +171,22 @@ for (const viewport of [
   });
 }
 
-test('scenario buttons support keyboard selection and preserve the chosen clock', async ({
+test('scenario picker supports keyboard selection and preserves the chosen clock', async ({
   page,
 }) => {
   await page.goto('/?scenario=weather');
-  await page
-    .getByRole('button', { name: '60s · Watch and Act', exact: true })
-    .click();
-  const scenarios = page.getByRole('group', { name: 'Scenario', exact: true });
-  const tram = scenarios.getByRole('button', {
-    name: 'Tram journey',
-    exact: true,
-  });
-  await tram.focus();
-  await tram.press('Enter');
-  await expect(tram).toHaveAttribute('aria-pressed', 'true');
+  await moment(page, '60s · Watch and Act').click();
+  const picker = scenarioPicker(page);
+  await picker.focus();
+  // Weather warnings is followed by Tram journey in the picker order.
+  await page.keyboard.press('ArrowDown');
+  await expect(picker).toHaveValue('journey');
   await expect(page.getByTestId('clock')).toHaveText('11:01:00');
   await expect(
     page.getByRole('region', { name: 'Weather summary' }),
   ).toContainText('not included');
-  await page.getByRole('button', { name: 'Show weather', exact: true }).click();
-  await expect(
-    scenarios.getByRole('button', { name: 'Weather warnings', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await chooseScenario(page, 'Weather warnings');
+  await expect(picker).toHaveValue('weather');
   await expect(
     page.getByRole('region', { name: 'Weather summary' }),
   ).toContainText('18 °C');
@@ -247,9 +207,7 @@ for (const scenario of ['weather', 'weather-outage']) {
     const summary = page.getByRole('region', { name: 'Weather summary' });
     await expect(summary).toContainText('No modelled weather reading received');
     await expect(summary).not.toContainText('transport scenario');
-    await expect(
-      summary.getByRole('button', { name: 'Show weather' }),
-    ).toHaveCount(0);
+    await openTab(page, 'Warnings');
     await expect(
       page.getByRole('region', { name: 'Weather details' }),
     ).toBeVisible();
@@ -260,36 +218,20 @@ test('scenario navigation updates shareable URLs and supports browser history', 
   page,
 }) => {
   await page.goto('/?scenario=weather&example=keep#demo');
-  await expect(
-    page.getByRole('region', { name: 'Weather summary' }),
-  ).toContainText('18 °C');
-  const scenarios = page.getByRole('group', { name: 'Scenario', exact: true });
-  await scenarios
-    .getByRole('button', { name: 'Tram journey', exact: true })
-    .click();
+  const summary = page.getByRole('region', { name: 'Weather summary' });
+  await expect(summary).toContainText('18 °C');
+  await chooseScenario(page, 'Tram journey');
   await expect(page).toHaveURL(/scenario=journey&example=keep#demo$/);
-  await expect(
-    page.getByRole('region', { name: 'Weather summary' }),
-  ).toContainText('transport scenario');
+  await expect(summary).toContainText('transport scenario');
   await page.goBack();
-  await expect(
-    scenarios.getByRole('button', { name: 'Weather warnings', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(
-    page.getByRole('region', { name: 'Weather summary' }),
-  ).toContainText('18 °C');
+  await expect(scenarioPicker(page)).toHaveValue('weather');
+  await expect(summary).toContainText('18 °C');
   await page.goForward();
-  await expect(
-    scenarios.getByRole('button', { name: 'Tram journey', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(scenarioPicker(page)).toHaveValue('journey');
   await page.reload();
-  await expect(
-    scenarios.getByRole('button', { name: 'Tram journey', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(
-    page.getByRole('region', { name: 'Weather summary' }),
-  ).toContainText('transport scenario');
-  await page.getByRole('button', { name: 'Show weather', exact: true }).click();
+  await expect(scenarioPicker(page)).toHaveValue('journey');
+  await expect(summary).toContainText('transport scenario');
+  await chooseScenario(page, 'Weather warnings');
   await expect(page).toHaveURL(/scenario=weather&example=keep#demo$/);
 });
 
@@ -307,12 +249,12 @@ test('scenario transition preserves the map canvas and camera while labelling pr
   await expect(marker).not.toHaveAttribute('style', initial!);
   const bounds = await canvas.boundingBox();
   await page.mouse.move(
-    bounds!.x + bounds!.width / 2,
+    bounds!.x + bounds!.width / 3,
     bounds!.y + bounds!.height / 2,
   );
   await page.mouse.down();
   await page.mouse.move(
-    bounds!.x + bounds!.width / 2 + 30,
+    bounds!.x + bounds!.width / 3 + 30,
     bounds!.y + bounds!.height / 2 + 20,
     { steps: 10 },
   );
@@ -328,7 +270,7 @@ test('scenario transition preserves the map canvas and camera while labelling pr
     await held;
     await route.continue();
   });
-  await page.getByRole('button', { name: 'Tram journey', exact: true }).click();
+  await chooseScenario(page, 'Tram journey');
   await expect(
     page.getByText('Loading scenario… Still showing Weather warnings.'),
   ).toBeVisible();
@@ -365,7 +307,7 @@ test('replay diagnostics separate weather duplicates from transport counts', asy
       exact: true,
     }),
   ).toContainText('Applied');
-  await page.getByRole('button', { name: 'Tram journey', exact: true }).click();
+  await chooseScenario(page, 'Tram journey');
   await expect(
     page.getByRole('region', { name: 'Weather summary' }),
   ).toContainText('transport scenario');

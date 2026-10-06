@@ -2,7 +2,7 @@
 
 ## Run and inspect
 
-Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. Open `/?scenario=weather` or select **Weather warnings** to see modelled temperature, rainfall and wind visible above the map. Use the visible scenario buttons to switch views; the active button is highlighted and keyboard accessible. Switching scenarios preserves the replay clock and map camera, pauses playback and updates `?scenario=` for reload/share and browser back/forward. A pending switch labels the previous view until the new snapshot arrives. Shared links select the scenario; a reload starts its clock at zero. The default City overview also includes the planning profile; this walkthrough isolates the weather slice. The existing tram controls and original transport scenarios remain available.
+Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the API after updating fixture files; no provider key or network fetch is required. Open `/?scenario=weather` or choose **Weather warnings** in the **Scenario** menu to see modelled temperature, rainfall and wind in a chip on the map, beside the overall conditions. The menu is a native, keyboard-accessible select. Switching scenarios preserves the replay clock and map camera, pauses playback and updates `?scenario=` for reload/share and browser back/forward. A pending switch labels the previous view until the new snapshot arrives. Shared links select the scenario; a reload starts its clock at zero. The default City overview also includes the planning profile; this walkthrough isolates the weather slice. The existing tram controls and original transport scenarios remain available.
 
 | Clock | What to inspect |
 | --- | --- |
@@ -19,11 +19,11 @@ Use the [CITY-01 setup](city-01.md#run), including local PostGIS. Restart the AP
 | 300/330s | Unrecognised severity and missing geometry prevent a complete assessment. |
 | 360s | Those warnings expire, but incomplete coverage does not repair itself. |
 
-Open **Replay diagnostics** at 120s to inspect separate Transport and Weather counts; Weather reports two duplicates. If a weather scenario has no modelled reading yet, its summary says so while warning details remain available.
+Open **Replay diagnostics** in the **Overview** tab at 120s to inspect separate Transport and Weather counts; Weather reports two duplicates. If a weather scenario has no modelled reading yet, its summary says so while warning details remain available.
 
-The desktop map and context panels stack independently with compact spacing. On mobile, the weather summary remains above the map. Toggle **Warning areas** without removing the accessible warning list. Rewind to 30s: the original Advice state and receipt time return without later cancellation information.
+On desktop the map fills the window, with the details panel on the right; on mobile the details panel follows the map. The weather and conditions chips stay on the map at both sizes. Open the **Warnings** tab for the accessible warning list, and toggle **Warning areas** under **Layers** without removing it. Rewind to 30s: the original Advice state and receipt time return without later cancellation information.
 
-Press the **Weather outage** scenario button. The warning feed becomes unavailable at 90s; later captures, cancellation and coverage recovery are not received. The last known Watch and Act remains effective until 240s. It then expires, leaving Unknown with error coverage. Modelled readings cannot fill that gap. Attribution and the 60s receipt time remain visible.
+Choose **Weather outage**. The warning feed becomes unavailable at 90s; later captures, cancellation and coverage recovery are not received. The last known Watch and Act remains effective until 240s. It then expires, leaving Unknown with error coverage. Modelled readings cannot fill that gap. Attribution and the 60s receipt time remain visible.
 
 The grey rectangles are authored warning polygons. Positive-area overlap establishes applicability, not an observed storm/flood footprint. Boundary-only contact is excluded under [ADR 0006](../adr/0006-weather-fixture-spatial-and-freshness.md).
 

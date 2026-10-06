@@ -12,13 +12,10 @@ export function PlanningPanel({
 }) {
   const records = planning.records ?? [];
   const unlocated = planning.unlocated_records ?? [];
-  const active = [...records, ...unlocated].find(
-    (record) => record.development_key === selected,
-  );
   const row = (record: Development) => (
     <button
       key={record.development_key}
-      className="development-row"
+      className="list-row development-row"
       aria-label={`Inspect ${record.name} in list`}
       aria-pressed={selected === record.development_key}
       onClick={() => onSelect(record.development_key)}
@@ -36,12 +33,12 @@ export function PlanningPanel({
       id="developments"
       aria-label="Planning details"
     >
-      <div className="card-heading">
+      <div className="panel-heading">
         <div>
           <h2>Development activity</h2>
           <p>Area profile · Synthetic DAM sample</p>
         </div>
-        <span className={`coverage-pill ${planning.state}`}>
+        <span className={`status-pill ${planning.state}`}>
           {planning.state}
         </span>
       </div>
@@ -108,33 +105,6 @@ export function PlanningPanel({
           {unlocated.map(row)}
         </div>
       )}
-      <div className="planning-selection" aria-live="polite">
-        {active ? (
-          <>
-            <strong>{active.name}</strong>
-            <p>
-              Source status: {active.status} · Reported area:{' '}
-              {active.clue_small_area ?? 'Unknown'}
-            </p>
-            <p>
-              {active.year_completed === null
-                ? 'Completion year unknown'
-                : `Completion year: ${active.year_completed}`}
-            </p>
-            <p>
-              {active.position
-                ? `Position: ${active.position.latitude.toFixed(5)}, ${active.position.longitude.toFixed(5)}`
-                : 'Position unknown'}
-            </p>
-          </>
-        ) : (
-          <p>
-            {selected
-              ? 'This development is no longer in the current area list.'
-              : 'Select a building on the map or in the list to inspect it.'}
-          </p>
-        )}
-      </div>
       {(planning.removed_records?.length ?? 0) > 0 && (
         <details className="planning-history">
           <summary>

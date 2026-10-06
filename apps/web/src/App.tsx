@@ -1,18 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { AREA_ID, displayTime, displaySourceDate, readJson } from './city';
+import { AREA_ID, displayTime, readJson } from './city';
 import type { Development, Snapshot, Warning } from './city';
 import { CityMap } from './CityMap';
+import type { Boundary, Insets } from './CityMap';
+import { AreaOverview } from './AreaOverview';
+import { DetailsPanel } from './DetailsPanel';
+import type { Tab } from './DetailsPanel';
+import { LayersMenu } from './LayersMenu';
+import type { Layers } from './LayersMenu';
 import { PlanningPanel } from './PlanningPanel';
+import { SelectionCard } from './SelectionCard';
+import { ScenarioPicker, initialScenario, scenarios } from './ScenarioPicker';
+import { Timeline } from './Timeline';
+import { TramList } from './TramList';
 import { WeatherPanel } from './WeatherPanel';
 import { WeatherSummary } from './WeatherSummary';
-import { ScenarioPicker, initialScenario, scenarios } from './ScenarioPicker';
-import { ReplayDiagnostics } from './ReplayDiagnostics';
-import tramIcon from './assets/tram.svg';
-import type { Boundary } from './CityMap';
+import { conditionLabel, missingCoverage } from './conditions';
+import { scenarioMoments } from './moments';
 
 const EMPTY_WARNINGS: Warning[] = [];
 const EMPTY_DEVELOPMENTS: Development[] = [];
+const WIDE = 900;
+
+function mapInsets(): Insets {
+  // Keep the initial area clear of the chips, timeline and (on wide screens) the details panel.
+  return window.innerWidth >= WIDE
+    ? { top: 84, right: 420, bottom: 120, left: 40 }
+    : { top: 116, right: 20, bottom: 124, left: 20 };
+}
 
 export function App() {
   const [seconds, setSeconds] = useState(0);
@@ -22,11 +38,16 @@ export function App() {
   const [selectedDevelopment, setSelectedDevelopment] = useState<string | null>(
     null,
   );
-  const [showPlanning, setShowPlanning] = useState(true);
-  const [showVehicles, setShowVehicles] = useState(true);
-  const [showBoundary, setShowBoundary] = useState(true);
-  const [showWarnings, setShowWarnings] = useState(true);
-  const [showTracks, setShowTracks] = useState(true);
+  const [layers, setLayers] = useState<Layers>({
+    vehicles: true,
+    boundary: true,
+    tracks: true,
+    planning: true,
+    warnings: true,
+  });
+  const [tab, setTab] = useState<Tab>('overview');
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [insets] = useState(mapInsets);
   const result = useQuery({
     queryKey: ['city', scenario, seconds],
     queryFn: ({ signal }) =>
@@ -77,30 +98,6 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [playing, seconds, snapshot, endSeconds, result.isFetching]);
 
-  const active = snapshot?.vehicles.find((vehicle) => vehicle.id === selected);
-  const coverage = (id: string) =>
-    snapshot?.assessment.coverage.find((item) => item.input_id === id)?.state ??
-    'unknown';
-  const condition = snapshot?.assessment.condition ?? 'unknown';
-  const missingCoverage = (snapshot?.assessment.incomplete_inputs ?? [])
-    .map((id) => {
-      const label =
-        id === 'transport_service'
-          ? 'Transport service'
-          : id === 'weather_warnings'
-            ? 'Weather warnings'
-            : id;
-      return (
-        label +
-        (coverage(id) === 'error'
-          ? ' unavailable'
-          : coverage(id) === 'stale'
-            ? ' coverage stale'
-            : ' coverage missing')
-      );
-    })
-    .join('; ');
-
   function changeScenario(value: string) {
     if (value !== scenario) {
       const url = new URL(window.location.href);
@@ -118,6 +115,58 @@ export function App() {
     setSeconds(Math.max(0, Math.min(value, endSeconds)));
   }
 
+  function play() {
+    if (seconds >= endSeconds) {
+      setSeconds(0);
+      setPlaying(true);
+    } else {
+      setPlaying((value) => !value);
+    }
+  }
+
+  function showTab(next: Tab) {
+    setTab(next);
+    setPanelOpen(true);
+  }
+
+  const visible = snapshot && !result.isError ? snapshot : undefined;
+  const records = visible?.planning.records;
+  const warnings = visible?.weather?.warnings ?? EMPTY_WARNINGS;
+  const activeWarningAreas = warnings.filter(
+    (warning) => warning.lifecycle === 'active' && warning.geometry,
+  ).length;
+  const tabs: { id: Tab; label: string; count?: number }[] = visible
+    ? [
+        { id: 'overview', label: 'Overview' },
+        { id: 'trams', label: 'Trams', count: visible.vehicles.length },
+        ...(records
+          ? [
+              {
+                id: 'developments' as const,
+                label: 'Developments',
+                count: records.length,
+              },
+            ]
+          : []),
+        ...(visible.weather
+          ? [
+              {
+                id: 'warnings' as const,
+                label: 'Warnings',
+                count: warnings.length,
+              },
+            ]
+          : []),
+      ]
+    : [];
+  // A tab the current scenario does not provide falls back to the overview.
+  const currentTab = tabs.some((item) => item.id === tab) ? tab : 'overview';
+  const condition = visible?.assessment.condition ?? 'unknown';
+  const allDevelopments = [
+    ...(records ?? []),
+    ...(visible?.planning.unlocated_records ?? []),
+  ];
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -127,506 +176,191 @@ export function App() {
         <span className="city-name">Melbourne, Victoria</span>
         <span className="fixture-badge">SYNTHETIC DEMO · NO LIVE DATA</span>
       </header>
-      <main>
-        <section className="page-heading">
-          <div>
-            <h1>Southbank</h1>
-            <p className="subtitle">Trams, weather and development activity.</p>
-          </div>
-          <p className="area-caption">City of Melbourne · CLUE area</p>
-        </section>
-        <ScenarioPicker value={scenario} onChange={changeScenario} />
-        {snapshot && snapshot.scenario !== scenario && (
-          <div className="notice" role="status">
-            Loading scenario… Still showing{' '}
-            {scenarios.find((item) => item.id === snapshot.scenario)?.label}.
-          </div>
-        )}
-        {snapshot && !result.isError && (
-          <WeatherSummary
-            weather={snapshot.weather}
-            onShowWeather={() => changeScenario('weather')}
-          />
-        )}
-        <section className="playback" aria-label="Fixture playback">
-          <div>
-            <p className="eyebrow">SCENARIO CLOCK</p>
-            <strong data-testid="clock">
-              {snapshot ? displayTime(snapshot.clock.at) : '—'}
-            </strong>
-            <span className="clock-date">4 Oct 2026 · Melbourne</span>
-          </div>
-          <div className="playback-controls">
-            <button
-              className="primary-button"
-              onClick={() => {
-                if (seconds >= endSeconds) {
-                  setSeconds(0);
-                  setPlaying(true);
-                } else {
-                  setPlaying((value) => !value);
-                }
-              }}
-              disabled={result.isError || result.isPlaceholderData || !snapshot}
-            >
-              {playing && seconds < endSeconds ? 'Pause' : 'Play scenario'}
-            </button>
-            <button onClick={() => jump(0)}>Reset</button>
-            <label className="timeline-label">
-              Scenario time <output>{seconds}s</output>
-              <input
-                aria-label="Scenario time"
-                type="range"
-                min="0"
-                max={endSeconds}
-                step="15"
-                value={seconds}
-                onChange={(event) => jump(Number(event.target.value))}
-              />
-            </label>
-          </div>
-        </section>
-        {result.isPending && (
-          <div className="notice" role="status">
-            Loading city observations…
-          </div>
-        )}
-        {result.isError && (
-          <div className="notice error" role="alert">
-            <strong>City snapshot unavailable</strong>
-            <p>
-              Start the local API and PostGIS, then try again. No current
-              conditions can be shown.
-            </p>
-            <button onClick={() => result.refetch()}>Try again</button>
-          </div>
-        )}
-        {snapshot && !result.isError && (
-          <div className="city-grid" aria-busy={result.isPlaceholderData}>
-            <div className="main-column">
-              <section className="map-card">
-                <div className="card-heading">
-                  <div>
-                    <h2>Neighbourhood map</h2>
-                  </div>
-                  <span className="count-chip">
-                    {snapshot.vehicles.filter((v) => v.visible_on_map).length}{' '}
-                    on map
-                  </span>
-                </div>
-                <div className="layer-controls">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showVehicles}
-                      onChange={(event) =>
-                        setShowVehicles(event.target.checked)
-                      }
-                    />{' '}
-                    Tram positions
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showBoundary}
-                      onChange={(event) =>
-                        setShowBoundary(event.target.checked)
-                      }
-                    />{' '}
-                    Area boundary
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showTracks}
-                      onChange={(event) => setShowTracks(event.target.checked)}
-                    />
-                    Tracks (illustrative)
-                  </label>
-                  {snapshot.planning.records && (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showPlanning}
-                        onChange={(event) =>
-                          setShowPlanning(event.target.checked)
-                        }
-                      />{' '}
-                      Development sites
-                    </label>
-                  )}
-                  {snapshot.weather && (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showWarnings}
-                        onChange={(event) =>
-                          setShowWarnings(event.target.checked)
-                        }
-                      />{' '}
-                      Warning areas
-                    </label>
-                  )}
-                </div>
-                {geometry.data && (
-                  <CityMap
-                    boundary={geometry.data}
-                    vehicles={snapshot.vehicles}
-                    selected={selected}
-                    onSelect={selectVehicle}
-                    showVehicles={showVehicles}
-                    showBoundary={showBoundary}
-                    showTracks={showTracks}
-                    warnings={snapshot.weather?.warnings ?? EMPTY_WARNINGS}
-                    showWarnings={showWarnings}
-                    developments={
-                      snapshot.planning.records ?? EMPTY_DEVELOPMENTS
-                    }
-                    showPlanning={showPlanning}
-                    selectedDevelopment={selectedDevelopment}
-                    onSelectDevelopment={selectDevelopment}
-                  />
-                )}
-                {geometry.isPending && (
-                  <div className="map-placeholder" role="status">
-                    Loading area boundary…
-                  </div>
-                )}
-                {geometry.isError && (
-                  <div className="map-placeholder" role="alert">
-                    Boundary unavailable. Observations remain in the list.
-                    <button onClick={() => geometry.refetch()}>
-                      Retry boundary
-                    </button>
-                  </div>
-                )}
-                <div className="map-footnote">
-                  Tracks and trams are illustrative. Southbank boundary: City of
-                  Melbourne.
-                </div>
-              </section>
+      <main
+        className={`stage ${panelOpen && visible ? 'panel-open' : ''}`}
+        aria-busy={result.isPlaceholderData}
+      >
+        <div className="map-area">
+          {geometry.data && visible && (
+            <CityMap
+              boundary={geometry.data}
+              vehicles={visible.vehicles}
+              selected={selected}
+              onSelect={selectVehicle}
+              showVehicles={layers.vehicles}
+              showBoundary={layers.boundary}
+              showTracks={layers.tracks}
+              warnings={warnings}
+              showWarnings={layers.warnings}
+              developments={records ?? EMPTY_DEVELOPMENTS}
+              showPlanning={layers.planning}
+              selectedDevelopment={selectedDevelopment}
+              onSelectDevelopment={selectDevelopment}
+              insets={insets}
+            />
+          )}
+          {visible && geometry.isPending && (
+            <div className="map-placeholder" role="status">
+              Loading area boundary…
+            </div>
+          )}
+          {visible && geometry.isError && (
+            <div className="map-placeholder" role="alert">
+              Boundary unavailable. Observations remain in the details panel.
+              <button onClick={() => geometry.refetch()}>Retry boundary</button>
+            </div>
+          )}
 
-              {snapshot.weather && <WeatherPanel weather={snapshot.weather} />}
-              {snapshot.planning.records && (
-                <PlanningPanel
-                  planning={snapshot.planning}
-                  selected={selectedDevelopment}
-                  onSelect={selectDevelopment}
-                />
-              )}
-              <section className="observations-card">
-                <div className="card-heading">
-                  <div>
-                    <h2>Tram observations</h2>
-                  </div>
-                  <span className="count-chip">
-                    {snapshot.positions_total} in area
-                  </span>
-                </div>
-                {snapshot.vehicles.length === 0 && (
-                  <p className="empty-state">
-                    No tram observations in this fixture view.
-                  </p>
-                )}
-                {snapshot.positions_truncated && (
-                  <p role="status">
-                    Showing the first {snapshot.positions_limit} observations.
-                    More positions exist.
-                  </p>
-                )}
-                <div className="tram-list">
-                  {snapshot.vehicles.map((vehicle) => (
-                    <button
-                      key={vehicle.id}
-                      aria-label={`Select ${vehicle.label} in list`}
-                      aria-pressed={selected === vehicle.id}
-                      className={`tram-row ${selected === vehicle.id ? 'selected' : ''}`}
-                      onClick={() => selectVehicle(vehicle.id)}
-                    >
-                      <img className="tram-list-icon" src={tramIcon} alt="" />
-                      <span>
-                        <strong>{vehicle.label}</strong>
-                        <small>{vehicle.route_id ?? 'Route unknown'}</small>
-                      </span>
-                      <span className="observation-time">
-                        {displayTime(vehicle.observed_at)}
-                      </span>
-                      <span className={`coverage-pill ${vehicle.freshness}`}>
-                        {vehicle.freshness === 'expired'
-                          ? 'last known'
-                          : vehicle.freshness}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="selection-detail" aria-live="polite">
-                  {active ? (
-                    <>
-                      <strong>{active.label} selected</strong>
-                      <span>
-                        Observation: {displayTime(active.observed_at)} ·{' '}
-                        {active.freshness}
-                      </span>
-                      <span>
-                        Position: {active.latitude.toFixed(5)},{' '}
-                        {active.longitude.toFixed(5)} · Revision{' '}
-                        {active.revision}
-                      </span>
-                      <small>
-                        Event: {active.event_id} · Capture:{' '}
-                        {active.capture_ids.join(', ')}
-                      </small>
-                    </>
-                  ) : (
-                    <span>
-                      {selected
-                        ? 'The selected tram is outside this area at this time.'
-                        : 'Select a tram on the map or in the list to inspect its observation.'}
-                    </span>
-                  )}
-                </div>
-              </section>
+          <div className="map-top">
+            <div className="area-title">
+              <h1>Southbank</h1>
+              <span>City of Melbourne · CLUE area</span>
             </div>
-            <div className="side-column">
-              <aside className="area-panel" aria-label="Area overview">
-                <h2>Area conditions</h2>
-                <p className="area-description">
-                  Southbank · City of Melbourne
-                </p>
-                <div className={`condition-box ${condition}`} role="status">
-                  <span className="status-symbol">
-                    {condition === 'degraded'
-                      ? '!'
-                      : condition === 'normal'
-                        ? '✓'
-                        : '?'}
-                  </span>
-                  <div>
-                    <p>Current conditions</p>
-                    <strong>
-                      {condition === 'degraded'
-                        ? 'Degraded'
-                        : condition === 'normal'
-                          ? 'Normal'
-                          : 'Unknown'}
-                    </strong>
-                  </div>
-                </div>
-                <p className="condition-explanation">
-                  {snapshot.assessment.reasons.length
-                    ? 'Known transport disruptions or applicable warnings affect this area.'
-                    : condition === 'unknown'
-                      ? missingCoverage + '. Overall conditions remain unknown.'
-                      : 'Required current-condition inputs are complete.'}
-                </p>
-                {snapshot.assessment.reasons.map((reason) => (
-                  <div className="reason" key={reason.id}>
-                    <strong>{reason.reason}</strong>
-                    <span>
-                      Effective {displayTime(reason.effective_from)} ·{' '}
-                      {reason.resolved_at
-                        ? 'Resolved ' + displayTime(reason.resolved_at)
-                        : reason.effective_until
-                          ? 'Valid until ' + displayTime(reason.effective_until)
-                          : 'Resolution not yet observed'}
-                    </span>
-                  </div>
-                ))}
-                <div className="domain-row">
-                  <div>
-                    <h3>Transport</h3>
-                    <p>
-                      {coverage('transport_service') === 'error'
-                        ? 'Source unavailable · fixture'
-                        : snapshot.assessment.reasons.some(
-                              (reason) =>
-                                reason.input_id === 'transport_service',
-                            )
-                          ? '1 service disruption · fixture'
-                          : 'No active disruption · fixture'}
-                    </p>
-                  </div>
-                  <span
-                    className={`coverage-pill ${coverage('transport_service')}`}
-                  >
-                    {coverage('transport_service')}
-                  </span>
-                </div>
-                <div className="domain-row">
-                  <div>
-                    <h3>Weather & hazards</h3>
-                    <p>
-                      {coverage('weather_warnings') === 'unknown'
-                        ? snapshot.weather
-                          ? 'Warning coverage incomplete'
-                          : 'Warning data not connected'
-                        : coverage('weather_warnings') === 'error'
-                          ? 'Warning source unavailable'
-                          : coverage('weather_warnings') === 'stale'
-                            ? 'Warning coverage is stale'
-                            : coverage('weather_warnings') === 'unsupported'
-                              ? 'Warning coverage unsupported'
-                              : 'Warning coverage current'}
-                    </p>
-                  </div>
-                  <span
-                    className={`coverage-pill ${coverage('weather_warnings')}`}
-                  >
-                    {coverage('weather_warnings')}
-                  </span>
-                </div>
-                <div className="profile-heading">Area profile</div>
-                <div className="domain-row">
-                  <div>
-                    <h3>Planning & infrastructure</h3>
-                    {snapshot.planning.records ? (
-                      <>
-                        <p>
-                          {snapshot.planning.records.length} located
-                          developments · Synthetic sample
-                        </p>
-                        <p>
-                          As of {displaySourceDate(snapshot.planning.as_of)}
-                        </p>
-                        {(snapshot.planning.unlocated_records?.length ?? 0) >
-                          0 && (
-                          <p>
-                            {snapshot.planning.unlocated_records!.length} with
-                            unknown location
-                          </p>
-                        )}
-                        <a href="#developments">View development activity</a>
-                      </>
-                    ) : (
-                      <>
-                        <p>Development data not connected</p>
-                        <p>As of: unknown</p>
-                      </>
-                    )}
-                  </div>
-                  <span className={`coverage-pill ${snapshot.planning.state}`}>
-                    {snapshot.planning.state}
-                  </span>
-                </div>
-                <a
-                  className="evidence-link"
-                  href={snapshot.evidence_url}
-                  target="_blank"
-                  rel="noreferrer"
+            <ScenarioPicker value={scenario} onChange={changeScenario} />
+            {visible && (
+              <>
+                <button
+                  className={`chip condition-chip ${condition}`}
+                  data-testid="condition"
+                  onClick={() => showTab('overview')}
+                  title="Open area conditions"
                 >
-                  View fixture evidence ↗
-                </a>
-              </aside>
-              <section className="scenario-notes">
-                <h2>Demo moments</h2>
-                <p>Jump to a change in the six-minute scenario.</p>
-                {snapshot.weather ? (
-                  <div className="moments">
-                    <button onClick={() => jump(30)}>30s · Advice</button>
-                    <button onClick={() => jump(60)}>
-                      60s · Watch and Act
-                    </button>
-                    <button onClick={() => jump(150)}>150s · Cancelled</button>
-                    <button onClick={() => jump(180)}>
-                      180s · Emergency Warning
-                    </button>
-                    <button onClick={() => jump(240)}>
-                      240s · Expired, coverage stale
-                    </button>
-                    <button onClick={() => jump(270)}>
-                      270s · Coverage restored
-                    </button>
-                    <button onClick={() => jump(330)}>
-                      330s · Incomplete coverage
-                    </button>
-                  </div>
-                ) : (
-                  <div className="moments">
-                    <button onClick={() => jump(30)}>
-                      30s · Position update
-                    </button>
-                    <button onClick={() => jump(60)}>
-                      60s · Service interruption
-                    </button>
-                    <button onClick={() => jump(150)}>
-                      150s · Stale position
-                    </button>
-                    <button onClick={() => jump(330)}>
-                      330s · Last known only
-                    </button>
-                  </div>
-                )}
-                {snapshot.planning.records && (
-                  <div className="planning-moments">
-                    <h3>Planning snapshots</h3>
-                    <p>
-                      Authored receipt timeline; source dates advance
-                      separately.
-                    </p>
-                    {snapshot.scenario === 'planning-outage' ? (
-                      <>
-                        <p>
-                          Captures after 120s are unavailable in this scenario;
-                          no new snapshot or recovery is received.
-                        </p>
-                        <div className="moments">
-                          <button onClick={() => jump(90)}>
-                            90s · Last successful receipt
-                          </button>
-                          <button onClick={() => jump(120)}>
-                            120s · Planning outage begins
-                          </button>
-                          <button onClick={() => jump(270)}>
-                            270s · Still unavailable
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="moments">
-                        <button onClick={() => jump(120)}>
-                          120s · Partial capture
-                        </button>
-                        <button onClick={() => jump(150)}>
-                          150s · New planning snapshot
-                        </button>
-                        <button onClick={() => jump(240)}>
-                          240s · Planning unavailable
-                        </button>
-                        <button onClick={() => jump(270)}>
-                          270s · Planning recovered
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <details>
-                  <summary>Replay diagnostics</summary>
-                  <ReplayDiagnostics
-                    label="Transport"
-                    counts={snapshot.projection}
+                  <span
+                    className={`condition-dot ${condition}`}
+                    aria-hidden="true"
                   />
-                  {snapshot.weather && (
-                    <ReplayDiagnostics
-                      label="Weather"
-                      counts={snapshot.weather.projection}
-                    />
+                  <span className="chip-caption">Conditions</span>
+                  <strong>{conditionLabel(condition)}</strong>
+                  <span className="condition-why">
+                    {visible.assessment.reasons.length
+                      ? `${visible.assessment.reasons.length} active ${visible.assessment.reasons.length === 1 ? 'reason' : 'reasons'}`
+                      : condition === 'unknown'
+                        ? missingCoverage(visible)
+                        : 'Required inputs complete'}
+                  </span>
+                </button>
+                <WeatherSummary weather={visible.weather} />
+                <span className="chip map-counts">
+                  {layers.vehicles && (
+                    <span data-testid="tram-map-count">
+                      {visible.vehicles.filter((v) => v.visible_on_map).length}{' '}
+                      trams on map
+                    </span>
                   )}
-                  {snapshot.planning.projection && (
-                    <ReplayDiagnostics
-                      label="Planning"
-                      counts={snapshot.planning.projection}
-                    />
+                  {layers.planning && records && records.length > 0 && (
+                    <span data-testid="planning-map-count">
+                      {records.length} developments
+                    </span>
                   )}
-                  <p>Policy: {snapshot.policy_version}</p>
-                </details>
-              </section>
-            </div>
+                  {layers.warnings && warnings.length > 0 && (
+                    <span data-testid="warning-map-count">
+                      {activeWarningAreas} active warning{' '}
+                      {activeWarningAreas === 1 ? 'area' : 'areas'}
+                    </span>
+                  )}
+                </span>
+              </>
+            )}
+            <span className="map-top-spacer" />
+            {visible && (
+              <LayersMenu
+                layers={layers}
+                onChange={setLayers}
+                hasPlanning={Boolean(records)}
+                hasWarnings={Boolean(visible.weather)}
+              />
+            )}
+            {visible && !panelOpen && (
+              <button
+                className="chip show-panel"
+                onClick={() => setPanelOpen(true)}
+              >
+                Show details
+              </button>
+            )}
           </div>
+
+          {snapshot && snapshot.scenario !== scenario && (
+            <div className="map-notice" role="status">
+              Loading scenario… Still showing{' '}
+              {scenarios.find((item) => item.id === snapshot.scenario)?.label}.
+            </div>
+          )}
+          {result.isPending && (
+            <div className="map-notice" role="status">
+              Loading city observations…
+            </div>
+          )}
+          {result.isError && (
+            <div className="map-alert" role="alert">
+              <strong>City snapshot unavailable</strong>
+              <p>
+                Start the local API and PostGIS, then try again. No current
+                conditions can be shown.
+              </p>
+              <button onClick={() => result.refetch()}>Try again</button>
+            </div>
+          )}
+
+          {visible && (
+            <SelectionCard
+              tramId={selected}
+              tram={visible.vehicles.find((vehicle) => vehicle.id === selected)}
+              developmentId={selectedDevelopment}
+              development={allDevelopments.find(
+                (record) => record.development_key === selectedDevelopment,
+              )}
+              onClose={() => {
+                setSelected(null);
+                setSelectedDevelopment(null);
+              }}
+            />
+          )}
+
+          <Timeline
+            clock={snapshot ? displayTime(snapshot.clock.at) : '—'}
+            seconds={seconds}
+            endSeconds={endSeconds}
+            playing={playing}
+            canPlay={!(result.isError || result.isPlaceholderData || !snapshot)}
+            moments={visible ? scenarioMoments(visible) : []}
+            onPlay={play}
+            onJump={jump}
+          />
+        </div>
+
+        {visible && panelOpen && (
+          <DetailsPanel
+            tabs={tabs}
+            active={currentTab}
+            onSelect={setTab}
+            onHide={() => setPanelOpen(false)}
+          >
+            {currentTab === 'overview' && (
+              <AreaOverview
+                snapshot={visible}
+                onShowDevelopments={() => setTab('developments')}
+              />
+            )}
+            {currentTab === 'trams' && (
+              <TramList
+                snapshot={visible}
+                selected={selected}
+                onSelect={selectVehicle}
+              />
+            )}
+            {currentTab === 'developments' && (
+              <PlanningPanel
+                planning={visible.planning}
+                selected={selectedDevelopment}
+                onSelect={selectDevelopment}
+              />
+            )}
+            {currentTab === 'warnings' && visible.weather && (
+              <WeatherPanel weather={visible.weather} />
+            )}
+          </DetailsPanel>
         )}
-        <footer>
-          UrbanPulse AU{' '}
-          <span>Transport · Weather & Hazards · Planning & Infrastructure</span>
-        </footer>
       </main>
     </div>
   );

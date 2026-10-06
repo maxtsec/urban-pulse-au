@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
+import {
+  chooseScenario,
+  condition,
+  layer,
+  moment,
+  openTab,
+  scenarioPicker,
+} from './helpers';
 
 test('city overview combines three domains and synchronizes development map/list selection', async ({
   page,
@@ -15,28 +23,24 @@ test('city overview combines three domains and synchronizes development map/list
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(
-    page.getByRole('button', { name: 'City overview', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(scenarioPicker(page)).toHaveValue('city');
   await expect(
     page.getByRole('region', { name: 'Weather summary' }),
   ).toContainText('18 °C');
   await expect(page.getByTestId('planning-map-count')).toHaveText(
     '3 developments',
   );
+  await openTab(page, 'Developments');
   const planning = page.getByRole('region', { name: 'Planning details' });
+  const selection = page.getByRole('region', { name: 'Selection details' });
   await expect(planning).toContainText('1 Sept 2026');
   const marker = page.getByRole('button', {
     name: 'Inspect Demo riverside development on map',
     exact: true,
   });
   await marker.click();
-  await expect(planning.locator('.planning-selection')).toContainText(
-    'Demo riverside development',
-  );
-  await expect(planning.locator('.planning-selection')).toContainText(
-    'Source status: Applied',
-  );
+  await expect(selection).toContainText('Demo riverside development');
+  await expect(selection).toContainText('Source status: Applied');
   await expect(marker).toHaveAttribute('aria-pressed', 'true');
   const row = planning.getByRole('button', {
     name: 'Inspect Demo mixed-use development in list',
@@ -50,9 +54,8 @@ test('city overview combines three domains and synchronizes development map/list
       exact: true,
     }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await page
-    .getByRole('checkbox', { name: 'Development sites', exact: true })
-    .uncheck();
+  await expect(selection).toContainText('Demo mixed-use development');
+  await (await layer(page, 'Development sites')).uncheck();
   await expect(page.locator('.development-marker')).toHaveCount(0);
   await expect(
     planning
@@ -62,9 +65,7 @@ test('city overview combines three domains and synchronizes development map/list
       })
       .getByRole('button'),
   ).toHaveCount(3);
-  await page
-    .getByRole('checkbox', { name: 'Development sites', exact: true })
-    .check();
+  await (await layer(page, 'Development sites')).check();
   await expect(page.locator('.development-marker')).toHaveCount(3);
   await mkdir('../../.local/city03', { recursive: true });
   await page.screenshot({
@@ -79,18 +80,15 @@ test('partial, replacement, outage and recovery preserve source dates and explic
   page,
 }) => {
   await page.goto('/');
+  await openTab(page, 'Developments');
   const planning = page.getByRole('region', { name: 'Planning details' });
-  await page
-    .getByRole('button', { name: '120s · Partial capture', exact: true })
-    .click();
+  await moment(page, '120s · Partial capture').click();
   await expect(planning).toContainText('incomplete or unknown');
   await expect(planning).toContainText('1 Sept 2026');
   await expect(page.getByTestId('planning-map-count')).toHaveText(
     '3 developments',
   );
-  await page
-    .getByRole('button', { name: '150s · New planning snapshot', exact: true })
-    .click();
+  await moment(page, '150s · Cancelled / New planning snapshot').click();
   await expect(planning).toContainText('Snapshot as of 1 Oct 2026');
   await expect(
     planning
@@ -121,25 +119,22 @@ test('partial, replacement, outage and recovery preserve source dates and explic
   await expect(planning.locator('.planning-history')).toContainText(
     'does not establish cancellation or completion',
   );
-  await page
-    .getByRole('button', { name: '240s · Planning unavailable', exact: true })
-    .click();
+  await moment(
+    page,
+    '240s · Expired, coverage stale / Planning unavailable',
+  ).click();
   await expect(planning).toContainText('Planning source unavailable');
   await expect(planning).toContainText('Snapshot as of 1 Oct 2026');
-  await page
-    .getByRole('button', { name: '270s · Planning recovered', exact: true })
-    .click();
+  await moment(page, '270s · Coverage restored / Planning recovered').click();
   await expect(planning).toContainText('Snapshot as of 2 Oct 2026');
   await expect(page.getByTestId('planning-map-count')).toHaveText(
     '3 developments',
   );
-  await expect(page.locator('.condition-box strong')).toHaveText('Normal');
-  await page
-    .getByRole('button', { name: 'Planning outage', exact: true })
-    .click();
+  await expect(condition(page)).toHaveText('Normal');
+  await chooseScenario(page, 'Planning outage');
   await expect(planning).toContainText('Planning source unavailable');
   await expect(planning).toContainText('Snapshot as of 1 Sept 2026');
-  await expect(page.locator('.condition-box strong')).toHaveText('Normal');
+  await expect(condition(page)).toHaveText('Normal');
   await expect(planning.locator('.planning-history')).toHaveCount(0);
 });
 
@@ -147,9 +142,7 @@ test('planning diagnostics and evidence preserve original captures without futur
   page,
 }) => {
   await page.goto('/');
-  await page
-    .getByRole('button', { name: '120s · Partial capture', exact: true })
-    .click();
+  await moment(page, '120s · Partial capture').click();
   await expect(page.getByTestId('clock')).toHaveText('11:02:00');
   await page.getByText('Replay diagnostics', { exact: true }).click();
   await expect(
@@ -193,6 +186,7 @@ for (const empty of [false, true]) {
       await route.fulfill({ response, json: data });
     });
     await page.goto('/');
+    await openTab(page, 'Developments');
     const planning = page.getByRole('region', { name: 'Planning details' });
     await expect(planning).toContainText(
       empty
@@ -201,10 +195,11 @@ for (const empty of [false, true]) {
     );
     if (!empty) await expect(planning).toContainText('Source date unknown');
     await expect(page.locator('.development-marker')).toHaveCount(0);
+    await expect(page.getByTestId('planning-map-count')).toHaveCount(0);
   });
 }
 
-test('integrated profile fits mobile and weather remains visible without scrolling', async ({
+test('integrated profile fits mobile and keeps conditions and weather on the map', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -213,6 +208,7 @@ test('integrated profile fits mobile and weather remains visible without scrolli
   await expect(summary).toContainText('18 °C');
   const bounds = await summary.boundingBox();
   expect(bounds!.y + bounds!.height).toBeLessThan(844);
+  await openTab(page, 'Developments');
   await expect(
     page.getByRole('region', { name: 'Planning details' }),
   ).toBeVisible();
@@ -230,10 +226,9 @@ test('planning panel distinguishes accepted location gaps from rejected captures
   page,
 }) => {
   await page.goto('/?scenario=city');
+  await openTab(page, 'Developments');
   const planning = page.getByRole('region', { name: 'Planning details' });
-  await page
-    .getByRole('button', { name: '150s · New planning snapshot', exact: true })
-    .click();
+  await moment(page, '150s · Cancelled / New planning snapshot').click();
   await expect(planning).toContainText(
     'Latest complete snapshot received successfully.',
   );
@@ -253,30 +248,30 @@ test('planning outage moments describe only received data and continuing failure
   page,
 }) => {
   await page.goto('/?scenario=planning-outage');
-  const moments = page.locator('.planning-moments');
-  await expect(moments.getByRole('button')).toHaveCount(3);
+  const moments = page.getByRole('group', {
+    name: 'Scenario moments',
+    exact: true,
+  });
+  await expect(
+    moments.getByRole('button', { name: /Last successful receipt/ }),
+  ).toHaveCount(1);
   await expect(
     moments.getByRole('button', {
       name: /New planning snapshot|Planning recovered|Partial capture/,
     }),
   ).toHaveCount(0);
-  await moments
-    .getByRole('button', { name: '90s · Last successful receipt', exact: true })
-    .click();
+  await moment(page, '90s · Last successful receipt').click();
   await expect(page.getByTestId('clock')).toHaveText('11:01:30');
+  await openTab(page, 'Developments');
   const planning = page.getByRole('region', { name: 'Planning details' });
-  await expect(planning.locator('.coverage-pill')).toHaveText('current');
-  await moments
-    .getByRole('button', { name: '120s · Planning outage begins', exact: true })
-    .click();
+  await expect(planning.locator('.status-pill')).toHaveText('current');
+  await moment(page, '120s · Planning outage begins').click();
   await expect(planning).toContainText('Planning source unavailable.');
-  await moments
-    .getByRole('button', { name: '270s · Still unavailable', exact: true })
-    .click();
+  await moment(page, '270s · Coverage restored / Still unavailable').click();
   await expect(page.getByTestId('clock')).toHaveText('11:04:30');
   await expect(planning).toContainText('Snapshot as of 1 Sept 2026');
   await expect(planning).toContainText(
     'Showing the previously accepted complete snapshot.',
   );
-  await expect(planning.locator('.coverage-pill')).toHaveText('error');
+  await expect(planning.locator('.status-pill')).toHaveText('error');
 });
