@@ -4,9 +4,9 @@ UrbanPulse is a Melbourne city intelligence project integrating transport, weath
 
 ## Reading paths
 
-For product review: [project brief](../project_brief.md) â†’ [city MVP scenario](demos/city-mvp.md) â†’ [delivery plan](delivery-plan.md).
+For product review: [project brief](../project_brief.md) → [city MVP scenario](demos/city-mvp.md) → [delivery plan](delivery-plan.md).
 
-For development: [development guide](development.md) â†’ [architecture](architecture/overview.md) â†’ [testing strategy](testing-strategy.md) â†’ the relevant decision/source record.
+For development: [development guide](development.md) → [architecture](architecture/overview.md) → [testing strategy](testing-strategy.md) → the relevant decision/source record.
 
 For local setup demonstration: [Phase 0 walkthrough](demos/phase-0.md) and [local evidence](evidence/phase-0-local.md).
 
@@ -18,7 +18,7 @@ For contract review: [ADR 0003](adr/0003-cloudevents-and-area-conditions.md), [a
 
 For the runnable city view: [CITY-01 walkthrough](demos/city-01.md), [fixture map decision](adr/0004-southbank-fixture-map.md) and [test evidence](evidence/city-01-fixture-map.md).
 
-For weather-source evolution: [ADR 0005](adr/0005-weather-source-policy.md) â†’ [source enablement gates](source-register.md#weather-enablement-evidence) â†’ [area weather policy](architecture/area-contract.md#weather-source-policy).
+For weather-source evolution: [ADR 0005](adr/0005-weather-source-policy.md) → [source enablement gates](source-register.md#weather-enablement-evidence) → [area weather policy](architecture/area-contract.md#weather-source-policy).
 
 For the integrated weather replay: [CITY-02 walkthrough](demos/city-02.md), [fixture contract](architecture/weather-fixture-contract.md), [ADR 0006](adr/0006-weather-fixture-spatial-and-freshness.md) and [evidence](evidence/city-02-weather.md).
 
@@ -36,7 +36,7 @@ For Phase 3 verification: [acceptance map](evidence/phase-3-acceptance.md). For 
 
 For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](adr/0010-hosted-fixture-demo.md), [image publishing operations](runbooks/image-publishing.md) and [publication evidence](evidence/demo-01-image-publishing.md) and [accepted resource choices](adr/0012-managed-demo-resource-profile.md), the [resource plan](architecture/demo-cloud-resource-plan.md) and [foundation operations](runbooks/demo-foundation.md), followed by [private database initialization](runbooks/demo-database.md).
 
-For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) â†’ [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) â†’ [map context sources](source-register.md#map-context-sources).
+For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
 
 ## Document responsibilities
 
@@ -94,7 +94,7 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) â�
 | [Compiled web serving](runbooks/web-serving.md) | Runtime settings, local rehearsal, route/cache behavior and failure checks | Serving packaging or its runtime contract changes |
 | [Web serving evidence](evidence/demo-01-web-serving.md) | Compiled browser flows, same-origin API and dependency outage/recovery | Serving acceptance is verified |
 | [Optional cache evidence](evidence/demo-01-optional-cache.md) | Explicit cache modes, readiness failures and Redis-free Compose verification | Cache mode or its dependency checks change |
-| [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Accepted building source, MapLibre + deck.gl stack, animation classes and MAP-01â€“05 sequence | A MAP item or map context source changes |
+| [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Accepted building source, MapLibre + deck.gl stack, animation classes and MAP-01–05 sequence | A MAP item or map context source changes |
 | [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) | Transport prerequisites, continuous playback windows, receipt/shape semantics and API options | The architect reviews the proposal or MAP-02 implements it |
 | [MAP-02 payload estimate](evidence/map-02-animation-payload.md) | Reproducible synthetic JSON/compression sizes and placement trade-offs | The proposed wire shape changes or real fixture measurements become available |
 | [Google Cloud identity bootstrap](runbooks/gcp-bootstrap.md) | Terraform bootstrap for APIs, image repository, GitHub federation and the image builder | Bootstrap identities, trust conditions or apply steps change |
