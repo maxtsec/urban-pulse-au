@@ -1,6 +1,6 @@
 # Managed fixture continuous delivery
 
-Decision: [ADR 0014](../adr/0014-managed-demo-continuous-delivery.md). This adds application delivery to the existing [managed serving root](managed-demo-serving.md). It does not change the current cloud deployment when merged. Keep `DEMO_CD_ENABLED` unset or `false` until setup is reviewed and complete.
+Decision: [ADR 0014](../adr/0014-managed-demo-continuous-delivery.md). This adds application delivery to the existing [managed serving root](managed-demo-serving.md). It does not change the current cloud deployment when merged. For a new installation, keep `DEMO_CD_ENABLED` unset or `false` until setup is reviewed and complete. Current deployment evidence is in [the operational record](../evidence/cd-01-managed-delivery.md).
 
 ## One-time setup, separately approved
 
@@ -64,3 +64,9 @@ The deployer can operate objects in its dedicated bucket; versioning supports re
 Run `uv run --locked pytest tests/unit/test_demo_delivery.py tests/unit/test_demo_delivery_runner.py -q`, Ruff and workflow syntax checks. Run `terraform -chdir=infra/demo-cd init -backend=false -input=false -lockfile=readonly`, `validate` and `test` for credential-free infrastructure validation. The existing serving mocked plans still cover candidate/promotion/rollback topology. Workflow validation CI has no deployment credentials and does not migrate a backend.
 
 Unit tests exercise provenance, forbidden changes, compatibility, superseded selection and the actual runner entrypoint with fake boundaries, including interrupted mutation and lock retention. They do not prove live IAM, cross-process locking, registry availability or first activated CD execution. No cloud resource, state migration, environment setting or workflow activation is performed by these tests.
+
+## After a completed delivery
+
+Use the shared `delivery/current.json` as the authoritative input record. A candidate changes the applied template even while the old revision keeps all default traffic: do not apply an older local tfvars file, which could recreate the old template. Retain the new state generation/hash and record generation privately, preserving earlier evidence. After promotion, confirm the promoted revision receives 100%, the candidate tag is removed, `candidate` and `in_progress` are null, and `previous` identifies the prior serving release. Confirm operation/backend locks are released.
+
+A workflow dispatch and required-reviewer approval are separate recorded steps. Operator approval authorizes the named candidate only; a replacement needs its own decision. Never describe a control-plane Ready result as fresh browser acceptance. Keep live rejection tests distinct from read-back of the federation condition and from successful trusted authentication.
