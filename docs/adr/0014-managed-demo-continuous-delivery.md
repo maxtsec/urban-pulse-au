@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 
-Status: **Architect accepted the GCS backend and automatic-candidate/manual-promotion direction on 2026-10-06.** Implementation is submitted for PR review; provisioning, state migration, environment protection and activation require separately reviewed setup. This decision does not apply resources.
+Status: **Architect accepted the GCS backend and automatic-candidate/manual-promotion direction on 2026-10-06.** Implementation and approved setup are recorded in [CD evidence](../evidence/cd-01-managed-delivery.md). Further infrastructure or security-boundary changes retain their review requirements.
 
 ## Decision
 

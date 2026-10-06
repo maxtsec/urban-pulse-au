@@ -38,6 +38,8 @@ For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](ad
 
 For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
 
+For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [managed delivery evidence](evidence/cd-01-managed-delivery.md).
+
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
@@ -122,6 +124,7 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [ADR 0014](adr/0014-managed-demo-continuous-delivery.md) | Accepted remote-state and candidate/promotion direction | Deployment ownership or security boundary changes |
 | [Managed CD runbook](runbooks/managed-demo-cd.md) | Backend migration, workflow activation, private records and failure recovery | Delivery implementation or operating procedure changes |
 | [Managed CD evidence](evidence/demo-01-continuous-delivery.md) | Offline guards, runner failure tests and activation limits | Deployment validation changes |
+| [CD operational evidence](evidence/cd-01-managed-delivery.md) | Exact publication, candidate and promotion runs, retained rollback and validation limits | A managed delivery milestone is verified |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
