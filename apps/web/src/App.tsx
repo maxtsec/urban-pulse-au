@@ -22,6 +22,10 @@ import { scenarioMoments } from './moments';
 const EMPTY_WARNINGS: Warning[] = [];
 const EMPTY_DEVELOPMENTS: Development[] = [];
 const WIDE = 900;
+const PLAY_STEP_SECONDS = 15;
+const PLAY_STEP_MS = 2000;
+// Shorter than a playback step so each tram settles on its observation before the next one.
+const GLIDE_MS = 1500;
 
 function mapInsets(): Insets {
   // Keep the initial area clear of the chips, timeline and (on wide screens) the details panel.
@@ -88,15 +92,18 @@ export function App() {
     setSelected(null);
   }, []);
 
+  // Playback waits for each snapshot, then advances one step after a fixed delay.
+  const advancing =
+    playing && Boolean(snapshot) && !result.isFetching && seconds < endSeconds;
+  const nextSeconds = Math.min(seconds + PLAY_STEP_SECONDS, endSeconds);
   useEffect(() => {
-    if (!playing || !snapshot || result.isFetching || seconds >= endSeconds)
-      return;
+    if (!advancing) return;
     const timer = window.setTimeout(
-      () => setSeconds((value) => Math.min(value + 15, endSeconds)),
-      2000,
+      () => setSeconds(nextSeconds),
+      PLAY_STEP_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [playing, seconds, snapshot, endSeconds, result.isFetching]);
+  }, [advancing, nextSeconds]);
 
   function changeScenario(value: string) {
     if (value !== scenario) {
@@ -197,6 +204,7 @@ export function App() {
               selectedDevelopment={selectedDevelopment}
               onSelectDevelopment={selectDevelopment}
               insets={insets}
+              glideMs={playing ? GLIDE_MS : 0}
             />
           )}
           {visible && geometry.isPending && (
@@ -322,6 +330,9 @@ export function App() {
             seconds={seconds}
             endSeconds={endSeconds}
             playing={playing}
+            advancing={advancing}
+            nextSeconds={nextSeconds}
+            stepMs={PLAY_STEP_MS}
             canPlay={!(result.isError || result.isPlaceholderData || !snapshot)}
             moments={visible ? scenarioMoments(visible) : []}
             onPlay={play}

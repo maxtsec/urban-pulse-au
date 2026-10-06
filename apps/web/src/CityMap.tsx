@@ -48,7 +48,18 @@ type Props = {
   onSelectDevelopment: (id: string) => void;
   /** Screen space covered by floating controls; the initial view fits inside the rest. */
   insets: Insets;
+  /**
+   * During playback, a tram moving between two current observations glides from
+   * the previous observed point to the new one for this long; 0 places it directly.
+   */
+  glideMs: number;
 };
+
+type Observed = { lngLat: [number, number]; freshness: Vehicle['freshness'] };
+
+const easeOut = (k: number) => 1 - (1 - k) ** 3;
+const reducedMotion = () =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function CityMap({
   boundary,
@@ -65,6 +76,7 @@ export function CityMap({
   selectedDevelopment,
   onSelectDevelopment,
   insets,
+  glideMs,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -75,6 +87,8 @@ export function CityMap({
   const initialInsets = useRef(insets);
   const labelOrder = useRef<string[]>([]);
   const frame = useRef(0);
+  const observed = useRef<Map<string, Observed>>(new Map());
+  const glides = useRef<Map<string, number>>(new Map());
 
   // Recompute label sides from current screen positions after any camera or marker change.
   const layoutLabels = useCallback(() => {
@@ -260,6 +274,9 @@ export function CityMap({
     resize.observe(container.current);
     return () => {
       cancelAnimationFrame(frame.current);
+      glides.current.forEach((id) => cancelAnimationFrame(id));
+      glides.current.clear();
+      observed.current.clear();
       resize.disconnect();
       markers.current.forEach((marker) => marker.remove());
       markers.current.clear();
@@ -293,6 +310,9 @@ export function CityMap({
     const ids = new Set(visible.map((vehicle) => vehicle.id));
     for (const [id, marker] of markers.current) {
       if (!ids.has(id)) {
+        cancelAnimationFrame(glides.current.get(id) ?? 0);
+        glides.current.delete(id);
+        observed.current.delete(id);
         marker.remove();
         markers.current.delete(id);
       }
@@ -322,7 +342,48 @@ export function CityMap({
       const button = marker.getElement();
       button.className = `tram-marker ${vehicle.freshness} ${vehicle.id === selected ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
       button.setAttribute('aria-pressed', String(vehicle.id === selected));
-      marker.setLngLat([vehicle.longitude, vehicle.latitude]);
+      const target: [number, number] = [vehicle.longitude, vehicle.latitude];
+      const previous = observed.current.get(vehicle.id);
+      observed.current.set(vehicle.id, {
+        lngLat: target,
+        freshness: vehicle.freshness,
+      });
+      // An unchanged observation leaves any running glide to finish.
+      if (
+        previous &&
+        previous.lngLat[0] === target[0] &&
+        previous.lngLat[1] === target[1]
+      )
+        return;
+      cancelAnimationFrame(glides.current.get(vehicle.id) ?? 0);
+      glides.current.delete(vehicle.id);
+      const glide =
+        glideMs > 0 &&
+        !reducedMotion() &&
+        previous?.freshness === 'current' &&
+        vehicle.freshness === 'current';
+      if (!glide) {
+        marker.setLngLat(target);
+        return;
+      }
+      const from = marker.getLngLat();
+      const start = performance.now();
+      const moving = marker;
+      const step = (now: number) => {
+        const k = Math.min(1, (now - start) / glideMs);
+        const eased = easeOut(k);
+        moving.setLngLat([
+          from.lng + (target[0] - from.lng) * eased,
+          from.lat + (target[1] - from.lat) * eased,
+        ]);
+        if (k < 1) {
+          glides.current.set(vehicle.id, requestAnimationFrame(step));
+        } else {
+          glides.current.delete(vehicle.id);
+          layoutLabels();
+        }
+      };
+      glides.current.set(vehicle.id, requestAnimationFrame(step));
     });
     // The selected tram claims its preferred label side first, then fresher observations.
     labelOrder.current = [...visible]
@@ -344,7 +405,19 @@ export function CityMap({
     showBoundary,
     showTracks,
     layoutLabels,
+    glideMs,
   ]);
+
+  useEffect(() => {
+    if (glideMs > 0 || glides.current.size === 0) return;
+    for (const [id, frameId] of glides.current) {
+      cancelAnimationFrame(frameId);
+      const target = observed.current.get(id);
+      if (target) markers.current.get(id)?.setLngLat(target.lngLat);
+    }
+    glides.current.clear();
+    layoutLabels();
+  }, [glideMs, layoutLabels]);
 
   useEffect(() => {
     const instance = map.current;

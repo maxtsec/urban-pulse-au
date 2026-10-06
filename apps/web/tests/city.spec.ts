@@ -42,11 +42,11 @@ test('map and keyboard list select the same moving tram without external request
       ),
   ).toBe(true);
   const tracks = await layer(page, 'Tracks (illustrative)');
-  await expect(page.locator('.layers-note')).toContainText(
+  await expect(page.getByTestId('tracks-note')).toContainText(
     'Illustrative tracks',
   );
   await tracks.uncheck();
-  await expect(page.locator('.layers-note')).toHaveCount(0);
+  await expect(page.getByTestId('tracks-note')).toHaveCount(0);
   await expect(marker).toBeVisible();
   await tracks.check();
   await closeLayers(page);
