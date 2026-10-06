@@ -2,10 +2,10 @@
 mock_provider "google" {
   override_during = plan
   mock_data "google_project" {
-    defaults = { number = "123456789012", org_id = "987654321012" }
+    defaults = { number = "123456789012" }
   }
-  mock_data "google_service_account" {
-    defaults = { email = "service-123456789012@gcp-sa-iap.iam.gserviceaccount.com" }
+  mock_data "google_project_ancestry" {
+    defaults = { ancestors = [{ type = "project", id = "example-project" }, { type = "organization", id = "987654321012" }] }
   }
 }
 variables {
@@ -48,7 +48,8 @@ run "protected_first_revision" {
       google_cloud_run_v2_service_iam_binding.iap_invoker.role == "roles/run.invoker" &&
       google_cloud_run_v2_service_iam_binding.iap_invoker.members == toset(["serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com"]) &&
       google_iap_web_cloud_run_service_iam_binding.reviewers.role == "roles/iap.httpsResourceAccessor" &&
-      google_iap_web_cloud_run_service_iam_binding.reviewers.members == var.iap_members
+      google_iap_web_cloud_run_service_iam_binding.reviewers.members == var.iap_members &&
+      !issensitive(google_iap_web_cloud_run_service_iam_binding.reviewers.members)
     )
     error_message = "Only IAP may invoke; only explicit organization reviewers receive IAP access."
   }
@@ -70,7 +71,7 @@ run "protected_first_revision" {
       length(google_cloud_run_v2_service.demo.template[0].containers) == 2 &&
       one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).command == tolist(["/app/.venv/bin/python"]) &&
       one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).args == tolist([
-        "-m", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-server-header"
+        "-m", "uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8000", "--workers", "1", "--no-server-header"
       ]) &&
       one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).image == var.api_image &&
       length(one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).ports) == 0 &&
@@ -160,8 +161,8 @@ run "rollback_leaves_candidate_and_schema_unchanged" {
 run "reject_no_organization" {
   command = plan
   override_data {
-    target = data.google_project.current
-    values = { number = "123456789012", org_id = "" }
+    target = data.google_project_ancestry.current
+    values = { ancestors = [{ type = "project", id = "example-project" }] }
   }
   expect_failures = [google_cloud_run_v2_service.demo]
 }
@@ -236,4 +237,33 @@ run "reject_wrong_schema" {
   command = plan
   variables { schema_revision = "head" }
   expect_failures = [var.schema_revision]
+}
+
+run "organization_through_nested_folders" {
+  command = plan
+  override_data {
+    target = data.google_project.current
+    values = { number = "123456789012", org_id = "", folder_id = "111111111111" }
+  }
+  override_data {
+    target = data.google_project_ancestry.current
+    values = { ancestors = [
+      { type = "project", id = "example-project" },
+      { type = "folder", id = "111111111111" },
+      { type = "folder", id = "222222222222" },
+      { type = "organization", id = "987654321012" },
+    ] }
+  }
+  assert {
+    condition     = google_cloud_run_v2_service.demo.iap_enabled
+    error_message = "Folder nesting must not reject a project with an organization ancestor."
+  }
+}
+run "reject_folder_without_organization" {
+  command = plan
+  override_data {
+    target = data.google_project_ancestry.current
+    values = { ancestors = [{ type = "project", id = "example-project" }, { type = "folder", id = "111111111111" }] }
+  }
+  expect_failures = [google_cloud_run_v2_service.demo]
 }

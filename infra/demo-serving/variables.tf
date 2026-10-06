@@ -130,7 +130,7 @@ variable "organization_domain" {
 variable "iap_members" {
   description = "Explicit organization users/groups. Start with acceptance operators only; group membership and inherited policy must be verified privately."
   type        = set(string)
-  sensitive   = true
+  # Deliberately visible in the private plan so every access grant can be reviewed.
   validation {
     condition = length(var.iap_members) > 0 && alltrue([for member in var.iap_members :
       can(regex("^(user|group):[A-Za-z0-9._%+-]+@", member)) &&
