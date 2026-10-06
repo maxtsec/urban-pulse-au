@@ -2,6 +2,8 @@
 
 Date: 6 October 2026. Scope: [ADR 0012](../adr/0012-managed-demo-resource-profile.md) and the [foundation root](../../infra/demo-foundation). Progress: [delivery plan](../delivery-plan.md).
 
+This is the initial pre-apply validation record; subsequent apply and private database checks are recorded in [database initialization evidence](demo-01-database-bootstrap.md).
+
 The selected profile is encoded in Terraform with Google provider 7.46.1 locked. Mocked validation is credential-free. A separate operator-authenticated plan was prepared read-only; no apply, IAM write, secret value, database creation, reviewer grant or Job execution was performed.
 
 | Verification | Result |
