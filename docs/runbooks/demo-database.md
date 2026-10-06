@@ -33,6 +33,15 @@ For a partial failure, retain the encrypted recovery file and phase record, insp
 
 Cloud SQL API-created built-in users receive administrative membership by default unless custom roles are selected. Application roles here are created through SQL and verified without that membership. [Cloud SQL users](https://docs.cloud.google.com/sql/docs/postgres/create-manage-users), [Auth Proxy](https://docs.cloud.google.com/sql/docs/postgres/connect-auth-proxy).
 
+## Migration checklist
+
+Every schema revision, including a data-only migration, must review the database permission gate before deployment:
+
+1. Update the accepted revision in `scripts/demo_database.py:grant_access` alongside the migration. It deliberately refuses any revision other than `0007_city_checkpoints` today; do not bypass the check or infer grants from every discovered table.
+2. Review the explicit input/event table sets, mutable-table allowlist, ownership and privilege matrix. Decide any new table, sequence, function or type privileges explicitly; private defaults grant nothing to application roles. Preserve cross-context write restrictions.
+3. Run migration and access refresh as the migration login on a disposable database, then run `tests/integration/test_demo_database.py`. Its real CLI/API flow covers migration, repeated import, durable replay and runtime reads with separate logins, alongside negative privilege and connection-cap tests. Include upgrade/compatibility tests for the migration itself.
+4. Before a managed upgrade, review the saved deployment/migration plan and backup/restore path. Serialize migration, apply the reviewed revision, refresh grants in a transaction and verify the real entrypoints. Do not rerun bootstrap or rotate credentials to refresh grants; an unexpected revision/table set must stop deployment.
+
 ## Verification and remaining deployment gates
 
 `uv run pytest -m integration -q tests/integration/test_demo_database.py` creates a random database and role prefix on the configured local integration server, exercises real authentication/privileges/caps, and removes only those generated resources. The integration operator needs database/role creation rights; ordinary application accounts do not. Use `URBANPULSE_TEST_DATABASE_URL` only for an isolated development server.

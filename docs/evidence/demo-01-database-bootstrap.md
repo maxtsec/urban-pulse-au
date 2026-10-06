@@ -23,6 +23,8 @@ Private initialization installed PostGIS, applied the seven existing migrations 
 
 Local validation passed: **494 unit tests**, **155 integration tests** (including **13 database-bootstrap security cases**), Ruff lint/format and strict mypy over 56 source files. All 546 relative documentation links resolved.
 
+Review follow-up: all **14 database-bootstrap security cases passed**, including a real entrypoint flow. Migration runs through its CLI as the migration login; the import CLI runs twice as importer; the worker CLI creates, advances and completes a full city replay as worker; a fresh API process uses the runtime login for readiness and snapshots. Its final snapshot matches the durable result. This runs on a disposable local database without cloud credentials.
+
 The new integration module uses a random disposable database and four randomly prefixed roles on a separate local PostgreSQL/PostGIS server. It verifies real login, migration ownership, allowed input/pointer/effect writes, denied cross-context writes, denied DDL/temp/truncate/role escalation, future table/sequence/function privacy, unknown-table refusal, safe repeat refusal and connection exhaustion. The suite also rejects autocommit initialization and accidental credential rotation.
 
 Reproduce with `uv run pytest -m integration -q tests/integration/test_demo_database.py`. These checks run in ordinary CI without cloud credentials. Managed spatial checks were a separate operator run against the new Cloud SQL database using the existing three spatial test modules; the full destructive integration suite was not pointed at cloud resources.
