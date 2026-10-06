@@ -50,4 +50,4 @@ def test_hosted_sidecar_command_matches_shared_network_rehearsal():
         Loader=yaml.BaseLoader,
     )
     assert rehearsal["services"]["api"]["command"] == hosted
-    assert hosted[hosted.index("--host") + 1] == "127.0.0.1"
+    assert hosted[hosted.index("--host") + 1] == "0.0.0.0"

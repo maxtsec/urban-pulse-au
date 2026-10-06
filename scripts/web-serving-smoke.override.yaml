@@ -2,8 +2,8 @@ services:
   api:
     # Rehearse the shared network namespace used by a Cloud Run API sidecar.
     network_mode: service:web
-    # Match the hosted sidecar: reachable only inside the shared network namespace.
-    command: ["/app/.venv/bin/python", "-m", "uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8000", "--workers", "1", "--no-server-header"]
+    # Match the hosted API listener, including its platform probe interface.
+    command: ["/app/.venv/bin/python", "-m", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-server-header"]
     depends_on: !override
       postgres: {condition: service_healthy}
       city-init: {condition: service_completed_successfully}
