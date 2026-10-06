@@ -1,0 +1,51 @@
+name: Managed demo delivery
+on:
+  workflow_run:
+    workflows: [Publish images]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      candidate_revision:
+        description: Exact retained candidate revision to promote
+        required: true
+        type: string
+      accepted:
+        description: I have accepted this candidate and approve its traffic promotion
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: managed-demo-delivery
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: >-
+      vars.DEMO_CD_ENABLED == 'true' && github.repository == 'maxtsec/urban-pulse-au' &&
+      github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      operation: candidate
+      publication_run: ${{ format('{0}', github.event.workflow_run.id) }}
+      publication_attempt: ${{ format('{0}', github.event.workflow_run.run_attempt) }}
+  promote:
+    if: >-
+      vars.DEMO_CD_ENABLED == 'true' && github.repository == 'maxtsec/urban-pulse-au' &&
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.accepted
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      operation: promote
+      candidate_revision: ${{ inputs.candidate_revision }}
+      accepted: ${{ inputs.accepted }}

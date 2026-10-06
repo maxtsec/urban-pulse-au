@@ -32,7 +32,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["apps/api", "workers/ingestion", "workers/events", "workers/city", "workers/initialization", "urbanpulse", "scripts/image_publication.py", "scripts/demo_database.py"]
+files = ["apps/api", "workers/ingestion", "workers/events", "workers/city", "workers/initialization", "urbanpulse", "scripts/image_publication.py", "scripts/demo_database.py", "scripts/demo_delivery.py", "scripts/demo_delivery_runner.py", "scripts/demo_delivery_seed.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

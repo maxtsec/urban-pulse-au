@@ -1,0 +1,4 @@
+# Copy to backend.tf only during the separately approved state migration.
+terraform {
+  backend "gcs" {}
+}
