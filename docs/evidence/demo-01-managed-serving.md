@@ -19,3 +19,23 @@ The initial Gen2 request-based allocation is one vCPU/512 MiB per container, min
 Architect review selected option A: the API listens on `0.0.0.0:8000` and retains its own startup/liveness probes; Caddy still proxies over localhost and remains the only declared ingress container. The shared-network rehearsal and command consistency guard use the same listener. Actual platform probe reachability and dependent web startup remain first-candidate acceptance cases.
 
 Option A follow-up verification: Terraform validate and all 19 mocked plans, Ruff lint/format, five deployment-consistency unit tests and the full compiled-serving smoke passed again (53 browser checks, API/database outage recovery and verified cleanup). The earlier full Python suite and PostGIS pool results above were not rerun for this listener-only change.
+
+## Managed bootstrap and Cloud SQL read-back
+
+On 6 October 2026, the reviewed closed-bootstrap plan was applied: two additions, no changes/deletions. Both images came from source `7c60bdd4591b931086d06d6fe8041aa5a30e6353`. Read-back confirmed their manifest digests, IAP enabled, only the IAP agent in the service invoker binding, no service reviewer binding, and 100% traffic to the explicit first revision. The effective domain-policy and inherited-access preflight passed. Private state backups matched their SHA-256 hashes.
+
+Cloud Logging recorded API startup readiness succeeding after three attempts and web readiness after two, followed by successful liveness probes for both containers. API readiness queries PostGIS through the configured runtime connection. Anonymous requests to `/`, `/health/ready` and `/api/v1/fixture` received HTTP 302 to Google sign-in; this demonstrates interception, not a completed OAuth login or an unlisted-user denial test.
+
+The first post-apply plan found a mount-only difference:
+
+| Evidence | `web` mount | `api` mount |
+| --- | --- | --- |
+| Cloud Audit Logs: original v2 `CreateService` request | None | `cloudsql` at `/cloudsql` |
+| Raw Cloud Run v2 service and revision GET | `cloudsql` at `/cloudsql` | None |
+| Corrected Terraform declaration | `cloudsql` at `/cloudsql` | None |
+
+The v1 service represents the connection through its revision-level Cloud SQL annotation and lists neither container mount. The pinned [provider's v2 container decoder](https://github.com/hashicorp/terraform-provider-google/blob/v7.46.1/google/services/cloudrunv2/resource_cloud_run_v2_service.go#L2594) copies each container's returned `volumeMounts`; the raw v2 response already contains the difference. This localizes the mismatch to the API representation, rather than a Terraform-only state transformation. It does not prove the platform's internal filesystem layout or establish a rule for every container arrangement. The [Cloud SQL connection guide](https://docs.cloud.google.com/sql/docs/postgres/connect-run) describes the managed connection and Unix socket; it does not promise API-only socket isolation in this layout.
+
+The correction matches the observed v2 representation and retains the instance, container order, API-only numbered database secret, shared runtime identity, probes and limits. No `ignore_changes`, state editing, credential grant, new revision or cloud apply was used. A refreshed real plan with the original deployment inputs returned **No changes** (detailed exit code 0); the local state hash remained unchanged. Raw request/read-back records, logs and before/after plans are retained privately.
+
+All 24 serving mocked plans passed with a regression assertion for the observed mount representation and API-only secret injection. The new assertion also failed against the original API-mount declaration. Ruff lint/format, five deployment-consistency unit tests, tracked Terraform formatting and 656 local documentation targets passed. Full runtime/browser suites were not rerun locally for this declaration-only correction. These tests check the declaration; the real no-change plan checks the existing deployment. A fresh creation with this declaration, reordered containers or a provider upgrade still requires the runbook's managed read-back and readiness checks. Custom OAuth, named-user login, unlisted-user denial and the remaining capacity/recovery gates are tracked in the [delivery plan](../delivery-plan.md).
