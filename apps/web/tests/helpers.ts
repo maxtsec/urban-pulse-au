@@ -27,12 +27,12 @@ export const condition = (page: Page) =>
 export async function layer(page: Page, name: string) {
   const menu = page.locator('.layers-menu');
   if (!(await menu.evaluate((node: HTMLDetailsElement) => node.open)))
-    await menu.locator('summary').click();
+    await menu.locator(':scope > summary').click();
   return page.getByRole('checkbox', { name, exact: true });
 }
 
 export async function closeLayers(page: Page) {
   const menu = page.locator('.layers-menu');
   if (await menu.evaluate((node: HTMLDetailsElement) => node.open))
-    await menu.locator('summary').click();
+    await menu.locator(':scope > summary').click();
 }

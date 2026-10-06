@@ -17,6 +17,9 @@
     "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
+    "@deck.gl/core": "9.4.0",
+    "@deck.gl/layers": "9.4.0",
+    "@deck.gl/maplibre": "9.4.0",
     "@tanstack/react-query": "5.104.1",
     "echarts": "6.1.0",
     "maplibre-gl": "6.12.0",
