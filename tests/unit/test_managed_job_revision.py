@@ -3,6 +3,7 @@
 import re
 
 import pytest
+import yaml
 from alembic.script import ScriptDirectory
 
 from urbanpulse.adapters.demo_database import EXPECTED_REVISION
@@ -36,3 +37,17 @@ def test_offline_identity_argument_preserves_legacy_powershell_quoting():
     # PowerShell 5.1 removes embedded double quotes when passing native arguments.
     assert '"' not in command[1]
     compile(command[1], "offline-identity-command", "exec")
+
+
+def test_hosted_sidecar_command_matches_shared_network_rehearsal():
+    configuration = (ROOT / "infra/demo-serving/main.tf").read_text(encoding="utf-8")
+    command = re.search(r"command\s*=\s*\[([^]]+)\]", configuration)
+    args = re.search(r"args\s*=\s*\[([^]]+)\]", configuration)
+    assert command and args
+    hosted = re.findall(r'"([^"]*)"', command[1] + args[1])
+    rehearsal = yaml.load(
+        (ROOT / "scripts/web-serving-smoke.override.yaml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    assert rehearsal["services"]["api"]["command"] == hosted
+    assert hosted[hosted.index("--host") + 1] == "127.0.0.1"

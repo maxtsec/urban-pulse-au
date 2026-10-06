@@ -2,16 +2,17 @@ data "google_project" "current" {
   project_id = var.project_id
 }
 
-# IAP API/agent setup is a reviewed prerequisite, not a side effect of this root.
-data "google_service_account" "iap" {
-  project    = var.project_id
-  account_id = "service-${data.google_project.current.number}@gcp-sa-iap.iam.gserviceaccount.com"
+data "google_project_ancestry" "current" {
+  project = var.project_id
 }
 
 locals {
-  region   = "australia-southeast2"
-  revision = "${var.name_prefix}-${var.release_id}"
-  labels   = { application = "urbanpulse", environment = "demo", source-sha = var.source_sha }
+  # Service agents are not ordinary project-owned service accounts. Bootstrap
+  # must establish the IAP identity; derive its documented principal without IAM get.
+  iap_service_agent = "service-${data.google_project.current.number}@gcp-sa-iap.iam.gserviceaccount.com"
+  region            = "australia-southeast2"
+  revision          = "${var.name_prefix}-${var.release_id}"
+  labels            = { application = "urbanpulse", environment = "demo", source-sha = var.source_sha }
 }
 
 resource "google_cloud_run_v2_service" "demo" {
@@ -87,7 +88,7 @@ resource "google_cloud_run_v2_service" "demo" {
       image   = var.api_image
       command = ["/app/.venv/bin/python"]
       args = [
-        "-m", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000",
+        "-m", "uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8000",
         "--workers", "1", "--no-server-header",
       ]
       resources {
@@ -155,7 +156,7 @@ resource "google_cloud_run_v2_service" "demo" {
   }
   lifecycle {
     precondition {
-      condition     = try(length(data.google_project.current.org_id) > 0, false)
+      condition     = anytrue([for ancestor in data.google_project_ancestry.current.ancestors : ancestor.type == "organization"])
       error_message = "The accepted Google-managed IAP audience requires an organization project. Review OAuth/access before using a project without one."
     }
   }
@@ -167,7 +168,7 @@ resource "google_cloud_run_v2_service_iam_binding" "iap_invoker" {
   location = local.region
   name     = google_cloud_run_v2_service.demo.name
   role     = "roles/run.invoker"
-  members  = ["serviceAccount:${data.google_service_account.iap.email}"]
+  members  = ["serviceAccount:${local.iap_service_agent}"]
 }
 
 resource "google_iap_web_cloud_run_service_iam_binding" "reviewers" {

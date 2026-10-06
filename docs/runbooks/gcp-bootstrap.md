@@ -92,3 +92,9 @@ gcloud.cmd iam service-accounts keys list --iam-account=ci-builder@<project-id>.
 ```
 
 Expect the condition to name the numeric repository and owner IDs, and `attribute.image_builder` to require `push`, `refs/heads/main` and the `images.yml` workflow. The only `workloadIdentityUser` member should end in `/attribute.image_builder/allowed`, the repository should grant only `artifactregistry.writer` to `ci-builder`, and the key list should be empty. A successful federated publish from a `main` push, and rejected attempts from `pull_request` and `pull_request_target` runs, remain acceptance work described in the [publishing verification procedure](image-publishing.md#first-live-verification). Static policy checks alone do not establish these live outcomes.
+
+## Serving IAP prerequisite
+
+Before the separate serving root is planned, establish the IAP API and service identity through a reviewed bootstrap step. API enablement alone is not identity-creation evidence. With the correct project selected explicitly and approval for this setup, ensure the identity using `gcloud beta services identity create --service=iap.googleapis.com --project=PROJECT_ID`; retain the returned service identity privately and verify its required Google-managed service-agent role. This step does not grant reviewer access or deploy a service.
+
+Do not use ordinary project service-account `describe`/listing as proof that the IAP service agent is absent. Serving derives `service-PROJECT_NUMBER@gcp-sa-iap.iam.gserviceaccount.com` from the project number and grants only that principal invocation access at the service. See the [serving prerequisites](managed-demo-serving.md#preconditions-and-private-inputs) for organization ancestry, inherited IAM and audience review. This procedure does not change the image builder's Terraform root or identity.
