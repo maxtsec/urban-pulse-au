@@ -13,6 +13,7 @@ from sqlalchemy.engine import make_url
 
 from apps.api.database import ApiDatabase
 from tests.integration.test_demo_database import command_environment, invoke, provision_database
+from tests.job_evidence import check_job_evidence
 from urbanpulse.adapters.city_store import encode, engine_for
 from urbanpulse.adapters.event_store import lock
 from urbanpulse.adapters.job_database import JobDatabase, JobSessionLost
@@ -60,8 +61,9 @@ def run_job(url, run_id, scope, seconds=360, timeout=30):
         text=True,
         timeout=timeout + 15,
     )
-    assert not result.stderr, result.stderr
-    return result.returncode, json.loads(result.stdout)
+    parsed = json.loads(result.stdout)
+    check_job_evidence(result.stderr, parsed["status"])
+    return result.returncode, parsed
 
 
 def new_run(url, scope, seconds=0):
@@ -97,7 +99,7 @@ def test_job_completes_only_selected_run_and_repeat_has_no_new_effects(fixture_d
         stdout, stderr = process.communicate(timeout=5)
         assert process.returncode == 0, stdout + stderr
         assert json.loads(stdout)["status"] == "complete"
-        assert not stderr
+        check_job_evidence(stderr, "complete")
         assert peak == 1
     finally:
         if process.poll() is None:

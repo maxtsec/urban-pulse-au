@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from urbanpulse.adapters.job_database import JobBusy, JobSessionLost
 from urbanpulse.application.durable_delivery import StorageUnavailable
+from workers.job_observation import JobObservation
 
 
 class TimedRequest(Protocol):
@@ -44,8 +45,25 @@ def report(operation: Callable[[], dict[str, str]], output: Connection) -> None:
 def supervise(
     request: TimedRequest, stop: threading.Event, target: Callable[..., None]
 ) -> dict[str, str]:
+    observation = JobObservation(request.timeout_seconds)
+    outcome = "execution-failed"
+    try:
+        result = _supervise(request, stop, target, observation)
+        outcome = result["status"]
+        return result
+    finally:
+        observation.finish(outcome)
+
+
+def _supervise(
+    request: TimedRequest,
+    stop: threading.Event,
+    target: Callable[..., None],
+    observation: JobObservation,
+) -> dict[str, str]:
     if stop.is_set():
         return {"status": "interrupted"}
+    observation.arm_deadline()
     deadline = time.monotonic() + request.timeout_seconds
     runtime = multiprocessing.get_context("spawn")
     incoming, outgoing = runtime.Pipe(duplex=False)
@@ -56,6 +74,7 @@ def supervise(
         started = True
         outgoing.close()
         while process.is_alive():
+            observation.sample()
             if stop.is_set():
                 return {"status": "interrupted"}
             if time.monotonic() >= deadline:
@@ -83,6 +102,7 @@ def supervise(
             return {"status": "deadline-exceeded"}
         return {"status": "execution-failed"}
     finally:
+        observation.begin_cleanup()
         # Terminate only the child owned by this invocation; keep cleanup below the task deadline.
         if started:
             if process.is_alive():
