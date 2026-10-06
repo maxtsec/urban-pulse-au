@@ -1,7 +1,11 @@
 """Exercise real login roles in an isolated database on the integration server."""
 
+import json
 import os
 import secrets
+import subprocess
+import sys
+import time
 from contextlib import contextmanager
 from uuid import uuid4
 
@@ -17,13 +21,13 @@ from scripts.demo_database import (
     grant_access,
     role_names,
 )
-from urbanpulse.adapters.city_store import migrate
+from urbanpulse.config import ROOT
 
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(scope="module")
-def provisioned():
+@contextmanager
+def provision_database():
     original = os.environ.get(
         "URBANPULSE_TEST_DATABASE_URL",
         "postgresql://urbanpulse:urbanpulse_local@127.0.0.1:5432/urbanpulse",
@@ -46,7 +50,7 @@ def provisioned():
         }
         with psycopg.connect(urls["migrate"], connect_timeout=3) as migration:
             configure_defaults(migration, database=database, prefix=prefix)
-        migrate(urls["migrate"])
+        invoke(urls["migrate"], "urbanpulse.adapters.city_store", "migrate")
         with psycopg.connect(urls["migrate"], connect_timeout=3) as migration:
             grant_access(migration, database=database, prefix=prefix)
         yield database, prefix, url, urls
@@ -58,6 +62,118 @@ def provisioned():
             )
             for name in role_names(prefix).values():
                 operator.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(name)))
+
+
+@pytest.fixture(scope="module")
+def provisioned():
+    with provision_database() as database:
+        yield database
+
+
+def command_environment(url, **extra):
+    return {**os.environ, "DATABASE_URL": url, "CACHE_ENABLED": "false", **extra}
+
+
+def invoke(url, module, *args, **environment):
+    result = subprocess.run(
+        [sys.executable, "-m", module, *args],
+        cwd=ROOT,
+        env=command_environment(url, **environment),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    return result.stdout
+
+
+def test_real_entrypoints_complete_replay_with_separate_application_logins(tmp_path):
+    # A separate database keeps the empty-table permission probes independent.
+    with provision_database() as (_, _, _, urls):
+        imported = invoke(
+            urls["import"],
+            "workers.ingestion.main",
+            "--city-fixture",
+            RAW_STORAGE_PATH=str(tmp_path),
+        )
+        repeated = invoke(
+            urls["import"],
+            "workers.ingestion.main",
+            "--city-fixture",
+            RAW_STORAGE_PATH=str(tmp_path),
+        )
+        assert json.loads(imported)["import_id"] == json.loads(repeated)["import_id"]
+        invoke(urls["worker"], "workers.city.main", "create", "role-flow", "--scenario", "city")
+        invoke(urls["worker"], "workers.city.main", "advance", "role-flow", "--seconds", "360")
+        log = tmp_path / "worker.log"
+        with log.open("w", encoding="utf-8") as output:
+            worker = subprocess.Popen(
+                [sys.executable, "-m", "workers.city.main", "run"],
+                cwd=ROOT,
+                env=command_environment(urls["worker"]),
+                stdout=output,
+                stderr=subprocess.STDOUT,
+            )
+            try:
+                deadline = time.monotonic() + 60
+                with psycopg.connect(urls["worker"], autocommit=True, connect_timeout=3) as monitor:
+                    while time.monotonic() < deadline:
+                        assert worker.poll() is None, log.read_text(encoding="utf-8")
+                        completed = monitor.execute(
+                            "SELECT completed FROM event01_city_runs WHERE id='role-flow'"
+                        ).fetchone()
+                        unfinished = monitor.execute(
+                            "SELECT count(*) FROM event01_deliveries WHERE status <> 'complete'"
+                        ).fetchone()
+                        if completed == (360,) and unfinished == (0,):
+                            break
+                        time.sleep(0.1)
+                    else:
+                        pytest.fail(
+                            "Worker did not finish replay: " + log.read_text(encoding="utf-8")
+                        )
+            finally:
+                worker.terminate()
+                try:
+                    worker.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    worker.kill()
+                    worker.wait(timeout=10)
+        durable = json.loads(invoke(urls["worker"], "workers.city.main", "inspect", "role-flow"))
+        # A fresh process ensures no app settings/caches from superuser tests survive.
+        api = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                """
+import json
+from fastapi.testclient import TestClient
+from apps.api.main import app
+from urbanpulse.application.city import AREA_ID
+with TestClient(app) as client:
+    response = client.get('/health/ready')
+    assert response.status_code == 200, response.text
+    for seconds in (0, 120, 360):
+        response = client.get(
+            f'/api/v1/areas/{AREA_ID}', params={'seconds': seconds, 'scenario': 'city'}
+        )
+        assert response.status_code == 200, response.text
+    print(json.dumps(response.json()))
+""",
+            ],
+            cwd=ROOT,
+            env=command_environment(urls["runtime"]),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert api.returncode == 0, api.stderr + api.stdout
+        expected = durable["snapshot"]
+        actual = json.loads(api.stdout)
+        for snapshot in (expected, actual):
+            snapshot["composition"].pop("delivery")
+            snapshot["composition"].pop("recovery", None)
+        assert actual == expected
 
 
 @contextmanager
