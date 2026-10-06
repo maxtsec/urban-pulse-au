@@ -57,8 +57,8 @@ Prerequisites: the project already exists with billing and budget alerts, and yo
 3. Initialize and review the plan:
 
    ```powershell
-   terraform -chdir=infra/bootstrap init
-   terraform -chdir=infra/bootstrap plan -out=bootstrap.tfplan
+   terraform -chdir=infra/bootstrap init -lockfile=readonly
+   terraform -chdir=infra/bootstrap plan "-out=bootstrap.tfplan"
    ```
 
    Expect one import (the `urbanpulse` repository), API enablement entries, one pool, one provider, one service account and two IAM members. **Stop if the plan replaces or destroys the repository**, or changes resources you did not expect; report the plan output instead of applying.
@@ -74,9 +74,9 @@ The outputs (provider name, builder email, image path and project number) are no
 
 ## State and lifecycle
 
-State is local at `infra/bootstrap/terraform.tfstate` and ignored by Git. It holds resource identifiers, not credentials, but it is the only record linking these resources to Terraform: keep a private backup. Moving state to a Cloud Storage backend is a later change once the project has a state bucket.
+State is local at `infra/bootstrap/terraform.tfstate` and ignored by Git. It holds resource identifiers, not credentials, but it is the only record linking these resources to Terraform: keep timestamped private backups outside disposable worktrees before and after each apply (including partial failure), verify their hashes and retain the previous copy. Moving state to a Cloud Storage backend is a later change once the project has a state bucket.
 
-Do not commit `terraform.tfvars`, plan files or state. Commit `.terraform.lock.hcl` after the first `init` so later runs use the same provider builds.
+Do not commit `terraform.tfvars`, plan files or state. Both roots commit Linux AMD64, Windows AMD64 and macOS ARM64/AMD64 checksums and use `-lockfile=readonly` for normal initialization and CI. For intentional provider updates, follow the [multi-platform lock refresh](demo-foundation.md#validate-without-credentials) and review both lock-file diffs.
 
 Workload Identity pools and providers are soft-deleted for 30 days after deletion. During that window the same IDs cannot be recreated, so do not destroy them to "reset" the configuration; undelete or rename instead. Destroying this configuration does not disable the APIs.
 
