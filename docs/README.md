@@ -116,6 +116,8 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
 | [Phase 3 acceptance](evidence/phase-3-acceptance.md) | Durable reliability proof, operational demo and verified commit | Phase acceptance evidence or operational commands change |
 
+| [ADR 0013](adr/0013-named-consumer-iap-access.md) | Accepted consumer-account OAuth and named operator access boundary | Audience or OAuth ownership changes through review |
+| [Consumer IAP evidence](evidence/demo-01-consumer-iap.md) | Closed bootstrap and explicit-user mocked plan checks | OAuth/access validation is repeated |
 | [Managed serving runbook](runbooks/managed-demo-serving.md) | IAP/sidecar inputs, private candidate deployment, promotion and rollback acceptance | Serving configuration or deployment procedure changes |
 | [Managed serving evidence](evidence/demo-01-managed-serving.md) | Mocked topology/access/traffic tests and local runtime checks | A serving boundary is verified |
 

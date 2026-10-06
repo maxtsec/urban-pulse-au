@@ -11,7 +11,7 @@ Status: **Accepted by the project architect on 2026-10-06.** This supplements [A
 | Database | Melbourne (`australia-southeast2`), PostgreSQL 17, Cloud SQL Enterprise, zonal `db-g1-small`, initial 10 GiB SSD |
 | Connectivity | Cloud Run managed Cloud SQL Auth Proxy through Unix sockets; public address with connector enforcement and no authorized direct-client networks |
 | Recovery | Seven retained daily backups, seven days of PITR, Terraform and API instance deletion protection |
-| Audience | Explicitly allowed organization users/groups using Google-managed IAP OAuth; external reviewers and custom OAuth deferred |
+| Audience | Initially organization-only Google-managed IAP OAuth; superseded on 2026-10-06 by [ADR 0013](0013-named-consumer-iap-access.md): custom OAuth and a named consumer acceptance operator |
 | Worker | Manually triggered Cloud Run Job with a finite execution deadline; no scheduler or continuously running worker for the fixture demo |
 
 The chosen shared-core and single-zone configurations are excluded from the Cloud SQL SLA. The small machine's documented default `max_connections` is 50; the tiny alternative defaults to 25. Keep the selected limit at 50 and reserve capacity for administration, service replacement and private jobs rather than raising it to hide excess application connections. Verify the actual database settings after provisioning. [Cloud SQL SLA](https://cloud.google.com/sql/sla), [connection defaults](https://docs.cloud.google.com/sql/docs/postgres/flags).
@@ -24,4 +24,4 @@ The [resource plan](../architecture/demo-cloud-resource-plan.md) owns the calcul
 
 The [foundation Terraform](../../infra/demo-foundation) defines the database, four identities and empty secret containers. Serving, job execution, SQL role bootstrap and the deployment pipeline are separate implementation steps. The foundation's exported runtime contract is a prerequisite for those steps, not proof that the current application already meets it.
 
-Resource sizing can be revisited through review after workload measurements. Live collection still requires A-06, and external reviewer access requires a later OAuth/access change. Existing builder hardening, update automation and image retention issues remain deferred.
+Resource sizing can be revisited through review after workload measurements. Live collection still requires A-06, and audience expansion beyond the operator requires separate review under ADR 0013. Existing builder hardening, update automation and image retention issues remain deferred.

@@ -21,3 +21,12 @@ output "candidate_release" {
     runtime_secret_version = var.runtime_secret_version
   }
 }
+
+output "access_review" {
+  description = "Declared access only; does not prove OAuth configuration, browser login or inherited IAM."
+  value = {
+    custom_oauth_client_id = var.custom_oauth_client_id
+    iap_members            = var.iap_members
+    stage                  = length(var.iap_members) == 0 ? "closed-bootstrap" : "named-operator-access"
+  }
+}

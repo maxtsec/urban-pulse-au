@@ -2,10 +2,6 @@ data "google_project" "current" {
   project_id = var.project_id
 }
 
-data "google_project_ancestry" "current" {
-  project = var.project_id
-}
-
 locals {
   # Service agents are not ordinary project-owned service accounts. Bootstrap
   # must establish the IAP identity; derive its documented principal without IAM get.
@@ -155,12 +151,6 @@ resource "google_cloud_run_v2_service" "demo" {
       tag      = "candidate"
     }
   }
-  lifecycle {
-    precondition {
-      condition     = anytrue([for ancestor in data.google_project_ancestry.current.ancestors : ancestor.type == "organization"])
-      error_message = "The accepted Google-managed IAP audience requires an organization project. Review OAuth/access before using a project without one."
-    }
-  }
 }
 
 # Authoritative for these roles at this service only; inherited grants need preflight review.
@@ -172,7 +162,10 @@ resource "google_cloud_run_v2_service_iam_binding" "iap_invoker" {
   members  = ["serviceAccount:${local.iap_service_agent}"]
 }
 
+# First create the protected service with no reviewer grant. OAuth is configured
+# separately; enabling the explicit allowlist requires its reviewed client ID.
 resource "google_iap_web_cloud_run_service_iam_binding" "reviewers" {
+  count                  = length(var.iap_members) == 0 ? 0 : 1
   project                = var.project_id
   location               = local.region
   cloud_run_service_name = google_cloud_run_v2_service.demo.name

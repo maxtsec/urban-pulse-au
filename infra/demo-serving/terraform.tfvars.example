@@ -23,8 +23,13 @@ import_id     = "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 web_image              = "australia-southeast2-docker.pkg.dev/example-project/urbanpulse/web@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 runtime_secret_version = "1"
 release_id             = "sha-bbbbbbbbbbbb-r1"
-# First creation only: explicitly select its sole revision, acceptance operators only.
+# First creation only: explicitly select its sole revision, with no reviewer grant.
 # Later candidates: retain the last verified serving revision until promotion.
 serving_revision       = "urbanpulse-demo-sha-bbbbbbbbbbbb-r1"
-organization_domain    = "example.com"
-iap_members            = ["user:operator@example.com"]
+# First saved plan: protected service + IAP-agent invoker only (two additions).
+custom_oauth_client_id = null
+iap_members            = []
+# After separately reviewed OAuth setup/read-back, a second plan adds one binding:
+# custom_oauth_client_id = "123456789012-example.apps.googleusercontent.com"
+# iap_members            = ["user:operator@gmail.com"]
+# Use the actual approved operator privately; never add a secret here.

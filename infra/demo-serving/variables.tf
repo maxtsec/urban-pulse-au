@@ -118,25 +118,31 @@ variable "serving_revision" {
   }
 }
 
-variable "organization_domain" {
-  description = "Privately verified organization account domain; syntax alone does not establish organization/group membership."
+variable "custom_oauth_client_id" {
+  description = "Non-secret client ID verified in this service's IAP settings before granting access. OAuth credentials are configured outside Terraform; this value is an operator assertion, not a live verification."
   type        = string
+  default     = null
   validation {
-    condition     = can(regex("^[a-z0-9][a-z0-9.-]*\\.[a-z]{2,}$", var.organization_domain)) && !contains(["gmail.com", "googlemail.com"], var.organization_domain)
-    error_message = "Use the verified organization domain; consumer Gmail/custom OAuth is outside this profile."
+    condition     = var.custom_oauth_client_id == null ? true : can(regex("^[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com$", var.custom_oauth_client_id))
+    error_message = "Use the reviewed custom Web OAuth client ID, or null for the closed bootstrap stage. Never supply the client secret."
   }
 }
 
 variable "iap_members" {
-  description = "Explicit organization users/groups. Start with acceptance operators only; group membership and inherited policy must be verified privately."
+  description = "Named Google users, including consumer Gmail. Empty by default for closed bootstrap; initially grant only the acceptance operator. Review each later audience change separately."
   type        = set(string)
+  default     = []
+  nullable    = false
   # Deliberately visible in the private plan so every access grant can be reviewed.
   validation {
-    condition = length(var.iap_members) > 0 && alltrue([for member in var.iap_members :
-      can(regex("^(user|group):[A-Za-z0-9._%+-]+@", member)) &&
-      endswith(member, "@${var.organization_domain}") &&
-      length(split("@", member)) == 2
+    condition = alltrue([for member in var.iap_members :
+      member == null ? false : can(regex("^user:[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$", member)) &&
+      !endswith(lower(member), ".gserviceaccount.com")
     ])
-    error_message = "Allow only explicit user/group emails within the verified organization domain; no public, domain-wide or service-account access."
+    error_message = "Allow only named Google user emails; no public, group, domain-wide or service-account access."
+  }
+  validation {
+    condition     = length(var.iap_members) == 0 || var.custom_oauth_client_id != null
+    error_message = "Verify custom OAuth on this service and record its client ID before enabling the allowlist."
   }
 }
