@@ -367,6 +367,35 @@ class PostgresCityRuns:
                     )
             return False
 
+    def job_status(self, run_id: str, target: int) -> str:
+        """A target checkpoint and all of its context's deliveries are terminal together."""
+        with self.queue.transaction() as transaction:
+            connection = transaction.connection
+            run = connection.execute(select(runs).where(runs.c.id == run_id)).mappings().one()
+            if run["target"] != target:
+                raise ValueError("job target no longer matches run")
+            rows = list(
+                connection.execute(
+                    select(checkpoints).where(checkpoints.c.run_id == run_id)
+                ).mappings()
+            )
+            if any(row["error"] is not None for row in rows):
+                return "checkpoint-error"
+            deliveries = transaction.context_delivery_status(context(run_id))
+            if deliveries == "dead-letter":
+                return deliveries
+            target_row = next((row for row in rows if row["seconds"] == target), None)
+            if (
+                run["completed"] == target
+                and target_row is not None
+                and target_row["status"] == "complete"
+                and target_row["result"] is not None
+                and all(row["status"] == "complete" for row in rows)
+                and deliveries == "complete"
+            ):
+                return "complete"
+            return "pending"
+
     def inspect(self, run_id: str, seconds: int | None = None) -> dict[str, Any]:
         context(run_id)
         with self.queue.transaction() as transaction:

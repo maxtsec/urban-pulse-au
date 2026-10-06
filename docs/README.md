@@ -105,6 +105,8 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [Database initialization runbook](runbooks/demo-database.md) | SQL privilege matrix, private credential/extension setup and recovery procedure | Database privileges or initialization steps change |
 | [Database initialization evidence](evidence/demo-01-database-bootstrap.md) | Actual foundation apply, managed PostGIS, SQL login caps and spatial compatibility | A managed database boundary is verified |
 | [API pool evidence](evidence/demo-01-api-pool.md) | Shared API connection bound, saturation/recovery checks and deployment limits | API database lifecycle or verification changes |
+| [Finite worker runbook](runbooks/city-job.md) | Manual target invocation, execution lock, deadline and recovery | Worker Job operation changes |
+| [Finite worker evidence](evidence/demo-01-city-job.md) | Restricted-role completion, overlap, deadline and recovery results | Worker Job acceptance is verified |
 | [Image publishing](runbooks/image-publishing.md) | Main CI gate, federation configuration, immutable image records and failed-attempt recovery | Publishing workflow or record semantics change |
 | [Image publishing evidence](evidence/demo-01-image-publishing.md) | Local container/registry verification and distinct live federation acceptance | A publication boundary is verified |
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |

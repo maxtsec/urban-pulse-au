@@ -11,7 +11,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from pydantic import ValidationError
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, or_, select, true, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import DBAPIError
@@ -195,6 +195,34 @@ class PostgresEventTransaction:
             raise ValueError("unknown registered delivery")
         return str(state)
 
+    def context_delivery_status(self, context: str) -> str:
+        """Require every registered delivery, including result notifications, to complete."""
+        rows = self.connection.execute(
+            select(
+                publications.c.id,
+                publications.c.consumers,
+                deliveries.c.consumer,
+                deliveries.c.status,
+            )
+            .outerjoin(deliveries)
+            .where(publications.c.context == context)
+        ).mappings()
+        expected: dict[str, set[str]] = {}
+        actual: dict[str, set[str]] = {}
+        statuses = set()
+        for row in rows:
+            identity = row["id"]
+            expected[identity] = set(json.loads(row["consumers"]))
+            actual.setdefault(identity, set())
+            if row["consumer"] is not None:
+                actual[identity].add(row["consumer"])
+                statuses.add(row["status"])
+        if expected != actual:
+            raise ValueError("registered delivery missing or unexpected")
+        if "dead-letter" in statuses:
+            return "dead-letter"
+        return "complete" if statuses <= {"complete"} else "pending"
+
     def consume(
         self, context: str, consumer: str, wire: str, effect: Callable[[], None]
     ) -> RevisionOutcome:
@@ -254,8 +282,11 @@ class PostgresEventTransaction:
 
 
 class PostgresEventStore:
-    def __init__(self, engine: Engine) -> None:
+    def __init__(self, engine: Engine, *, claim_context: str | None = None) -> None:
+        if claim_context is not None:
+            validate_key(claim_context)
         self.engine = engine
+        self.claim_context = claim_context
 
     @contextmanager
     def transaction(self) -> Iterator[PostgresEventTransaction]:
@@ -291,6 +322,9 @@ class PostgresEventStore:
                     .join(publications)
                     .where(
                         deliveries.c.consumer == consumer,
+                        publications.c.context == self.claim_context
+                        if self.claim_context is not None
+                        else true(),
                         ~select(predecessor.c.id)
                         .where(
                             predecessor.c.id == deliveries.c.predecessor_id,
