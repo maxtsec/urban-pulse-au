@@ -71,7 +71,7 @@ run "protected_first_revision" {
       length(google_cloud_run_v2_service.demo.template[0].containers) == 2 &&
       one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).command == tolist(["/app/.venv/bin/python"]) &&
       one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).args == tolist([
-        "-m", "uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8000", "--workers", "1", "--no-server-header"
+        "-m", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-server-header"
       ]) &&
       one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).image == var.api_image &&
       length(one([for c in google_cloud_run_v2_service.demo.template[0].containers : c if c.name == "api"]).ports) == 0 &&

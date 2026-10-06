@@ -87,8 +87,9 @@ resource "google_cloud_run_v2_service" "demo" {
       name    = "api"
       image   = var.api_image
       command = ["/app/.venv/bin/python"]
+      # Platform probes need the instance interface; only web declares an ingress port.
       args = [
-        "-m", "uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8000",
+        "-m", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000",
         "--workers", "1", "--no-server-header",
       ]
       resources {
