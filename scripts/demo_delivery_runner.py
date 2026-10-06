@@ -15,6 +15,7 @@ from typing import Any, cast
 
 import google.auth
 import httpx
+from google.api_core.exceptions import PreconditionFailed
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.cloud import storage  # type: ignore[import-untyped]
 
@@ -66,6 +67,44 @@ def command(args: list[str], *, data: str | None = None, cwd: Path = ROOT) -> st
         # Terraform/SDK diagnostics can contain identities and input values.
         raise CommandFailure(Path(args[0]).name, result.stdout + "\n" + result.stderr)
     return result.stdout
+
+
+# Conservative roots copied into either image, plus build/dependency configuration.
+IMAGE_INPUTS = (
+    "apps",
+    "workers",
+    "urbanpulse",
+    "migrations",
+    "tests/fixtures",
+    "pyproject.toml",
+    "uv.lock",
+    ".python-version",
+    ".dockerignore",
+)
+
+
+def image_inputs_changed(previous_sha: str, source_sha: str) -> bool:
+    for sha in (previous_sha, source_sha):
+        require(bool(re.fullmatch(r"[0-9a-f]{40}", sha)), "Full image source commit required")
+    return bool(
+        command(
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "--no-renames",
+                previous_sha,
+                source_sha,
+                "--",
+                *IMAGE_INPUTS,
+            ],
+            cwd=ROOT,
+        ).strip()
+    )
+
+
+class DeliveryLocked(RuntimeError):
+    pass
 
 
 def github(path: str) -> dict[str, Any]:
@@ -290,9 +329,27 @@ def main() -> None:
     bucket = storage.Client(project=project, credentials=credentials).bucket(bucket_name)
     pointer = bucket.blob("delivery/current.json")
     lock = bucket.blob("delivery/operation.lock")
-    lock.upload_from_string(
-        encode({"id": delivery_id, "operation": operation}), if_generation_match=0
-    )
+    try:
+        lock.upload_from_string(
+            encode(
+                {
+                    "id": delivery_id,
+                    "operation": operation,
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "workflow_run": f"https://github.com/{REPOSITORY}/actions/runs/{env['GITHUB_RUN_ID']}/attempts/{env['GITHUB_RUN_ATTEMPT']}",
+                    "configuration_sha": env["GITHUB_SHA"],
+                }
+            ),
+            if_generation_match=0,
+        )
+    except PreconditionFailed:
+        message = (
+            "Delivery is locked by an existing operation. Inspect delivery/operation.lock "
+            "and the runbook's pre-intent lock recovery; no automatic unlock or retry."
+        )
+        with Path(env["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as output:
+            output.write(message + "\n")
+        raise DeliveryLocked(message) from None
     lock.reload()
     lock_generation = lock.generation
     retain_lock = False
@@ -308,6 +365,17 @@ def main() -> None:
             current["inputs"]["serving_revision"] == current["serving"]["revision"],
             "Serving pointer mismatch",
         )
+        if manifest:
+            retained = current.get("candidate") or current["serving"]
+            if not image_inputs_changed(
+                retained["inputs"]["source_sha"], manifest["build"]["source_sha"]
+            ):
+                with Path(env["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as output:
+                    output.write(
+                        "Candidate skipped: image input files are unchanged. "
+                        "The retained candidate and serving record are unchanged.\n"
+                    )
+                return
         inputs = (
             candidate_inputs(current, manifest, delivery_id)
             if manifest

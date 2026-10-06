@@ -271,6 +271,8 @@ def test_workflows_are_opt_in_pinned_and_promotion_is_protected():
         assert "DEMO_CD_ENABLED" in job["if"]
         assert job["uses"] == "./.github/workflows/deploy.yml"
     assert "demo-promotion" in deploy["jobs"]["deliver"]["environment"]
+    checkout = deploy["jobs"]["deliver"]["steps"][0]
+    assert checkout["with"]["fetch-depth"] == "0"  # Retained source may be many commits back.
     for step in deploy["jobs"]["deliver"]["steps"]:
         if "uses" in step:
             assert len(step["uses"].split("@")[1]) == 40
