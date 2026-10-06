@@ -33,3 +33,21 @@ Local instrumentation verification covers cgroup v1/v2 resolution, missing count
 Validation for the instrumentation follow-up: Ruff lint/format and mypy passed; 539 unit tests and 21 real PostGIS finite-job integration tests passed. The isolated Compose smoke passed under `python -O`, including the packaged finite worker, database restart recovery and optional Redis modes; its project resources and recorded volume mounts were removed. Frontend code was unchanged; browser checks remain in CI.
 
 Review follow-up: observation methods now fence ordinary exceptions independently of business supervision. Injected discovery, sampling, final-peak, clock and sink failures preserve child completion and the original operation exception; process-control signals remain visible. A pre-cancelled runner verifies paired null deadline fields through the shared evidence checker. Ruff lint/format, mypy, 547 unit tests and the 21 PostGIS Job integration tests passed after these fixes.
+
+## Managed telemetry and idempotent repeat
+
+On 6 October 2026, the architect-approved saved update plan changed only the three Jobs' image/source pins to `f4e74e858cc3ebd554add58d82363627f133a1ab`, API manifest `sha256:a8fe1b5f9fa6c01070dec8ec840c732b296abcb0b2189156e00b5b4de44ddef0`. The exact publication and image were verified; both finite entrypoints and the unchanged schema/import identity were checked offline. Apply updated three definitions with no additions/deletions. Read-back preserved commands, identities, secrets, socket and limits; reconciliation was empty and state backups matched their source hashes.
+
+Each Job was then explicitly run once with the existing import/run IDs. All platform and stdout results were complete, with correlated start/finish lifecycle records:
+
+| Job | Submission to completion | Runner elapsed | Native cgroup peak read after cleanup |
+| --- | ---: | ---: | ---: |
+| Migration | 16.1 s | 1.34 s | 172.3 MiB |
+| Import | 13.8 s | 1.42 s | 171.1 MiB |
+| Worker | 12.0 s | 1.13 s | 164.2 MiB |
+
+The managed environment exposed v1 memory counters. These are container-cgroup lifetime high-water readings including descendants and charged startup/cache/kernel memory, taken before final telemetry/result flushing and exit; not per-process RSS, an invocation delta or the final whole-task peak. This measures the already-complete repeat path, not fresh processing or serving load.
+
+Read-only before/after comparisons of row counts and SHA-256 of sorted full JSON row contents matched across all 19 application/schema tables. The original 17 checkpoints and 48 deliveries remained complete; no application connection or mutation lock remained. Session sampling observed zero/one/one migration/import/worker connections, with maximum observed sample gaps around 1.21/1.08/1.10 seconds. Short connections may be missed, so zero is not absence and these are not exact peaks.
+
+Cold/warm repeated startup with an explicit margin, deadline/cancellation cleanup, disposable overlap/failure rehearsals and restore are still required for full managed acceptance. Private execution IDs, paired logs, fingerprints, plan and backup hashes remain in ignored local evidence. See [delivery status](../delivery-plan.md).
