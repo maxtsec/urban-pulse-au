@@ -275,3 +275,24 @@ test('planning outage moments describe only received data and continuing failure
   );
   await expect(planning.locator('.status-pill')).toHaveText('error');
 });
+
+test('mobile selection remains visible after scrolling to unlocated developments', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?scenario=city');
+  await moment(page, '150s · Cancelled / New planning snapshot').click();
+  await expect(page.getByTestId('clock')).toHaveText('11:02:30');
+  await openTab(page, 'Developments');
+  await page
+    .getByRole('button', {
+      name: 'Inspect Demo project with missing location in list',
+      exact: true,
+    })
+    .click();
+  const card = page.getByRole('region', { name: 'Selection details' });
+  await expect(card).toBeInViewport({ ratio: 1 });
+  await expect(card).toContainText('Position unknown');
+  await card.getByRole('button', { name: 'Clear selection' }).click();
+  await expect(card).toHaveCount(0);
+});
