@@ -17,9 +17,9 @@ The source dates below are authored historical snapshot dates. The six-minute cl
 | 210/240s | Authored stale/error checkpoints keep the last complete profile visible. |
 | 270s | A complete 2 October snapshot restores location coverage. Three developments appear; transport/weather support Normal. |
 
-Select a building on the map or use the keyboard in **Development activity** to inspect source status, reported area, position and completion year. Toggle **Development sites**; the accessible list remains available. The area profile links to the detailed list. Open **Replay diagnostics** for separate Transport, Weather and Planning outcomes.
+Select a building on the map or use the keyboard in the **Developments** tab to inspect source status, reported area, position and completion year in the selection card. Toggle **Development sites** under **Layers**; the accessible list remains available. The Overview tab links to the detailed list. Open **Replay diagnostics** for separate Transport, Weather and Planning outcomes. Timeline markers that share a second with a weather moment list both labels, for example **150s · Cancelled / New planning snapshot**.
 
-Select **Planning outage** at 270s. Its planning moments show the last successful receipt, outage onset and continued unavailability; they do not offer a new snapshot or recovery. The first profile remains available with error coverage and its original 1 September source date; later captures are suppressed. Current conditions stay Normal because planning is outside the current-condition inputs. Rewind to zero to reproduce the initial result. Scenario switching preserves the camera and clock; its URL supports reload/share, while reload starts at zero.
+Select **Planning outage** at 270s. Its planning timeline markers show the last successful receipt, outage onset and continued unavailability; they do not offer a new snapshot or recovery. The first profile remains available with error coverage and its original 1 September source date; later captures are suppressed. Current conditions stay Normal because planning is outside the current-condition inputs. Rewind to zero to reproduce the initial result. Scenario switching preserves the camera and clock; its URL supports reload/share, while reload starts at zero.
 
 ## Verification
 
