@@ -135,3 +135,102 @@ def test_deadline_offset_and_cleanup_use_monotonic_clock(monkeypatch, capsys):
     assert record["deadline_offset_seconds"] == 2
     assert record["cleanup_elapsed_seconds"] == 3
     assert record["runner_elapsed_seconds"] == 8
+
+
+@pytest.mark.parametrize("failure", ["discover", "current", "peak", "clock", "emit"])
+def test_unexpected_telemetry_failure_preserves_supervision(monkeypatch, failure):
+    import threading
+    from unittest.mock import MagicMock
+
+    from workers.job_runtime import supervise
+
+    class Request:
+        timeout_seconds = 540
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("unexpected telemetry failure")
+
+    memory = MagicMock()
+    memory.version = "v2"
+    memory.current.return_value = 10
+    memory.peak.return_value = 20
+    monkeypatch.setattr(CgroupMemory, "discover", lambda: memory)
+    if failure == "discover":
+        monkeypatch.setattr(CgroupMemory, "discover", broken)
+    elif failure == "current":
+        # Initial sample works; the supervision-loop sample fails.
+        memory.current.side_effect = [10, RuntimeError("sample failed"), 10]
+    elif failure == "peak":
+        # The final native counter read fails after a successful child result.
+        memory.peak.side_effect = [20, RuntimeError("finish failed")]
+    elif failure == "clock":
+        monkeypatch.setattr("workers.job_observation.perf_counter", broken)
+    else:
+        monkeypatch.setattr("workers.job_observation.emit_observation", broken)
+    runtime = MagicMock()
+    incoming, outgoing = MagicMock(), MagicMock()
+    runtime.Pipe.return_value = incoming, outgoing
+    process = runtime.Process.return_value
+    process.is_alive.side_effect = [True, False, False, False]
+    process.exitcode = 0
+    incoming.recv.return_value = {"status": "complete"}
+    monkeypatch.setattr("workers.job_runtime.multiprocessing.get_context", lambda _: runtime)
+    assert supervise(Request(), threading.Event(), lambda: None) == {"status": "complete"}
+    process.join.assert_called_with(timeout=0.05)
+    process.terminate.assert_not_called()
+    process.kill.assert_not_called()
+    incoming.close.assert_called_once()
+
+
+def test_precancelled_job_has_valid_null_deadline_evidence(monkeypatch, capsys):
+    import threading
+
+    from tests.job_evidence import check_job_evidence
+    from workers.city.job import JobRequest
+    from workers.job_runtime import supervise
+
+    def forbidden(*args):
+        pytest.fail("pre-cancelled job must not create a child")
+
+    monkeypatch.setattr("workers.job_runtime.multiprocessing.get_context", forbidden)
+    stop = threading.Event()
+    stop.set()
+    result = supervise(JobRequest("demo", "a" * 64, "city", 0), stop, forbidden)
+    assert result == {"status": "interrupted"}
+    stderr = capsys.readouterr().err
+    check_job_evidence(stderr, "interrupted")
+    record = json.loads(stderr.splitlines()[-1])
+    assert record["deadline_started_at"] is None
+    assert record["deadline_offset_seconds"] is None
+
+
+def test_process_control_exception_is_not_swallowed(monkeypatch):
+    def interrupt():
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(CgroupMemory, "discover", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        JobObservation(1)
+
+
+def test_finish_failure_preserves_original_operation_exception(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from workers.job_runtime import supervise
+
+    class Request:
+        timeout_seconds = 1
+
+    memory = MagicMock()
+    memory.current.return_value = 10
+    memory.peak.side_effect = [20, RuntimeError("telemetry failed")]
+    monkeypatch.setattr(CgroupMemory, "discover", lambda: memory)
+    original = ValueError("operation failed")
+
+    def failed(*args):
+        raise original
+
+    monkeypatch.setattr("workers.job_runtime._supervise", failed)
+    with pytest.raises(ValueError) as captured:
+        supervise(Request(), None, None)
+    assert captured.value is original
