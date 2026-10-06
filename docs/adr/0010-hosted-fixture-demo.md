@@ -27,7 +27,7 @@ The default [web image](../../apps/web/Dockerfile) runs Vite. [Compose](../../co
 
 Selection does not activate a trial or provision resources. Confirm project, region, supported Postgres/PostGIS versions, capacity, backup/recovery expectations and identities in a reviewed resource plan. Melbourne remains the preferred regional candidate. [Cloud SQL supports PostGIS](https://docs.cloud.google.com/sql/docs/postgres/extensions); verify the actual extension version against the local queries and migrations before choosing the instance.
 
-The database/resource profile, initial organization-only audience and manual bounded worker were subsequently selected in [ADR 0012](0012-managed-demo-resource-profile.md). Its resource plan carries the connection envelope and remaining deployment gates.
+The database/resource profile, initial organization-only audience and manual bounded worker were subsequently selected in [ADR 0012](0012-managed-demo-resource-profile.md). Its audience choice is superseded by [ADR 0013](0013-named-consumer-iap-access.md), which selects custom OAuth for a named consumer acceptance operator. The resource plan carries the connection envelope and remaining deployment gates.
 
 ## B: serving, database and workers
 

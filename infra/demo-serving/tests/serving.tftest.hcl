@@ -4,9 +4,6 @@ mock_provider "google" {
   mock_data "google_project" {
     defaults = { number = "123456789012" }
   }
-  mock_data "google_project_ancestry" {
-    defaults = { ancestors = [{ type = "project", id = "example-project" }, { type = "organization", id = "987654321012" }] }
-  }
 }
 variables {
   project_id = "example-project"
@@ -33,11 +30,11 @@ variables {
   runtime_secret_version = "1"
   release_id             = "sha-bbbbbbbbbbbb-r1"
   serving_revision       = "urbanpulse-demo-sha-bbbbbbbbbbbb-r1"
-  organization_domain    = "example.com"
-  iap_members            = ["user:operator@example.com"]
+  custom_oauth_client_id = "123456789012-example.apps.googleusercontent.com"
+  iap_members            = ["user:operator@gmail.com"]
 }
 
-run "protected_first_revision" {
+run "protected_named_operator_stage" {
   command = plan
   assert {
     condition = (
@@ -47,11 +44,11 @@ run "protected_first_revision" {
       google_cloud_run_v2_service.demo.location == "australia-southeast2" &&
       google_cloud_run_v2_service_iam_binding.iap_invoker.role == "roles/run.invoker" &&
       google_cloud_run_v2_service_iam_binding.iap_invoker.members == toset(["serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com"]) &&
-      google_iap_web_cloud_run_service_iam_binding.reviewers.role == "roles/iap.httpsResourceAccessor" &&
-      google_iap_web_cloud_run_service_iam_binding.reviewers.members == var.iap_members &&
-      !issensitive(google_iap_web_cloud_run_service_iam_binding.reviewers.members)
+      google_iap_web_cloud_run_service_iam_binding.reviewers[0].role == "roles/iap.httpsResourceAccessor" &&
+      google_iap_web_cloud_run_service_iam_binding.reviewers[0].members == var.iap_members &&
+      !issensitive(google_iap_web_cloud_run_service_iam_binding.reviewers[0].members)
     )
-    error_message = "Only IAP may invoke; only explicit organization reviewers receive IAP access."
+    error_message = "Only IAP may invoke; only explicit named Google users receive IAP access."
   }
   assert {
     condition = (
@@ -158,15 +155,6 @@ run "rollback_leaves_candidate_and_schema_unchanged" {
     error_message = "Rollback only changes the named traffic target; it must not rebuild images or mutate data."
   }
 }
-run "reject_no_organization" {
-  command = plan
-  override_data {
-    target = data.google_project_ancestry.current
-    values = { ancestors = [{ type = "project", id = "example-project" }] }
-  }
-  expect_failures = [google_cloud_run_v2_service.demo]
-}
-
 run "reject_mutable_api" {
   command = plan
   variables { api_image = "api:latest" }
@@ -209,9 +197,9 @@ run "reject_domain_access" {
   expect_failures = [var.iap_members]
 }
 
-run "reject_external_access" {
+run "reject_group_access" {
   command = plan
-  variables { iap_members = ["user:reviewer@gmail.com"] }
+  variables { iap_members = ["group:reviewers@example.com"] }
   expect_failures = [var.iap_members]
 }
 
@@ -221,9 +209,51 @@ run "reject_service_account_access" {
   expect_failures = [var.iap_members]
 }
 
-run "reject_empty_access" {
+run "closed_bootstrap_has_no_reviewer_grant" {
   command = plan
-  variables { iap_members = [] }
+  variables {
+    iap_members            = []
+    custom_oauth_client_id = null
+  }
+  assert {
+    condition = (
+      length(google_iap_web_cloud_run_service_iam_binding.reviewers) == 0 &&
+      google_cloud_run_v2_service.demo.iap_enabled &&
+      !google_cloud_run_v2_service.demo.invoker_iam_disabled &&
+      google_cloud_run_v2_service_iam_binding.iap_invoker.members == toset(["serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com"]) &&
+      output.access_review.stage == "closed-bootstrap"
+    )
+    error_message = "Bootstrap must retain IAP/invoker checks and create no user access binding."
+  }
+}
+
+run "reject_access_without_oauth_record" {
+  command = plan
+  variables { custom_oauth_client_id = null }
+  expect_failures = [var.iap_members]
+}
+
+run "reject_invalid_oauth_id" {
+  command = plan
+  variables { custom_oauth_client_id = "not-a-client-id" }
+  expect_failures = [var.custom_oauth_client_id]
+}
+
+run "reject_authenticated_public_access" {
+  command = plan
+  variables { iap_members = ["allAuthenticatedUsers"] }
+  expect_failures = [var.iap_members]
+}
+
+run "reject_malformed_user" {
+  command = plan
+  variables { iap_members = ["user:operator@gmail.com@evil.example"] }
+  expect_failures = [var.iap_members]
+}
+
+run "reject_service_account_disguised_as_user" {
+  command = plan
+  variables { iap_members = ["user:runtime@example-project.iam.gserviceaccount.com"] }
   expect_failures = [var.iap_members]
 }
 
@@ -239,31 +269,37 @@ run "reject_wrong_schema" {
   expect_failures = [var.schema_revision]
 }
 
-run "organization_through_nested_folders" {
+run "consumer_login_does_not_require_project_organization" {
   command = plan
   override_data {
     target = data.google_project.current
-    values = { number = "123456789012", org_id = "", folder_id = "111111111111" }
-  }
-  override_data {
-    target = data.google_project_ancestry.current
-    values = { ancestors = [
-      { type = "project", id = "example-project" },
-      { type = "folder", id = "111111111111" },
-      { type = "folder", id = "222222222222" },
-      { type = "organization", id = "987654321012" },
-    ] }
+    values = { number = "123456789012", org_id = "", folder_id = "" }
   }
   assert {
-    condition     = google_cloud_run_v2_service.demo.iap_enabled
-    error_message = "Folder nesting must not reject a project with an organization ancestor."
+    condition = (
+      google_cloud_run_v2_service.demo.iap_enabled &&
+      google_iap_web_cloud_run_service_iam_binding.reviewers[0].members == toset(["user:operator@gmail.com"]) &&
+      output.access_review.custom_oauth_client_id == var.custom_oauth_client_id
+    )
+    error_message = "Custom OAuth supports the named consumer account independently of organization ancestry."
   }
 }
-run "reject_folder_without_organization" {
+
+run "reject_null_user" {
   command = plan
-  override_data {
-    target = data.google_project_ancestry.current
-    values = { ancestors = [{ type = "project", id = "example-project" }, { type = "folder", id = "111111111111" }] }
+  variables { iap_members = [null] }
+  expect_failures = [var.iap_members]
+}
+
+run "closed_after_oauth_configuration" {
+  command = plan
+  variables { iap_members = [] }
+  assert {
+    condition = (
+      length(google_iap_web_cloud_run_service_iam_binding.reviewers) == 0 &&
+      output.access_review.custom_oauth_client_id == var.custom_oauth_client_id &&
+      google_cloud_run_v2_service.demo.iap_enabled
+    )
+    error_message = "Recording OAuth settings must not independently grant access."
   }
-  expect_failures = [google_cloud_run_v2_service.demo]
 }

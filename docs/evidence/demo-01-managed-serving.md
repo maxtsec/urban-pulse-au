@@ -1,6 +1,6 @@
 # Managed serving configuration verification
 
-Verified locally on 6 October 2026. Scope: [serving Terraform](../../infra/demo-serving), [deployment procedure](../runbooks/managed-demo-serving.md), and [delivery status](../delivery-plan.md).
+Verified locally on 6 October 2026. This records the original organization-only implementation; [ADR 0013](../adr/0013-named-consumer-iap-access.md) and the [consumer access evidence](demo-01-consumer-iap.md) supersede its audience, ancestry gate and first-plan resource count. Scope: [serving Terraform](../../infra/demo-serving), [deployment procedure](../runbooks/managed-demo-serving.md), and [delivery status](../delivery-plan.md).
 
 The root describes one Melbourne Cloud Run service: compiled Caddy ingress, single-process API sidecar, direct IAP, runtime-only SQL secret/socket and explicit revision traffic. It owns three resources (service and two scoped IAM role bindings) and reads project/ancestry metadata and derives the documented IAP service-agent principal. It does not enable APIs, provision identities/databases, execute Jobs, create a deploy workflow or apply itself.
 
