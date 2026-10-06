@@ -2,12 +2,17 @@ import { expect, test } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 
 test.setTimeout(90_000);
+test.skip(
+  process.env.URBANPULSE_MEASURE_BUILDINGS !== '1',
+  'Opt-in rendering diagnostics; not a performance acceptance gate',
+);
 
 for (const profile of ['desktop', 'mobile'] as const) {
   test(`measure building rendering on ${profile}`, async ({
     browser,
   }, info) => {
     const context = await browser.newContext({
+      baseURL: info.project.use.baseURL,
       viewport:
         profile === 'desktop'
           ? { width: 1440, height: 1100 }
@@ -27,7 +32,7 @@ for (const profile of ['desktop', 'mobile'] as const) {
       )!.value;
     };
     try {
-      await page.goto('http://127.0.0.1:5174/?scenario=city');
+      await page.goto('/?scenario=city');
       await expect(
         page.getByRole('button', {
           name: 'Select Tram 01 on map',

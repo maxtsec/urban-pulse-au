@@ -234,7 +234,9 @@ export function App() {
               selectedDevelopment={selectedDevelopment}
               onSelectDevelopment={selectDevelopment}
               insets={insets}
-              glideMs={playing && !reducedMotion ? GLIDE_MS : 0}
+              glideMs={
+                playing && !reducedMotion && !threeDimensional ? GLIDE_MS : 0
+              }
               threeDimensional={threeDimensional}
               showBuildings={layers.buildings}
             />

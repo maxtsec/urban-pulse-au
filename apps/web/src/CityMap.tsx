@@ -85,6 +85,14 @@ export function CityMap({
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const contextLost = useRef(false);
+  const cameraMode = useRef(threeDimensional);
+  const [contextGeneration, setContextGeneration] = useState(0);
+  const recoveryCamera = useRef<{
+    center: maplibregl.LngLat;
+    zoom: number;
+    pitch: number;
+    bearing: number;
+  } | null>(null);
   const markers = useRef<Map<string, maplibregl.Marker>>(new Map());
   const developmentMarkers = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [ready, setReady] = useState<maplibregl.Map | null>(null);
@@ -176,6 +184,7 @@ export function CityMap({
         },
         center: [144.962, -37.825],
         zoom: 14,
+        ...recoveryCamera.current,
         attributionControl: false,
         refreshExpiredTiles: false,
       });
@@ -186,7 +195,7 @@ export function CityMap({
         'bottom-right',
       );
       instance.on('load', () => {
-        if (contextLost.current) return;
+        if (map.current !== instance || contextLost.current) return;
         instance.addSource('southbank', {
           type: 'geojson',
           data: boundary.feature,
@@ -265,21 +274,42 @@ export function CityMap({
             ring.forEach((point) => bounds.extend([point[0], point[1]])),
           ),
         );
-        instance.fitBounds(bounds, {
-          padding: initialInsets.current,
-          duration: 0,
-        });
+        if (!recoveryCamera.current) {
+          instance.fitBounds(bounds, {
+            padding: initialInsets.current,
+            duration: 0,
+          });
+        }
         setReady(instance);
         setFailed(false);
       });
       instance.getCanvas().addEventListener('webglcontextlost', () => {
+        if (map.current !== instance) return;
         // MapLibre may discard its style; subsequent selection/replay effects
         // must leave the accessible UI alive rather than calling that style.
         contextLost.current = true;
+        recoveryCamera.current = {
+          center: instance.getCenter(),
+          zoom: instance.getZoom(),
+          pitch: instance.getPitch(),
+          bearing: instance.getBearing(),
+        };
+        markers.current.forEach((marker) => marker.remove());
+        markers.current.clear();
+        developmentMarkers.current.forEach((marker) => marker.remove());
+        developmentMarkers.current.clear();
+        observed.current.clear();
+        setReady(null);
         cancelAnimationFrame(frame.current);
         glides.current.forEach((id) => cancelAnimationFrame(id));
         glides.current.clear();
         setFailed(true);
+      });
+      instance.getCanvas().addEventListener('webglcontextrestored', () => {
+        // Recreate MapLibre and the interleaved overlay together. Effects then
+        // consume the latest props, never the observations frozen at loss.
+        if (map.current === instance && contextLost.current)
+          setContextGeneration((generation) => generation + 1);
       });
       instance.on('move', layoutLabels);
       instance.on('error', () => setFailed(true));
@@ -288,8 +318,10 @@ export function CityMap({
       return;
     }
     const resize = new ResizeObserver(() => {
-      instance.resize();
-      layoutLabels();
+      if (!contextLost.current) {
+        instance.resize();
+        layoutLabels();
+      }
     });
     resize.observe(container.current);
     return () => {
@@ -306,7 +338,7 @@ export function CityMap({
       map.current = null;
       instance.remove();
     };
-  }, [boundary, layoutLabels]);
+  }, [boundary, layoutLabels, contextGeneration]);
 
   useEffect(() => {
     const instance = map.current;
@@ -380,6 +412,7 @@ export function CityMap({
       glides.current.delete(vehicle.id);
       const glide =
         glideMs > 0 &&
+        !threeDimensional &&
         !reducedMotion() &&
         previous?.freshness === 'current' &&
         vehicle.freshness === 'current';
@@ -427,6 +460,7 @@ export function CityMap({
     showTracks,
     layoutLabels,
     glideMs,
+    threeDimensional,
   ]);
 
   useEffect(() => {
@@ -495,6 +529,9 @@ export function CityMap({
 
   useEffect(() => {
     if (!ready || ready !== map.current || contextLost.current) return;
+    const modeChanged = cameraMode.current !== threeDimensional;
+    cameraMode.current = threeDimensional;
+    if (recoveryCamera.current && !modeChanged) return;
     const pitch = threeDimensional ? 55 : 0;
     const bearing = threeDimensional ? -15 : 0;
     // Do not create a camera animation on initial 2D load. Even a zero-distance

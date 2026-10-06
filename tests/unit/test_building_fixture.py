@@ -89,11 +89,13 @@ def test_rounded_geometry_preserves_holes_and_rejects_collapsed_rings():
 
 
 def test_committed_buildings_match_manifest_boundary_and_approved_scope():
-    manifest = json.loads(MANIFEST.read_text())
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     raw = FIXTURE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == manifest["fixture_sha256"]
     assert hashlib.sha256(BOUNDARY.read_bytes()).hexdigest() == manifest["boundary_sha256"]
-    assert manifest["export_query"] == {"where": export_query(json.loads(BOUNDARY.read_text()))}
+    assert manifest["export_query"] == {
+        "where": export_query(json.loads(BOUNDARY.read_text(encoding="utf-8")))
+    }
     features = json.loads(raw)["features"]
     assert len(features) == manifest["counts"]["included_count"] == 1108
     assert manifest["counts"]["source_count"] == 1189
@@ -105,5 +107,7 @@ def test_committed_buildings_match_manifest_boundary_and_approved_scope():
         and 0 <= f["properties"]["base_m"] < f["properties"]["top_m"]
         for f in features
     )
-    allowlist = (Path(__file__).resolve().parents[2] / "apps/web/.dockerignore").read_text()
+    allowlist = (Path(__file__).resolve().parents[2] / "apps/web/.dockerignore").read_text(
+        encoding="utf-8"
+    )
     assert "!src/assets/southbank-buildings.geojson" in allowlist

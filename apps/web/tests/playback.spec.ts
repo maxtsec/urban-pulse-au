@@ -225,3 +225,35 @@ test('reduced motion progress stays on the displayed snapshot', async ({
   const width = (await page.locator('.slider-rail').boundingBox())!.width;
   expect((await fill.boundingBox())!.width).toBeCloseTo((width * 15) / 360, 1);
 });
+
+test('3D keeps tram markers at observations instead of using the temporary 2D glide', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=journey');
+  await expect(page.locator(TRAM)).toBeVisible();
+  await page.getByRole('button', { name: '3D view', exact: true }).click();
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-buildings',
+    'ready',
+  );
+  await page
+    .getByRole('button', { name: 'Play scenario', exact: true })
+    .click();
+  await expect(page.getByTestId('clock')).toHaveText('11:00:30', {
+    timeout: 8000,
+  });
+  const samples = await page.evaluate(async (selector) => {
+    const rows = [];
+    const started = performance.now();
+    while (performance.now() - started < 400) {
+      await new Promise(requestAnimationFrame);
+      const box = document.querySelector(selector)!.getBoundingClientRect();
+      rows.push({ x: box.x, y: box.y });
+    }
+    return rows;
+  }, TRAM);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  const observed = await tramPosition(page);
+  for (const sample of samples)
+    expect(distance(sample, observed)).toBeLessThan(1);
+});
