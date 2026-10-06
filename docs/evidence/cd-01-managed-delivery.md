@@ -12,7 +12,7 @@ Recorded 7 October 2026 (Australia/Sydney). Progress is maintained in the [deliv
 
 The private versioned GCS bucket retains the serving state, deployment pointer, before/after state copies and saved plan. Named immutable image pairs and full source SHA identify the release; no phase tag or production release was created. Promotion retains the former serving record as `previous`. Rollback follows the traffic-only saved-plan procedure in the [CD runbook](../runbooks/managed-demo-cd.md), after schema/import compatibility and state checks. It is never an automatic state downgrade.
 
-Both GitHub environments restrict deployments to main; promotion requires the named operator. The operator confirmed administrator bypass was disabled in both settings pages. API reads establish the reviewer/branch rules; the UI-only bypass setting is operator-confirmed, not independently observed.
+Both GitHub environments restrict deployments to main; promotion requires the named operator. Independent reads of `GET /repos/maxtsec/urban-pulse-au/environments/{environment_name}` returned `can_admins_bypass: false` for both `demo-candidate` and `demo-promotion` on 7 October 2026. API reads also establish the reviewer and branch rules.
 
 ## Limits
 
