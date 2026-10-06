@@ -11,6 +11,7 @@ import pytest
 
 from apps.api.database import ApiDatabase
 from tests.integration.test_demo_database import command_environment, provision_database
+from tests.job_evidence import check_job_evidence
 from urbanpulse.adapters.city_fixture import LocalCityCapture, capture_city
 from urbanpulse.adapters.city_import import prepare_import
 from urbanpulse.adapters.city_store import CityInputStore, engine_for
@@ -44,8 +45,9 @@ def run_job(provisioned, operation, *, purpose=None, timeout=30, **options):
         text=True,
         timeout=timeout + 15,
     )
-    assert not result.stderr, result.stderr
-    return result.returncode, json.loads(result.stdout)
+    parsed = json.loads(result.stdout)
+    check_job_evidence(result.stderr, parsed["status"])
+    return result.returncode, parsed
 
 
 @pytest.fixture(scope="module")

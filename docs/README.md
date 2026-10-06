@@ -110,7 +110,7 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 | [Initialization Job runbook](runbooks/initialization-jobs.md) | Restricted migration/import commands, serialization, verification and recovery | Initialization Job behavior changes |
 | [Initialization Job evidence](evidence/demo-01-initialization-jobs.md) | Real restricted-role migration/import acceptance and interruption checks | Initialization acceptance is verified |
 | [Managed Jobs runbook](runbooks/managed-demo-jobs.md) | Definition inputs, plan/apply review and manual execution acceptance | Managed Job wiring or operations change |
-| [Managed Jobs evidence](evidence/demo-01-managed-jobs.md) | Mocked deployment checks and live-verification boundaries | Definition verification changes |
+| [Managed Jobs evidence](evidence/demo-01-managed-jobs.md) | Definition checks, first managed execution results and measurement limitations | Definition or managed-execution verification changes |
 | [Image publishing](runbooks/image-publishing.md) | Main CI gate, federation configuration, immutable image records and failed-attempt recovery | Publishing workflow or record semantics change |
 | [Image publishing evidence](evidence/demo-01-image-publishing.md) | Local container/registry verification and distinct live federation acceptance | A publication boundary is verified |
 | [Compose cleanup evidence](evidence/compose-smoke-cleanup.md) | All-profile teardown, project isolation and absence of residual resources | Smoke lifecycle or cleanup checks change |
