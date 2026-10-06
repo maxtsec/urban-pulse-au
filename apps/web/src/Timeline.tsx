@@ -15,6 +15,7 @@ type Props = {
   moments: Moment[];
   onPlay: () => void;
   onJump: (seconds: number) => void;
+  onScrub: (seconds: number) => void;
 };
 
 export function Timeline({
@@ -29,6 +30,7 @@ export function Timeline({
   moments,
   onPlay,
   onJump,
+  onScrub,
 }: Props) {
   const playingNow = playing && seconds < endSeconds;
   // Align markers with the range thumb centre, which is inset by half its width.
@@ -109,7 +111,7 @@ export function Timeline({
             max={endSeconds}
             step="15"
             value={seconds}
-            onChange={(event) => onJump(Number(event.target.value))}
+            onChange={(event) => onScrub(Number(event.target.value))}
           />
           <div className="slider-rail" aria-hidden="true">
             <div

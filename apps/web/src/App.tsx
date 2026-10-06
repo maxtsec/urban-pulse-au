@@ -25,6 +25,7 @@ const EMPTY_DEVELOPMENTS: Development[] = [];
 const WIDE = 900;
 const PLAY_STEP_SECONDS = 15;
 const PLAY_STEP_MS = 2000;
+const SCRUB_SETTLE_MS = 250;
 // Shorter than a playback step so each tram settles on its observation before the next one.
 const GLIDE_MS = 1500;
 
@@ -38,6 +39,7 @@ function mapInsets(): Insets {
 export function App() {
   const reducedMotion = useReducedMotion();
   const [seconds, setSeconds] = useState(0);
+  const [scrubSeconds, setScrubSeconds] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [scenario, setScenario] = useState(initialScenario);
   const [selected, setSelected] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export function App() {
   useEffect(() => {
     function restoreScenario() {
       setScenario(initialScenario());
+      setScrubSeconds(null);
       setPlaying(false);
       setSelected(null);
       setSelectedDevelopment(null);
@@ -84,6 +87,16 @@ export function App() {
     window.addEventListener('popstate', restoreScenario);
     return () => window.removeEventListener('popstate', restoreScenario);
   }, []);
+
+  // The thumb follows input immediately; queries wait until scrubbing settles.
+  useEffect(() => {
+    if (scrubSeconds === null) return;
+    const timer = window.setTimeout(() => {
+      setSeconds(scrubSeconds);
+      setScrubSeconds(null);
+    }, SCRUB_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [scrubSeconds]);
 
   const selectVehicle = useCallback((id: string) => {
     setSelected(id);
@@ -113,18 +126,31 @@ export function App() {
       url.searchParams.set('scenario', value);
       window.history.pushState(null, '', url);
     }
+    setScrubSeconds(null);
     setScenario(value);
     setPlaying(false);
     setSelected(null);
     setSelectedDevelopment(null);
   }
 
+  function scrub(value: number) {
+    setPlaying(false);
+    setScrubSeconds(Math.max(0, Math.min(value, endSeconds)));
+  }
+
   function jump(value: number) {
+    setScrubSeconds(null);
     setPlaying(false);
     setSeconds(Math.max(0, Math.min(value, endSeconds)));
   }
 
   function play() {
+    if (scrubSeconds !== null) {
+      setSeconds(scrubSeconds >= endSeconds ? 0 : scrubSeconds);
+      setScrubSeconds(null);
+      setPlaying(true);
+      return;
+    }
     if (seconds >= endSeconds) {
       setSeconds(0);
       setPlaying(true);
@@ -329,7 +355,7 @@ export function App() {
 
           <Timeline
             clock={snapshot ? displayTime(snapshot.clock.at) : '—'}
-            seconds={seconds}
+            seconds={scrubSeconds ?? seconds}
             endSeconds={endSeconds}
             playing={playing}
             advancing={advancing && !reducedMotion}
@@ -339,6 +365,7 @@ export function App() {
             moments={visible ? scenarioMoments(visible) : []}
             onPlay={play}
             onJump={jump}
+            onScrub={scrub}
           />
         </div>
 
