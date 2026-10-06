@@ -55,8 +55,8 @@ test('compiled city reloads from a nested URL with three domains and no dev runt
   ).toEqual([]);
   await page.reload();
   await expect(
-    page.getByRole('button', { name: 'City overview', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByRole('combobox', { name: 'Scenario', exact: true }),
+  ).toHaveValue('city');
   await expect(
     page.getByRole('region', { name: 'Weather summary' }),
   ).toContainText('18 °C');
