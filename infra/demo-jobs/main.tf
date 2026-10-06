@@ -38,8 +38,9 @@ resource "google_cloud_run_v2_job" "demo" {
     template {
       service_account       = var.foundation.identities[each.key]
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-      timeout               = "600s"
-      max_retries           = 0
+      # The 60-second difference also needs startup/cleanup evidence; see the runbook.
+      timeout     = "600s"
+      max_retries = 0
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
