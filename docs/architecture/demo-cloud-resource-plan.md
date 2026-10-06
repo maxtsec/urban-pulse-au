@@ -71,7 +71,7 @@ The [finite migration/import runners](../runbooks/initialization-jobs.md) use th
 
 1. Review the foundation and its credential-free mocked tests. Use the [foundation runbook](../runbooks/demo-foundation.md) to prepare an actual plan; apply only after that plan is approved.
 2. Bootstrap PostGIS, database roles and secret versions privately; verify backups and restore to a separate target. Check actual database settings against the connection envelope.
-3. Implement and test shared API pooling, bounded migration/import/worker runners and their deployed limits. No serving/job resources exist in the foundation, so its outputs cannot accidentally deploy the current unbounded entry points.
+3. Verify shared API pooling and bounded migration/import/worker runners, then review the [managed Job definitions](../runbooks/managed-demo-jobs.md) and their actual resource plan. No serving/job resources exist in the foundation, so its outputs cannot accidentally deploy the current unbounded entry points.
 4. Deploy an IAP-protected candidate with verified image digests, execute initialization Jobs, then test and explicitly promote it. Preserve the previous deployment, schema compatibility and retained fixture/delivery state for rollback.
 
 Live collection and A-06 remain separate; this fixture environment is not production V1.
