@@ -3,9 +3,12 @@ import type { Page } from '@playwright/test';
 import { chooseScenario, moment } from './helpers';
 
 async function setup(page: Page) {
+  const start = new Date('2026-01-01T00:00:00Z');
+  await page.clock.install({ time: start });
   await page.goto('/?scenario=journey');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
-  await page.clock.install();
+  // Freeze elapsed time: CI/browser work must not consume the debounce window.
+  await page.clock.pauseAt(new Date(start.getTime() + 60_000));
   const requests: string[] = [];
   page.on('request', (request) => {
     const url = new URL(request.url());
@@ -15,6 +18,17 @@ async function setup(page: Page) {
       );
   });
   return requests;
+}
+
+async function expectSnapshot(page: Page, time: string) {
+  // Network responses arrive on real time; flush their queued query notifications
+  // without allowing wall-clock delays to advance playback or debounce timers.
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(1);
+      return page.getByTestId('clock').textContent();
+    })
+    .toBe(time);
 }
 
 test('rapid scrubbing previews each choice but requests only the settled final time', async ({
@@ -30,7 +44,7 @@ test('rapid scrubbing previews each choice but requests only the settled final t
   expect(requests).toEqual([]);
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   await page.clock.runFor(250);
-  await expect(page.getByTestId('clock')).toHaveText('11:02:00');
+  await expectSnapshot(page, '11:02:00');
   expect(requests).toEqual(['journey:120']);
 });
 
@@ -44,7 +58,7 @@ test('reset and direct moments cancel a pending scrub', async ({ page }) => {
   expect(requests).toEqual([]);
   await slider.fill('180');
   await moment(page, '30s · Position update').click();
-  await expect(page.getByTestId('clock')).toHaveText('11:00:30');
+  await expectSnapshot(page, '11:00:30');
   await page.clock.runFor(300);
   expect(requests).toEqual(['journey:30']);
 });
@@ -69,10 +83,10 @@ test('Play commits the selected time and keeps the normal playback interval', as
   await page
     .getByRole('button', { name: 'Play scenario', exact: true })
     .click();
-  await expect(page.getByTestId('clock')).toHaveText('11:02:00');
+  await expectSnapshot(page, '11:02:00');
   await page.clock.runFor(300);
   expect(requests).toEqual(['journey:120']);
-  await page.clock.runFor(1700);
-  await expect(page.getByTestId('clock')).toHaveText('11:02:15');
+  await page.clock.runFor(2000);
+  await expectSnapshot(page, '11:02:15');
   expect(requests).toEqual(['journey:120', 'journey:135']);
 });
