@@ -12,6 +12,8 @@ Initially allow only the named acceptance operator. Keep the actual address in p
 
 ## Provisioning and credential ownership
 
+Before resource apply or OAuth setup, verify the effective project domain-restricted-sharing policies permit a new grant to the intended consumer account. Follow the [policy gate](../runbooks/managed-demo-serving.md#domain-restricted-sharing-gate); an unreadable policy stops deployment, and an existing owner grant is not eligibility evidence. Accepting consumer access does not authorize API enablement or an organization-policy exception. Any exception needs a separate architectural decision and reviewed cloud change.
+
 Create the protected service first with no reviewer binding, then configure custom OAuth at that service through a separately reviewed Console bootstrap step. Keep the client secret outside Terraform inputs, plan/state, images and GitHub. The operator owns the OAuth credential lifecycle; any retained credential copy belongs in approved private secret storage. Record the non-secret client ID and sanitized settings evidence. OAuth is not managed by the serving Terraform root.
 
 Only after verifying the service-scoped OAuth configuration, consent setup and inherited IAM should a second saved plan grant the named operator IAP access. The client ID in Terraform is a deployment assertion, not proof of live settings. Use the [runbook](../runbooks/managed-demo-serving.md#custom-oauth-bootstrap-and-operator-access) for the review and read-back sequence. No bootstrap, IAM mutation or resource apply is authorized merely by merging this decision.
