@@ -110,4 +110,4 @@ Live finite runs automatically use positions every 60 seconds, updates every 120
 
 For an offline rehearsal, append `--tram-schedule --max-attempts 5 --max-seconds 115` to the existing fixture `run` command. This takes real elapsed time and reaches slots 0, 15, 30, 60 and 90; it does not contact the provider. Live retains the 60-second startup cooldown, so its first five healthy slots need a duration exceeding 150 seconds. `--interval` can slow the minimum spacing but cannot accelerate live cadence. Ordinary fixture tests retain their fast default loop.
 
-This schedule does not start unattended operation or change the v2 store. [ADR 0018](../adr/0018-capture-delivery-and-expiry.md) records the accepted fresh-v3 expiry mechanism, separate raw-duration decision and confirmation/encryption alternatives.
+This schedule does not start unattended operation or change the v2 store. [ADR 0018](../adr/0018-capture-delivery-and-expiry.md) records the accepted fresh-v3 expiry mechanism, separate raw-duration decision and accepted B metadata confirmation and manual unlock.

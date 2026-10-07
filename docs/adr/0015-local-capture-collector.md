@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Status: **Accepted by the project architect on 2026-10-07** for the hosting, retention tiers and upload identity below. Polling cadence was additionally accepted on 2026-10-07: positions 60 seconds, trip updates 120 seconds and alerts 60 seconds. Normalized retention of 12 months, collected-grain Southbank plus Melbourne CBD history, DTP/CC BY 4.0 attribution and dedicated-host use were subsequently accepted. Raw duration remains proposed at 14 days after the latest review. [ADR 0018](0018-capture-delivery-and-expiry.md) accepts v3 persistence and records the separately reviewed confirmation/unlock alternatives. This decision provisions no resources and enables no live source.
+Status: **Accepted by the project architect on 2026-10-07** for the hosting, retention tiers and upload identity below. Polling cadence was additionally accepted on 2026-10-07: positions 60 seconds, trip updates 120 seconds and alerts 60 seconds. Normalized retention of 12 months, collected-grain Southbank plus Melbourne CBD history, DTP/CC BY 4.0 attribution and dedicated-host use were subsequently accepted. Raw duration remains proposed at 14 days after the latest review. [ADR 0018](0018-capture-delivery-and-expiry.md) accepts v3 persistence, B metadata confirmation (replacing the separate confirmation-bucket option) and the manual-unlock host policy. This decision provisions no resources and enables no live source.
 
 Resolves the capture-host part of A-06. Amends [ADR 0010](0010-hosted-fixture-demo.md)'s keyless-identity direction for one named upload identity only. Source-use approval, SRC-02 live-access proof and the [capture contract](../architecture/capture-event-contract.md) remain separate gates.
 
@@ -18,22 +18,22 @@ Provider feeds cannot be requested per area: GTFS-Realtime returns the whole tra
 
 **Tram cadence (accepted 2026-10-07).** Collect positions / trip updates / alerts every **60 / 120 / 60 seconds**, preferring retained history over minimum live latency. The [collection policy](../architecture/tram-collection-policy.md) records storage estimates, shared request/retry limits and remaining activation gates. This does not change fixture freshness or the animation display-delay version.
 
-**Upload identity.** Use one dedicated service account whose only grant is `roles/storage.objectCreator` on one dedicated landing bucket. It cannot read, list, overwrite or delete objects and has no other project role. Its JSON key is the single accepted exception to keyless identities. Runtime, Job, deployer and builder identities remain keyless.
+**Upload identity.** Use one dedicated service account with `roles/storage.objectCreator` plus a custom role containing only `storage.objects.get`, both bound to the dedicated landing bucket. The 2026-10-07 B amendment in ADR 0018 replaces the original write-only grant and supersedes separate-bucket confirmations. Get allows content and metadata for known names; the implementation uses metadata only. The identity cannot list, overwrite or delete objects and has no project-wide data role. Its JSON key is the single accepted exception to keyless identities. Runtime, Job, deployer and builder identities remain keyless.
 
 ## Key handling
 
 - Store the key only on the collector host, readable only by the collector service account, outside the repository and any synchronized folder. Never put it in images, logs, GitHub or Terraform state.
 - Create keys through a reviewed operator step. If the organization enforces `iam.disableServiceAccountKeyCreation`, a project-scoped exception needs separate approval; never relax it organization-wide.
 - Rotate on a fixed schedule: create a replacement, deploy it, verify an upload, then delete the old key. Revoke immediately on suspected exposure or host compromise. Record key IDs and rotation dates privately.
-- Uploads use unique, create-only object names derived from capture identity, so a write-only identity cannot replace earlier records.
+- Uploads use unique, create-only object names derived from capture identity, with `ifGenerationMatch=0`; the identity has no delete permission to replace earlier records.
 
 ## Upload confirmation
 
-A write-only identity cannot read back what it stored. The collector therefore owns a local pending-upload record for every object until the cloud side confirms it.
+The collector owns a local pending-upload record per object until GCS metadata confirms its exact generation, size and service-calculated checksums under [ADR 0018 B](0018-capture-delivery-and-expiry.md#accepted-cloud-confirmation-b).
 
-- Send each object with a checksum the service validates on receipt and record its SHA-256 in object metadata and the local manifest.
-- A successful response confirms that upload. A lost response or a retry that returns HTTP 412 (object already exists) is **unconfirmed**, not success: the collector cannot verify whether the existing object matches.
-- A cloud-side verifier, or operator reconciliation until one exists, compares stored objects with the uploaded manifests by name and hash and reports matches, mismatches and missing objects. A mismatch is quarantined and investigated; it is never overwritten.
+- Persist local SHA-256, CRC32C, MD5 and size before a single-request, non-composite create-only upload with service-validated checksums.
+- Confirm a successful response only after matching its generation, identity, size and both service checksums. After a lost response or HTTP 412, read known-object metadata (no content download), pin the returned generation and apply the same checks. Custom SHA metadata is not independent evidence.
+- Missing fields remain unconfirmed; mismatches or composite objects are quarantined and never overwritten. No separate confirmation bucket or cloud verifier is part of accepted B.
 - Pending records, and the raw bytes they derive from, are kept beyond the normal raw window until confirmed. Disk alerts account for this backlog.
 
 ## Host requirements
@@ -53,12 +53,12 @@ The collector sends a periodic heartbeat. A cloud-side check alerts when no hear
 - Cloud compute and raw object storage are avoided for the largest layer; normalization load moves to the collector host.
 - Availability follows the host's power, network and maintenance. Gaps are expected, recorded and not hidden by later data.
 - Raw bytes are lost if the host disk fails. Uploaded records survive. Older raw replay beyond the window is explicitly not guaranteed.
-- A long-lived key exists. Its blast radius is limited to creating objects in one bucket, at the cost of rotation discipline and host hardening.
+- A long-lived key exists. Its blast radius covers creating and reading known objects in one bucket, without list/delete, at the cost of rotation discipline and host hardening.
 - The collector and normalizer run as a container so the same code can later move to cloud hosting. The capture contract's create-only and manifest rules apply to local storage as they would to object storage.
 
 ## Open items
 
 - Raw retention duration: separately proposed at 14 days. Normalized duration, scope/grain and attribution are accepted above; expiry implementation and live activation remain separate.
-- Landing bucket, upload identity, heartbeat alert and upload verifier: provisioned in CLOUD-01 through reviewed infrastructure code. CLOUD-01 acceptance includes a lost-acknowledgement retry that is reconciled rather than assumed successful.
+- Landing bucket, scoped create/get upload identity, heartbeat alert and collector metadata reconciliation: provisioned in CLOUD-01 through reviewed infrastructure code. CLOUD-01 acceptance includes a lost-acknowledgement retry that is reconciled rather than assumed successful.
 - How uploaded records load into the serving database or warehouse: decided with A-07/HIST-01.
 - Tram catalogue attribution/use is accepted under the collection policy; confirm subscription scope before unattended capture. Other sources still need their own terms and retention decisions.

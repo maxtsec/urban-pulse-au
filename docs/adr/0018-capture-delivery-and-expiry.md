@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Status: **Persistence mechanism accepted by the project architect on 2026-10-07, with the conditions below.** Cloud confirmation and host unlock alternatives have separate decision states below. Raw retention is separately proposed at 14 days, following the latest review. This decision enables no resources or live sources.
+Status: **Persistence mechanism accepted by the project architect on 2026-10-07, with the conditions below.** The architect additionally accepted B (known-object metadata confirmation), replacing A, and the manual-unlock host policy on 2026-10-07. Raw retention is separately proposed at 14 days, following the latest review. This decision enables no resources or live sources.
 
 ## Scope and source policy
 
@@ -39,23 +39,32 @@ Crash tests terminate the process at each record-write/publication, unlink and d
 
 Metadata has no automatic deletion in this slice. The review estimate is about **84 MiB/day**, or about **30 GiB/year**, of metadata/filesystem allocation at this cadence, not a measured guarantee. Payload expiry does not reclaim these files/inodes. Measure actual growth and include it in reserve planning. A separate metadata-compaction design must preserve sequence, provenance and crash recovery before capacity becomes a limit.
 
-## Cloud confirmation alternatives
+## Accepted cloud confirmation: B
 
-Previously accepted A retains landing objectCreator and permits reading a separate confirmation bucket. The latest review prefers B; **replacement of A by B awaits explicit selection**. Neither is provisioned yet.
+**Accepted by the project architect on 2026-10-07: B replaces the previously accepted A.** Keep `roles/storage.objectCreator` on the dedicated landing bucket and add a custom role containing **only `storage.objects.get`**, bound to that bucket. No objectViewer, list, delete, overwrite or project-wide data access. This amends ADR 0015's write-only boundary. No separate confirmation bucket or cloud reconciliation service is required.
 
-| | A: Separate confirmations | B: Known-object readback |
+| | A: Separate confirmations (superseded) | B: Known-object metadata (accepted) |
 | --- | --- | --- |
-| Host permission | Landing objectCreator; confirmation-bucket read | Landing objectCreator plus a bucket-bound custom role containing only `storage.objects.get` |
-| Reconciliation | Bounded scheduled cloud verifier checks bytes and writes confirmations | Collector reads the known object after an unknown outcome/412 |
-| Read exposure | Confirmation names/hashes | Normalized data and metadata for known names; not metadata-only access |
+| Host read exposure | Confirmation names/hashes | Normalized data and metadata for known names |
+| Reconciliation | Scheduled cloud verifier writes confirmations | Collector reads GCS metadata for a known object |
 | Components | Verifier, confirmation storage and verifier monitoring | No cloud reconciliation component |
-| Failure | Verifier outage pins raw; alert on confirmation age and disk reserve | Readback outage pins raw; alert on pending age and disk reserve |
+| Failure | Verifier outage pins raw | Metadata readback outage pins raw |
 
-B must not use objectViewer, which includes list. It grants no list/delete/overwrite or project-wide data access. [Google's permission reference](https://docs.cloud.google.com/storage/docs/access-control/iam-permissions) confirms get reads both content and metadata. Landing contains normalized public-source data, not raw responses or secrets; this nevertheless increases the key's read capability.
+B removes a reconciliation dependency and its operation cost. Landing holds normalized public-source records, not raw responses or secrets. IAM cannot restrict get to metadata: the key can also read object content if the name is known, even though this workflow never downloads it. The [permission reference](https://docs.cloud.google.com/storage/docs/access-control/iam-permissions) distinguishes get from list. Both provider and upload keys retain their separate revocation procedures.
 
-Both options use create-only uploads (`ifGenerationMatch=0`) and service-validated checksums. A 412 alone never confirms an upload. Pin readback to the returned object generation and compare actual bytes/hash and size against the durable expected record; uploader-authored SHA metadata alone is not independent proof. Mismatch quarantines and pins raw; never overwrite a conflicting object. Successful upload and later reconciliation publish the same durable confirmation outcome.
+### Upload and metadata confirmation
 
-Use a separate Terraform root and review saved plans before apply. Keys stay outside Terraform/images/source and follow [ADR 0015](0015-local-capture-collector.md). Heartbeat, failed-feed, pending-age and disk/inode monitoring is required for either option; B removes reconciliation infrastructure, not monitoring.
+1. Before upload, persist expected bucket/name, exact byte count, SHA-256, CRC32C and MD5 of the immutable output bytes. Encode CRC32C as base64 big-endian and MD5 as base64, matching the [GCS object fields](https://docs.cloud.google.com/storage/docs/json_api/v1/objects). SHA-256 remains local provenance; custom `metadata.sha256` is not confirmation evidence.
+2. Use a **single-request, non-composite** upload with `ifGenerationMatch=0` and GCS-validated checksums. A JSON API multipart request containing metadata and one payload is still one request; it is not XML multipart upload or parallel compose. Do not use compose or transparently switch upload protocols. [GCS validates supplied checksums against received bytes](https://docs.cloud.google.com/storage/docs/data-validation).
+3. A lost response or HTTP 412 keeps the object pending. Fetch [object metadata](https://docs.cloud.google.com/storage/docs/json_api/v1/objects/get) for its known bucket/name, without `alt=media`; do not download contents. Read bucket, name, generation, size, `crc32c`, `md5Hash` and `componentCount`. Bind the confirmation to that returned generation; any follow-up read for it specifies that generation. Never combine fields from different generations or silently adopt a replacement.
+4. Confirm only when identity, size and **both server-calculated CRC32C and MD5** match the durable expected record, and the object is non-composite. Composite objects lack MD5. Missing/malformed checksum or generation fields never downgrade validation to size-only or custom metadata. Unsupported metadata stays unconfirmed; a definite identity/size/checksum mismatch or composite object is quarantined. Neither outcome releases raw pins or overwrites the remote object. A transient failure/404 remains pending for bounded retry.
+5. Persist the same confirmation record for acknowledged upload and reconciliation, including generation, size and service checksums. A successful upload response must pass the same field comparisons, using metadata lookup if its response is insufficient. Only durable confirmation releases the corresponding upload pin; raw expiry still requires all four eligibility conditions above.
+
+CRC32C/MD5 establish the accepted transfer-integrity check; they are not a SHA-256 content readback or proof against deliberate checksum collisions. A future change requiring such proof needs a separate decision rather than an unannounced content download.
+
+Acceptance covers lost acknowledgement then matching 412, wrong size/checksum, missing checksum, unexpected composite object, generation changes, retry after process termination, and a crash before local confirmation publication. Verify that the adapter issues metadata requests only, that the custom role contains exactly get, and that the bucket grants neither list nor delete. Do not infer IAM enforcement from unit mocks: exercise allowed metadata access and denied operations against the deployed identity before unattended activation.
+
+Use a separate Terraform root and review saved plans before apply. Keys remain outside Terraform/images/source and follow [ADR 0015](0015-local-capture-collector.md). Heartbeat, failed-feed, pending-age and disk/inode monitoring remain mandatory. B removes the verifier dependency, not network/readback failures: raw stays pinned on those failures and the collector stops at its reserve rather than deleting unconfirmed evidence.
 
 ## Host encryption and rollout
 
@@ -66,4 +75,5 @@ Raw, exports and both keys reside on the encrypted volume. Disable or encrypt sw
 Before a concrete host change, review the exact volume path, capacity, creation procedure and swap/service configuration. Preserve the existing system and v2 rehearsal. Use an interactive operator terminal for the passphrase/recovery material. Test locked-volume refusal and post-unlock recovery before installing provider/upload keys. Cloud heartbeat-loss monitoring must work while the host/volume is offline; maintenance gaps remain visible, not silently exempted. Private operator notes hold paths, host details, maintenance schedule and alert destinations.
 
 TPM2 unattended unlock was considered but is not a prerequisite of the selected manual policy. Reinstalling with full-disk encryption would not itself provide unattended unlock. Both alternatives would require a new explicit unlock/recovery decision.
+
 Implement scheduler, normalization, upload/expiry recovery, infrastructure/monitoring and host service in reviewable changes. Test locally before plans; apply only reviewed plans, then perform separately authorized finite live acceptance with duration/request bounds before unattended operation. Measure allocated bytes/inodes and gaps. Weather/hazard/planning sources retain separate SRC-02 gates; completing tram capture does not claim those sources are enabled.
