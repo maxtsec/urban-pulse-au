@@ -4,7 +4,7 @@ The v3 format implements the first persistence slice of [ADR 0018](../adr/0018-c
 
 ## Version and ownership
 
-Create a fresh store using `--store-version v3`; keep the v2 rehearsal and its pinned image unchanged. The default CLI still selects v2. Each journal/verifier checks its exact marker; no in-place migration or automatic version detection occurs. V3 uses the existing exclusive Linux lock, filesystem allowlist, sequence index and checksummed capture control. Ordinary recovery checks capture control/pending only, without scanning downstream history.
+Create a fresh store using `--store-version v3`; keep the v2 rehearsal and its pinned image unchanged. The default CLI still selects v2 for fixture compatibility; `run --live` rejects v2 before accessing the store, key or network. Live requires an explicit `--store-version v3`. Each journal/verifier checks its exact marker; no in-place migration or automatic version detection occurs. V3 uses the existing exclusive Linux lock, filesystem allowlist, sequence index and checksummed capture control. Ordinary recovery checks capture control/pending only, without scanning downstream history.
 
 Each downstream mutation holds store ownership and rejects verification holds. Network work belongs outside that lock in a later adapter. Input capture evidence and downstream records are create-only; only the checksummed normalization cursor advances by atomic replacement. Temporary files from interrupted publication remain unpublished and can be inspected separately; this slice does not clean them or compact metadata.
 
@@ -45,6 +45,10 @@ CRC32C and MD5 use canonical base64 with four and sixteen decoded bytes respecti
 Register a scope before publishing results. Publish each pending object before a normalization record that references it, then advance the cursor by exactly one. Every capture, including an unsuccessful fetch or one with no applicable records, needs an export manifest recording outcome/coverage before successful normalization can complete. A quarantined result can advance progress, but cannot authorize expiry. Reprocessing uses a new scope/revision; it does not rewrite the earlier result. Cursor reads validate the last record and its bounded references; full historical continuity is checked by offline verify.
 
 Confirmation publication checks local record consistency, including both expected checksums and size. **It does not contact GCS or attest that a caller performed metadata readback.** The later upload adapter must establish that evidence under accepted B before calling it. No public CLI can manufacture confirmation or retention/expiry records in this slice. Synthetic tests construct such records explicitly and do not count as cloud validation.
+
+## Writer clock floors
+
+Future normalizer and uploader writers must construct immutable completion times as `max(now_utc, reference_time)`. For normalization, the reference is the capture manifest completion time; for upload confirmation, it is the latest completion time among all referenced captures. Expiry intent/completion must likewise respect their validated eligibility and prior-record times. Clock rollback must not create an unpublishable immutable result. Test each writer with a clock earlier than its reference before enabling it. Preserve provider observation/receipt timestamps; these floors apply only to locally generated processing times. Use monotonic time for elapsed-time budgets.
 
 ## Expiry-aware verification
 
