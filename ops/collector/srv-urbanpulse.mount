@@ -1,0 +1,10 @@
+[Unit]
+Description=Manually unlocked UrbanPulse encrypted data
+JobTimeoutSec=15s
+
+[Mount]
+What=/dev/mapper/urbanpulse-data
+Where=/srv/urbanpulse
+Type=ext4
+Options=rw,nodev,nosuid,noexec
+TimeoutSec=10s
