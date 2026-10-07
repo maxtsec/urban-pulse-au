@@ -12,7 +12,7 @@ A-06 decision proposal, researched 4 October 2026. **Outcome:** [ADR 0015](../ad
 | Cloud Run worker pool | Managed container operation with continuous allocation; fewer host administration tasks | Measure runtime requirements and compare the complete recurring footprint |
 | Shared demonstration host, including a lower-cost VPS | Amortises runtime overhead across collector, API, PostGIS and Redis; shared capacity and one failure domain | Architect acceptance of provider/region, concurrent-load tests, patching, backups and restore |
 
-Domain boundaries remain separate even when processes share a host. Collection must continue independently of API/database availability, with raw inputs retrievable after host loss. Keep analytical development local until a separately evaluated cloud batch path is justified. No hosting option is selected by this comparison.
+Domain boundaries remain separate even when processes share a host. Collection must continue independently of API/database availability. The original requirement that raw inputs remain retrievable after host loss is superseded by ADR 0015: raw is kept only on the collector for a short window, and uploaded records are the durable copy. Keep analytical development local until a separately evaluated cloud batch path is justified. No hosting option is selected by this comparison.
 
 ## DEMO-01 and Phase 4 boundary
 

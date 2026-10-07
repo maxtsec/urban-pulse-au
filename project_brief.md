@@ -41,7 +41,7 @@ Phases 1 and 2 deliver a small integrated city experience:
 - A combined area panel with per-domain facts, coverage and a basic explained status under agreed rules.
 - Deterministic fixtures covering normal, disrupted, stale and incomplete conditions.
 - A traceable path from permitted capture to domain projections and the area view, with shared versioned in-process events, replay and meaningful automated tests.
-- A parallel early-capture track targeting phases 1-2: one GCS bucket and a small continuous worker accumulating permitted raw history before the analytical phase.
+- A parallel early-capture track targeting phases 1-2: an operator-hosted collector ([ADR 0015](docs/adr/0015-local-capture-collector.md)) keeping a short window of permitted raw history locally and uploading normalised selected-area records before the analytical phase.
 
 Source feasibility determines the exact area and records. All train/tram/bus feeds, hazard types, road incidents and development datasets are not required on day one. Prefer a position-capable transport slice where feasible; record the reason if status-only data is selected. A synthetic integrated demo can precede live access, but cannot be described as a live city MVP.
 
@@ -59,14 +59,14 @@ Later evaluated enhancements may add numeric area scores, subscriptions and AI e
 | Analytical language        | SQL                                                                    | Explicit transformations, dimensional models and aggregations                                                     |
 | API framework              | FastAPI with Pydantic                                                  | HTTP contracts, input validation, query endpoints and generated API documentation                                 |
 | Application persistence    | SQLAlchemy, PostgreSQL driver and Alembic                              | Database access, transactions and application schema migrations                                                   |
-| Ingestion runtime          | Independent Python worker                                              | Feed polling, bounded retries, raw capture, normalisation and current projections                                 |
+| Ingestion runtime          | Independent Python worker; live capture on an operator-hosted collector | Feed polling, bounded retries, raw capture, normalisation and current projections                                 |
 | Pipeline orchestration     | Dagster OSS                                                            | Asset dependencies, scheduled runs, partitions, retries and backfills                                             |
 | File processing            | Polars                                                                 | Tabular cleaning, bounded batch processing and Parquet output                                                     |
 | Analytical transformations | dbt with the BigQuery adapter                                          | SQL models, incremental processing, model tests and generated documentation                                       |
 | Operational database       | PostgreSQL with PostGIS                                                | Current records, spatial queries, processing ledgers and published serving projections                            |
 | Analytical warehouse       | Google BigQuery                                                        | Historical staging, dimensions, facts and analytical marts                                                        |
 | Cache                      | Redis                                                                  | Short-lived query results and frequently requested summaries                                                      |
-| Raw storage                | Google Cloud Storage, with a local fixture adapter                     | Durable source payloads, manifests, replay inputs and curated files                                               |
+| Raw and landing storage    | Collector-local filesystem for live raw; Google Cloud Storage landing bucket; local fixture adapter | Short-window exact source payloads and manifests on the collector; uploaded normalised records, manifests and curated files in the cloud |
 | Curated file format        | Parquet                                                                | Partitioned, typed intermediate datasets where useful                                                             |
 | Frontend                   | React, TypeScript and Vite                                             | Application UI, filters, data fetching and presentation                                                           |
 | Maps                       | MapLibre GL JS                                                         | Routes, stops, area boundaries and status layers                                                                  |
@@ -89,11 +89,12 @@ The API begins as a modular monolith. Separate processes handle ingestion and sc
 
 ```mermaid
 flowchart TD
-    Sources[Transport, weather and planning sources] --> Worker[Python ingestion worker]
-    Worker --> Raw[Google Cloud Storage raw payloads]
-    Raw --> Normalise[Validation and normalisation]
-    Normalise --> Operational[PostgreSQL and PostGIS operational data]
-    Raw --> Pipeline[Dagster orchestrated Python and Polars processing]
+    Sources[Transport, weather and planning sources] --> Worker[Operator-hosted Python collector]
+    Worker --> Raw[Collector-local raw payloads and manifests, short window]
+    Raw --> Normalise[Validation, normalisation and area selection]
+    Normalise --> Landing[Cloud Storage landing bucket]
+    Landing --> Operational[PostgreSQL and PostGIS operational data]
+    Landing --> Pipeline[Dagster orchestrated Python and Polars processing]
     Pipeline --> Staging[BigQuery validated staging]
     Staging --> Models[dbt SQL models and data tests]
     Models --> Analytics[BigQuery analytical marts]
@@ -140,9 +141,9 @@ Adapters isolate provider-specific authentication and payload formats from inter
 
 ### Early raw capture
 
-On the parallel capture track, target phase 1 for provisioning a minimal capture environment after source use/retention and A-06 are agreed: one GCS bucket and one small continuously running worker, with scoped identity, lifecycle rules, a request budget, basic monitoring and restart handling. Target phase 2 for adding weather/planning captures as each source is cleared.
+On the parallel capture track, target phase 1 for provisioning a minimal capture environment after source use/retention is agreed. [ADR 0015](docs/adr/0015-local-capture-collector.md) selects an operator-hosted collector with collector-local raw storage, a write-only landing bucket and a scoped upload identity, plus retention rules, a request budget, heartbeat monitoring and restart handling. Target phase 2 for adding weather/planning captures as each source is cleared.
 
-This collector writes source bytes and manifests without waiting for a hosted API, area model, broker or BigQuery pipeline. Record source time, capture time, checksum, schema/product version, first retained date and gaps. Verify a bounded real capture and retrieval, then monitor ongoing collection. Manage these resources as code so full deployment can adopt them later.
+This collector writes source bytes and manifests to local storage without waiting for a hosted API, area model, broker or BigQuery pipeline. Raw bytes are not retained in the cloud; loss of the collector disk loses raw history inside the window, while uploaded records survive. Record source time, capture time, checksum, schema/product version, first retained date and gaps. Verify a bounded real capture and retrieval, then monitor ongoing collection. Manage these resources as code so full deployment can adopt them later.
 
 Keep capture success distinct from projection processing: raw history can accumulate before downstream models exist. Once current-state processing is enabled, apply the sequence below with reconciliation for unfinished attempts.
 
@@ -152,13 +153,14 @@ The ingestion worker polls the selected source at a configurable interval consis
 
 Each successful capture follows this sequence:
 
-1. Store the original payload in Cloud Storage with a content hash and capture identifier; use a filesystem adapter only for local fixture mode.
+1. Store the original payload on collector-local storage with a content hash and capture identifier; fixture mode uses the same filesystem adapter.
 2. Record a manifest containing provider, feed, capture time, available source timestamps, storage location, format and applicable schema version.
-3. Validate and normalise the payload against the domain contract and, for transport, the relevant static timetable version.
-4. Persist accepted domain records, update owned projections and record processing completion within the relevant database transaction. When integration events are introduced, persist recoverable event publication intent consistently with that change.
-5. Make the updated projection available to the API; invalidate or expire related cache entries according to the cache policy.
+3. Validate and normalise the payload against the domain contract and, for transport, the relevant static timetable version, then select the configured areas.
+4. Upload the normalised records and manifest to the landing bucket with create-only names. A lost acknowledgement or HTTP 412 is unconfirmed until a cloud-side verifier or operator reconciliation matches the stored hash; keep the pending record until then.
+5. Persist accepted domain records, update owned projections and record processing completion within the relevant database transaction. When integration events are introduced, persist recoverable event publication intent consistently with that change.
+6. Make the updated projection available to the API; invalidate or expire related cache entries according to the cache policy.
 
-Raw storage and PostgreSQL do not share a transaction. Reconciliation must detect captured objects without manifests and incomplete processing attempts. A crash after persistence but before acknowledgement must be safe to retry. If durable raw capture fails, the attempt is unsuccessful and the last valid projection remains available with its original freshness information.
+Collector-local storage, the landing bucket and PostgreSQL do not share a transaction. Reconciliation must detect captured payloads without manifests, unconfirmed uploads and incomplete processing attempts. A crash after persistence but before acknowledgement must be safe to retry. If durable raw capture fails, the attempt is unsuccessful and the last valid projection remains available with its original freshness information.
 
 Invalid payloads or records are quarantined with reasons and source references. Define explicitly whether a particular validation failure rejects the entire capture or only individual records. Never silently discard errors while reporting complete processing.
 
@@ -411,9 +413,9 @@ Create directories as their owning features need them. Resolve package boundarie
 
 Compose provides PostgreSQL/PostGIS and Redis, plus optional orchestration and observability profiles. Add application containers for repeatable startup. An offline fixture mode supports fast parser, domain and UI work without cloud credentials. A GCP integration mode exercises real Cloud Storage, BigQuery and dbt with a bounded fixture dataset. Document which checks require cloud access; offline success is not a substitute for warehouse integration checks.
 
-Provision resources in stages: CLOUD-01 supplies the minimal bucket/worker and supporting identity/secrets; CLOUD-02 expands application hosting; HIST-01 enables warehouse resources. Manage the selected resources with Terraform: Cloud Storage buckets, BigQuery datasets, service accounts and IAM bindings, Artifact Registry, Secret Manager references and the chosen runtime resources. Select compatible storage and warehouse locations, record regional constraints, and document expected costs before deployment. Use billing alerts together with enforceable query limits, expiring CI datasets and lifecycle rules; alerts alone do not cap spending.
+Provision resources in stages: CLOUD-01 supplies the landing bucket, upload identity, verifier and monitoring for the operator-hosted collector; CLOUD-02 expands application hosting; HIST-01 enables warehouse resources. Manage the selected resources with Terraform: Cloud Storage buckets, BigQuery datasets, service accounts and IAM bindings, Artifact Registry, Secret Manager references and the chosen runtime resources. Select compatible storage and warehouse locations, record regional constraints, and document expected costs before deployment. Use billing alerts together with enforceable query limits, expiring CI datasets and lifecycle rules; alerts alone do not cap spending.
 
-Use Cloud Run services for the stateless API and Cloud Run jobs for finite batch tasks where suitable. Dagster remains the pipeline orchestrator. Select the minimal continuous capture worker host through A-06 at the start of phase 1. The later Dagster daemon and broader ingestion runtimes also require an explicitly selected long-running host; do not assume they can run indefinitely inside an HTTP request. Record that hosting choice, database connectivity and persistent metadata storage in the deployment ADR. If a scheduled batch-ingestion alternative is used, document its freshness trade-off and avoid duplicate schedules across Dagster and Cloud Scheduler.
+Use Cloud Run services for the stateless API and Cloud Run jobs for finite batch tasks where suitable. Dagster remains the pipeline orchestrator. [ADR 0015](docs/adr/0015-local-capture-collector.md) selects an operator-hosted collector for continuous capture. The later Dagster daemon and broader ingestion runtimes also require an explicitly selected long-running host; do not assume they can run indefinitely inside an HTTP request. Record that hosting choice, database connectivity and persistent metadata storage in the deployment ADR. If a scheduled batch-ingestion alternative is used, document its freshness trade-off and avoid duplicate schedules across Dagster and Cloud Scheduler.
 
 Deployment applies application migrations and analytical publication steps deliberately, with a tested rollback or forward-recovery procedure. Cloud infrastructure and IAM validation are part of the delivery, not console-only setup.
 
@@ -449,9 +451,9 @@ Keep deployment approvals, environment separation and recovery controls explicit
 | 5 Historical city intelligence | BigQuery/dbt, historical serving publication and governance               | Retained history analysed with coverage/gaps, real warehouse tests, backfill equivalence and lineage   |
 | 6 Evaluated enhancements       | Scores, AI tools, managed catalog or subscriptions when justified         | Each selected enhancement has a reviewed contract and measured evaluation                              |
 
-Early capture is a parallel track targeting phases 1-2. Permitted live capture and retrievable raw history are its acceptance criteria, not phase 1 exit criteria. Source authorisation or cloud delays must not block completion of the fixture-to-area UI slice; record capture gaps and their impact on historical analysis.
+Early capture is a parallel track targeting phases 1-2. Permitted live capture, raw history retrievable within the agreed collector window and confirmed uploads are its acceptance criteria, not phase 1 exit criteria. Source authorisation or cloud delays must not block completion of the fixture-to-area UI slice; record capture gaps and their impact on historical analysis.
 
-Phases 1-2 form the city MVP; phases 3-5 complete the first city release. Decide the early capture region, identity, budget and host in phase 1 rather than waiting for complete deployment. Minimum recovery, security and testing accompany each feature. Current progress and work dependencies are maintained in the [delivery plan](docs/delivery-plan.md).
+Phases 1-2 form the city MVP; phases 3-5 complete the first city release. The early capture host and upload identity are decided in ADR 0015; approve budget and retention before collection rather than waiting for complete deployment. Minimum recovery, security and testing accompany each feature. Current progress and work dependencies are maintained in the [delivery plan](docs/delivery-plan.md).
 
 ## 17 Demonstration and engineering evidence
 
@@ -477,7 +479,7 @@ Record the following decisions with context, alternatives, consequences and the 
 
 1. Python and FastAPI for the application backend and ingestion processes.
 2. A modular monolith with separate ingestion and analytical runtimes.
-3. PostgreSQL/PostGIS for operational serving, BigQuery for analytics and Cloud Storage for raw inputs.
+3. PostgreSQL/PostGIS for operational serving, BigQuery for analytics, collector-local raw inputs and a Cloud Storage landing bucket for uploaded records.
 4. Raw capture, manifests and idempotent processing as the recovery foundation.
 5. Dagster for orchestration and dbt for SQL transformation ownership.
 6. Metric semantics, sampling and the treatment of predicted versus observed data.
