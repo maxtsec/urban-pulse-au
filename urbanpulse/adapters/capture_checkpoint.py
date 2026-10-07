@@ -93,7 +93,7 @@ class CheckpointJournal(CaptureJournal):
             if any(p.name != ".collector.lock" for p in self.root.iterdir()):
                 raise CaptureError("store_not_empty")
             identity = uuid4()
-            for name in ("captures", "sessions", "staging"):
+            for name in ("captures", "sessions", "staging", "by-sequence"):
                 (self.root / name).mkdir()
             sync_directory(self.root)
             self.control = Control(store_id=identity)
@@ -115,7 +115,7 @@ class CheckpointJournal(CaptureJournal):
         except ValueError:
             raise CaptureError("store_marker_invalid") from None
         self.control = self._load_control()
-        for name in ("captures", "sessions", "staging"):
+        for name in ("captures", "sessions", "staging", "by-sequence"):
             path = self.root / name
             if path.is_symlink() or not path.is_dir():
                 raise CaptureError("integrity_failure")
@@ -140,10 +140,14 @@ class CheckpointJournal(CaptureJournal):
         )
         self.control = control
 
+    def verification_required(self) -> bool:
+        return any(
+            (self.root / name).exists() or (self.root / name).is_symlink()
+            for name in ("verification-block.json", "verification-in-progress.json")
+        )
+
     def _not_blocked(self) -> None:
-        if (self.root / "verification-block.json").exists() or (
-            self.root / "verification-block.json"
-        ).is_symlink():
+        if self.verification_required():
             raise CaptureError("verification_required")
 
     def _publish_intent(self, intent: Intent, *, not_started: bool = False) -> None:
@@ -161,7 +165,7 @@ class CheckpointJournal(CaptureJournal):
                     capture_id=intent.capture_id,
                     outcome="abandoned",
                     reason="not_started",
-                    completed_at=datetime.now(UTC),
+                    completed_at=max(datetime.now(UTC), intent.requested_at),
                 ).model_dump(mode="json"),
             )
         self.checkpoint("reconstruct_written" if not_started else "intent_written")
@@ -174,6 +178,65 @@ class CheckpointJournal(CaptureJournal):
         sync_directory(directory.parent)
         sync_directory(staging.parent)
         self.checkpoint("reconstruct_synced" if not_started else "intent")
+
+    def _sequence_entry(self, sequence: int) -> Path:
+        if type(sequence) is not int or not 1 <= sequence < MAX_SEQUENCE:
+            raise CaptureError("invalid_capture_sequence")
+        return self.root / "by-sequence" / f"{sequence:019d}"
+
+    def _index_record(self, intent: Intent) -> dict[str, Any]:
+        return {
+            "schema_version": "capture-sequence-v1",
+            "store_id": str(self.store_id),
+            "capture_sequence": intent.capture_sequence,
+            "capture_id": str(intent.capture_id),
+        }
+
+    def _check_index(self, intent: Intent) -> None:
+        if intent.capture_sequence is None:
+            raise CaptureError("invalid_capture_sequence")
+        if canonical(read_json(self._sequence_entry(intent.capture_sequence))) != canonical(
+            self._index_record(intent)
+        ):
+            raise CaptureError("sequence_index_conflict")
+
+    def _publish_index(self, intent: Intent) -> None:
+        if intent.capture_sequence is None:
+            raise CaptureError("invalid_capture_sequence")
+        target = self._sequence_entry(intent.capture_sequence)
+        if target.exists() or target.is_symlink():
+            self._check_index(intent)
+            sync_directory(target.parent)
+            return
+        temporary = self.root / "staging" / (".sequence-" + uuid4().hex)
+        write_bytes(temporary, canonical(self._index_record(intent)))
+        self.checkpoint("sequence_written")
+        os.link(temporary, target)
+        self.checkpoint("sequence_linked")
+        sync_directory(target.parent)
+        self.checkpoint("sequence_synced")
+        temporary.unlink()
+        sync_directory(temporary.parent)
+
+    def capture_at_sequence(self, sequence: int) -> Intent | None:
+        """Direct lookup under ownership; None means not finalized, not a missing archive entry."""
+        self._require_lock()
+        self._not_blocked()
+        target = self._sequence_entry(sequence)
+        finalized = self.control.next_capture_sequence - 1 - int(self.control.pending is not None)
+        if sequence > finalized:
+            return None
+        try:
+            record = read_json(target)
+            identity = UUID(str(record["capture_id"]))
+            intent = Intent.model_validate(read_json(self._capture(identity) / "intent.json"))
+            if intent.capture_sequence != sequence or canonical(record) != canonical(
+                self._index_record(intent)
+            ):
+                raise CaptureError("sequence_index_conflict")
+            return intent
+        except (OSError, ValueError, KeyError):
+            raise CaptureError("sequence_index_conflict") from None
 
     def begin(self, mode: Mode, feed: TramFeed, version: str) -> Intent:
         self._require_lock()
@@ -202,11 +265,13 @@ class CheckpointJournal(CaptureJournal):
         )
         self._save_control(control, "reserve")
         self._publish_intent(intent)
+        self._publish_index(intent)
         return intent
 
     def _account(self, intent: Intent, manifest: Manifest) -> None:
         if self.control.pending != intent:
             raise CaptureError("pending_identity_conflict")
+        self._check_index(intent)
         self._save_control(
             Control(
                 store_id=self.control.store_id,
@@ -232,6 +297,7 @@ class CheckpointJournal(CaptureJournal):
             _, _, previous = inspect_capture(self, self._capture(intent.capture_id))
             if previous is None:
                 raise CaptureError("integrity_failure")
+        self._check_index(intent)
         manifest = super().complete(intent, result)
         if self.control.pending is not None:
             self._account(intent, manifest)
@@ -240,7 +306,8 @@ class CheckpointJournal(CaptureJournal):
     def recover(self) -> dict[str, Any]:
         self._require_lock()
         self.control = self._load_control()
-        blocked = (self.root / "verification-block.json").exists() or (
+        blocked = self.verification_required()
+        failed = (self.root / "verification-block.json").exists() or (
             self.root / "verification-block.json"
         ).is_symlink()
         verification: dict[str, Any] | None = None
@@ -259,13 +326,24 @@ class CheckpointJournal(CaptureJournal):
                 stored, receipt, manifest = inspect_capture(self, directory)
                 if stored != intent:
                     raise CaptureError("pending_identity_conflict")
+                index = self._sequence_entry(intent.capture_sequence or 0)
+                if not index.exists() and not index.is_symlink():
+                    # No request is admitted until the index is durable. Missing
+                    # index alongside evidence of an issued request is corruption.
+                    if receipt is not None or (
+                        manifest is not None and manifest.reason != "not_started"
+                    ):
+                        raise CaptureError("sequence_index_conflict")
+                self._publish_index(intent)
                 if manifest is None:
                     manifest = self._terminal(
                         directory,
                         Manifest(
                             capture_id=intent.capture_id,
                             outcome="captured" if receipt is not None else "abandoned",
-                            completed_at=receipt.received_at if receipt else datetime.now(UTC),
+                            completed_at=receipt.received_at
+                            if receipt
+                            else max(datetime.now(UTC), intent.requested_at),
                             reason=None if receipt else "interrupted",
                             http_status=200 if receipt else None,
                             receipt=receipt,
@@ -284,11 +362,5 @@ class CheckpointJournal(CaptureJournal):
             "recovered_capture": recovered,
             "collection_allowed": not blocked,
             "last_verification": verification,
-            "verification": "failed"
-            if blocked
-            else (
-                "interrupted"
-                if (self.root / "verification-in-progress.json").exists()
-                else "not_checked"
-            ),
+            "verification": "failed" if failed else ("interrupted" if blocked else "not_checked"),
         }
