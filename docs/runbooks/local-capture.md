@@ -4,6 +4,8 @@
 
 ## Host preparation
 
+For the accepted manual-unlock deployment, follow the [encrypted-host runbook](collector-encrypted-host.md) and its guarded finite fixture service before any unattended rollout. The v2 examples below remain rehearsal instructions.
+
 Use a supported Ubuntu release with Docker Engine, security updates, synchronized UTC time and local persistent storage. Keep host addresses, keys and hardware details in private operator notes. Disable sleep before any later unattended run. Do not use network shares, synchronized folders or a removable mount that can disappear under a running collector. The runtime accepts only ext4, XFS and Btrfs. It rejects tmpfs, overlay and other mount types for every command, including fixture init/run/status/verify. There is no CLI or environment switch to bypass the check. Stop the old collector before moving its store to another host.
 
 Run the following Bash commands from a clean, reviewed repository checkout. Docker access and sudo are needed for image building and initial directory ownership; the collector itself uses UID/GID 10001. Choose a new, dedicated store on the intended filesystem, and verify the mount before initializing. `--mount` deliberately fails if the source directory is missing.
