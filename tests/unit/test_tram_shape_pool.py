@@ -90,7 +90,9 @@ def test_manifests_resolve_exact_original_shapes_and_cold_warm_totals(inputs):
             assert digest(raw) == ref["sha256"] and len(raw) == ref["bytes"]
             obj = json.loads(raw)
             assert obj["feature"] == features[identity]
-            assert obj["source_revision"] == index["source_archive_sha256"]
+            assert "source_revision" not in obj
+            assert data["source_revision"] == index["tram_archive_sha256"]
+            assert data["source"]["source_archive_sha256"] == index["source_archive_sha256"]
             total += len(raw)
         assert total == record["cold_bytes"]
         assert record["cold_requests"] == 1 + len(data["shapes"])
@@ -116,6 +118,54 @@ def test_bad_area_references_are_rejected(inputs, bad):
         features[identity]["properties"]["shape_id"] = "wrong"
     with pytest.raises(ValueError, match="shape reference"):
         build_pool(index, features)
+
+
+@pytest.mark.parametrize("changed_member", [False, True])
+def test_release_only_changes_reuse_every_shape_object(inputs, changed_member, tmp_path):
+    index, features = inputs
+    before, old_report = build_pool(index, features)
+    changed = copy.deepcopy(index)
+    changed["source_archive_sha256"] = "1" * 64
+    changed["source_last_modified"] = "2026-10-08T00:00:00Z"
+    if changed_member:
+        changed["tram_archive_sha256"] = "2" * 64
+    after, new_report = build_pool(changed, features)
+    objects = {name: raw for name, raw in before.items() if name.startswith("objects/")}
+    assert objects == {name: raw for name, raw in after.items() if name.startswith("objects/")}
+    write_pool(tmp_path, before, old_report)
+    mtimes = {name: (tmp_path / name).stat().st_mtime_ns for name in objects}
+    write_pool(tmp_path, after, new_report)
+    assert len(list((tmp_path / "objects").iterdir())) == len(objects) == 371
+    assert mtimes == {name: (tmp_path / name).stat().st_mtime_ns for name in objects}
+    for area in index["areas"]:
+        prior, current = manifest(before, old_report, area), manifest(after, new_report, area)
+        assert current["shapes"] == prior["shapes"]
+        assert current["source_revision"] == changed["tram_archive_sha256"]
+        assert current["source"] == {
+            **prior["source"],
+            **{
+                k: changed[k]
+                for k in ("source_archive_sha256", "tram_archive_sha256", "source_last_modified")
+            },
+        }
+        assert new_report["areas"][area]["manifest"] != old_report["areas"][area]["manifest"]
+
+
+def test_changed_shape_replaces_only_its_object(inputs):
+    index, features = inputs
+    before, old_report = build_pool(index, features)
+    updated = copy.deepcopy(features)
+    identity = index["shared_shape_ids"][0]
+    updated[identity]["geometry"]["coordinates"][0][0] += 0.000001
+    after, new_report = build_pool(index, updated)
+    old_objects = {name for name in before if name.startswith("objects/")}
+    new_objects = {name for name in after if name.startswith("objects/")}
+    assert len(old_objects - new_objects) == len(new_objects - old_objects) == 1
+    assert all(before[name] == after[name] for name in old_objects & new_objects)
+    for area in index["areas"]:
+        prior, current = manifest(before, old_report, area), manifest(after, new_report, area)
+        changed = {key for key in prior["shapes"] if prior["shapes"][key] != current["shapes"][key]}
+        assert changed == {identity}
 
 
 @pytest.mark.parametrize(

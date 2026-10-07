@@ -86,7 +86,6 @@ def build_pool(index: dict, features: dict[str, dict]) -> tuple[dict[str, bytes]
                 {
                     "schema_version": "tram-shape-object-v1",
                     "chunk_policy": POLICY,
-                    "source_revision": source["source_archive_sha256"],
                     "feature": features[identity],
                 }
             )
@@ -103,6 +102,7 @@ def build_pool(index: dict, features: dict[str, dict]) -> tuple[dict[str, bytes]
                 "area_id": area_id,
                 "name": area["name"],
                 "boundary_sha256": area["boundary_sha256"],
+                "source_revision": source["tram_archive_sha256"],
                 "source": source,
                 "shapes": references,
             }
@@ -120,7 +120,7 @@ def build_pool(index: dict, features: dict[str, dict]) -> tuple[dict[str, bytes]
         }
     return files, {
         "chunk_policy": POLICY,
-        "source_revision": source["source_archive_sha256"],
+        "source_revision": source["tram_archive_sha256"],
         "areas": area_records,
         "unique_objects": len(objects),
         "object_bytes": sum(r["bytes"] for r in objects.values()),
