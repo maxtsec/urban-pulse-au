@@ -151,3 +151,28 @@ def test_launcher_is_bounded_offline_and_has_no_key_or_init_side_effect():
 def test_malformed_config_is_refused_before_system_inspection(config):
     with pytest.raises(host.HostRefused, match="invalid_config"):
         host.check(config)
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        None,
+        [],
+        {},
+        {"filesystems": None},
+        {"filesystems": {}},
+        {"filesystems": []},
+        {"filesystems": [row(), row()]},
+        {"filesystems": [None]},
+        {"filesystems": [row() | {"options": None}]},
+    ],
+)
+def test_malformed_mount_json_is_refused(document, monkeypatch):
+    monkeypatch.setattr(host, "output", lambda *_: json.dumps(document))
+    with pytest.raises(host.HostRefused):
+        host.mounted("--mountpoint", host.MOUNT.as_posix())
+
+
+def test_real_mount_json_shape_is_preserved(monkeypatch):
+    monkeypatch.setattr(host, "output", lambda *_: json.dumps({"filesystems": [row()]}))
+    assert host.mounted("--mountpoint", host.MOUNT.as_posix()) == row()
