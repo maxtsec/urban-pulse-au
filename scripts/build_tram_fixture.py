@@ -60,7 +60,7 @@ def ordered_shapes(rows):
 
 
 def select_full_shapes(connection, shapes, boundary):
-    """Select by positive-length area overlap; retain every original source vertex."""
+    """Retain source vertices; boundary=None measures the complete source for tooling."""
     rows = connection.execute(
         """WITH boundary AS (
           SELECT ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%s),4326),32755) AS geom
@@ -70,8 +70,8 @@ def select_full_shapes(connection, shapes, boundary):
           FROM jsonb_array_elements(%s::jsonb)
         ), selected AS (
           SELECT s.* FROM shapes s CROSS JOIN boundary b
-          WHERE s.geom && b.geom
-            AND ST_Length(ST_CollectionExtract(ST_Intersection(s.geom,b.geom),2)) > 0.000001
+          WHERE b.geom IS NULL OR (s.geom && b.geom
+            AND ST_Length(ST_CollectionExtract(ST_Intersection(s.geom,b.geom),2)) > 0.000001)
         ), vertices AS (
           SELECT id, (d).path[1] AS ordinal, (d).geom AS point
           FROM selected CROSS JOIN LATERAL ST_DumpPoints(geom) d
@@ -85,7 +85,7 @@ def select_full_shapes(connection, shapes, boundary):
         SELECT s.id, s.source_geometry, array_agg(m.distance_m ORDER BY m.ordinal)
         FROM selected s JOIN measured m ON m.id=s.id
         GROUP BY s.id,s.source_geometry ORDER BY s.id""",
-        (json.dumps(boundary), json.dumps(shapes)),
+        (json.dumps(boundary) if boundary is not None else None, json.dumps(shapes)),
     ).fetchall()
     features = []
     # Source IDs have a portable byte order, independent of database collation.
