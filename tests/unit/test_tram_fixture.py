@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from scripts.build_tram_fixture import components, encoded, ordered_shapes
+from scripts.build_tram_fixture import encoded, ordered_shapes
 from urbanpulse.contracts.events import EventReceipt, VehiclePositionChanged
 
 FIXTURES = Path(__file__).parents[1] / "fixtures"
@@ -127,7 +127,7 @@ def test_committed_assets_match_manifest_and_fixture_trip_links():
     geo = json.loads((MAP / "southbank-tram-shapes.geojson").read_text())
     data = json.loads((MAP / "trip-observations.json").read_text())
     features = {f["properties"]["segment_id"]: f for f in geo["features"]}
-    assert len(features) == manifest["segment_count"]
+    assert len(features) == manifest["segment_count"] == len(manifest["included_shape_ids"])
     assert (
         sorted({f["properties"]["shape_id"] for f in features.values()})
         == manifest["included_shape_ids"]
@@ -142,8 +142,8 @@ def test_committed_assets_match_manifest_and_fixture_trip_links():
     for f in features.values():
         distances = f["properties"]["distances_m"]
         assert len(distances) == len(f["geometry"]["coordinates"])
-        assert distances[0] >= 0 and all(
-            b > a for a, b in zip(distances, distances[1:], strict=False)
+        assert distances[0] == 0 and all(
+            b >= a for a, b in zip(distances, distances[1:], strict=False)
         )
     events = [VehiclePositionChanged.model_validate(f["event"]) for f in data["frames"]]
     assert len(events) == 6
@@ -176,22 +176,15 @@ def test_shape_vertex_order_is_numeric_and_duplicate_or_nonfinite_data_fails():
         ordered_shapes([{**rows[0], "shape_pt_lon": "nan"}, rows[1]])
 
 
-def test_components_keep_original_offsets_and_do_not_bridge_excluded_distance():
-    def line(a, b):
-        return {"type": "LineString", "coordinates": [[a, 0], [b, 0]]}
-
-    geo = components(
-        [
-            ("s", 1, 100.0, 110.0, line(0, 1)),
-            ("s", 2, 110.0, 120.0, line(1, 2)),
-            ("s", 2, 130.0, 140.0, line(3, 4)),
-        ]
-    )
-    assert [f["properties"]["distances_m"] for f in geo["features"]] == [
-        [100.0, 110.0, 120.0],
-        [130.0, 140.0],
+def test_source_vertices_are_not_simplified_or_deduplicated():
+    coordinates = [[144.94, -37.82], [144.96, -37.82], [144.96, -37.82], [144.98, -37.82]]
+    rows = [
+        {
+            "shape_id": "s",
+            "shape_pt_sequence": str(i),
+            "shape_pt_lon": str(lon),
+            "shape_pt_lat": str(lat),
+        }
+        for i, (lon, lat) in enumerate(coordinates)
     ]
-    assert [f["geometry"]["coordinates"] for f in geo["features"]] == [
-        [[0, 0], [1, 0], [2, 0]],
-        [[3, 0], [4, 0]],
-    ]
+    assert ordered_shapes(rows)[0]["geometry"]["coordinates"] == coordinates

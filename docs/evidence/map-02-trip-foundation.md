@@ -10,23 +10,23 @@ Absent `trip` remains absent in Python/JSON serialization, including nested enve
 
 ## Retained assets and provenance
 
-[Manifest](../../tests/fixtures/map02/manifest.json), [clipped shapes](../../tests/fixtures/map02/southbank-tram-shapes.geojson), [synthetic observations](../../tests/fixtures/map02/trip-observations.json).
+[Manifest](../../tests/fixtures/map02/manifest.json), [complete shapes](../../tests/fixtures/map02/southbank-tram-shapes.geojson), [synthetic observations](../../tests/fixtures/map02/trip-observations.json).
 
 | Item | Result |
 | --- | --- |
 | Official release | DTP GTFS Schedule; retained archive Last-Modified 2026-10-04T01:31:37Z |
 | Statewide ZIP SHA-256 | `7eb6562c7b19f5685740f3da9f95440bd964681b76c9dc5854f4cb4d08ae393d` |
 | Tram member | `3/google_transit.zip`; SHA-256 `df140ec0fd415d9ce3bd45ff3a47dbb8a65668168fe20a5fd442dc5fa0a62536` |
-| Shapes | 535 source shapes; 208 retained, 327 excluded; 317 contiguous clipped components |
-| Geometry size | 359,173 bytes; exact geometry hash recorded in the manifest |
+| Shapes | 535 source shapes; 208 retained, 327 excluded; 208 complete source components |
+| Geometry size | 2,556,499 bytes; exact geometry hash recorded in the manifest |
 | Synthetic observations | Six events, two active scheduled trip identities, both directions of route 1; five-second authored receipt delay |
 | Source-use | Department of Transport and Planning, Victoria; [GTFS Schedule](https://opendata.transport.vic.gov.au/dataset/gtfs-schedule), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 
 The builder verifies both archive hashes before reading source rows. It reads CSV/GeoJSON as UTF-8, rejects duplicate shape sequences, invalid coordinates, ambiguous trip IDs and dangling route/shape references, and orders source vertices numerically. Selected trips have service active on 7 October 2026 and are not frequency-based. Their start time comes from the first static stop sequence. The fixture's vehicle, movement and observation/receipt instants are authored; they do not claim those scheduled services actually occupied those points at those times.
 
-Each original edge is transformed from WGS84 to EPSG:32755 and intersected with the retained Southbank polygon, with no buffer. Positive-length pieces retain source traversal order. Cumulative distances start at the original full shape origin, including excluded spans; they do not reset at the boundary. Reverse-direction shapes remain reversed. Holes and excluded spans produce different `segment_id` components, never a straight-line bridge. Output returns to WGS84 at 12 decimal places without simplification. GTFS `shape_dist_traveled` is not assumed to use metres.
+Architect amendment accepted on 2026-10-07: use Southbank only to select complete shapes. PostGIS tests positive-length intersection in EPSG:32755, without a buffer (point-only contact is excluded); all original WGS84 source vertices then remain in their original order, without clipping, simplification or coordinate rounding. The retained shapes contain 54,589 vertices. A route crossing a boundary or hole stays one component, including its real outside-area path; distinct source shapes are never joined. Cumulative projected metre distances start at zero at the original shape origin. Coincident consecutive vertices retain equal distances. GTFS `shape_dist_traveled` is not assumed to use metres. Synthetic observations use original vertices covered by Southbank, while their linked geometry retains the whole route. This does not change area membership or source coverage.
 
-The manifest retains included/excluded shape IDs, component counts, route IDs, boundary hash, coordinate/distance conventions, build-library versions, source licence/attribution and artifact byte hashes. Full source archives remain outside Git. The component IDs are stable within this pinned release and extraction policy, not a promise across future GTFS releases.
+The manifest retains included/excluded shape IDs, component counts, route IDs, boundary hash, coordinate/distance conventions, build-library versions, source licence/attribution and artifact byte hashes. Full source archives remain outside Git. The geometry is about 7.1 times the former clipped artifact size; it is an immutable shared asset, not repeated inside each animation response or added to 2D area snapshots. Measure asset load/parse/memory costs before enabling the renderer. The component IDs are stable within this pinned release and extraction policy, not a promise across future GTFS releases.
 
 **Live matching is still open.** The manifest deliberately leaves matching algorithm/tolerance null. Geometry extraction and synthetic points selected from those shapes do not measure GPS snapping quality, ambiguous branches, real trip-instance continuity or a live freshness/correction rule. Those decisions and tests precede interpolating live positions. A third-party tram model and its licence remain separate.
 
@@ -42,6 +42,6 @@ uv run pytest -q -m integration tests/integration/test_tram_shapes.py tests/inte
 
 The builder uses a read-only database transaction and creates no database tables. Compare every output byte with `tests/fixtures/map02/` using the same pinned PostGIS/GEOS/PROJ versions recorded by the manifest. Exact artifact reproduction passed against the retained archive; all three files matched byte-for-byte. Other geometry-library versions may produce different intersection precision and must not silently refresh reviewed hashes.
 
-Validation includes pre-change wire/receipt golden tests, missing/null/partial trip metadata, malformed dates/times/directions, trip-change fingerprints, artifact hashes, shape order and direct fixture linkage. Real PostGIS tests cover traversal direction, retained distance offsets, polygon holes, point-only contact and boundary containment; a 2 cm round-trip numeric allowance in the containment test is not a matching tolerance or a domain membership buffer. The full local unit run passed 700 tests (101 Linux-only skips); 47 real PostGIS/persistence tests also passed. Ruff lint/format and mypy (76 source files) passed. Browser, Compose and the broader database suite are covered by PR CI; no browser behavior changed in this slice.
+Validation includes pre-change wire/receipt golden tests, missing/null/partial trip metadata, malformed dates/times/directions, trip-change fingerprints, artifact hashes, shape order and direct fixture linkage. Real PostGIS tests cover full-route traversal through holes, boundary overlap, point-only contact and outside-route exclusion, exit/reentry, coincident vertices, unchanged source geometry and in-area authored observations. The full local unit run passed 700 tests (101 Linux-only skips); 49 real PostGIS/persistence tests also passed. Ruff lint/format and mypy (76 source files) passed. Browser, Compose and the broader database suite are covered by PR CI; no browser behavior changed in this slice.
 
 The architect clarified the future renderer on 2026-10-07: constant path speed between two consecutive eligible observations. The [accepted algorithm](../architecture/tram-animation-input-contract.md#two-observation-constant-speed-interpolation) does not change this foundation's six-event fixture, legacy identity tests or runtime map behavior.
