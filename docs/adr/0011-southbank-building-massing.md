@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 
-MAP-02 amendment: 2026-10-07, accepted by the project architect for endpoint B, parent validity, integer-millisecond clocks, trip compatibility and the startup/truth-label rules below. Both views use a continuous millisecond playhead; vehicle-local failures fall back independently.
+MAP-02 amendment dated 2026-10-07: **Proposed revision, awaiting explicit project-architect approval of PR #48**. Proposed subsections and MAP-02 acceptance cases below do not supersede the accepted baseline until approved. The existing 2D playback exception remains applicable until MAP-02 is implemented.
 
 Status: **Accepted by the project architect on 2026-10-06** for building option A, MapLibre with deck.gl, the five animation classes and their rules, MAP-05 simulated traffic in scope, and a `Structure`-only first building layer. Implementation (MAP-01 to MAP-05) follows DEMO-01; each item still needs its own source/asset records and review.
 
@@ -104,23 +104,47 @@ Let *t* be the scenario clock. The 3D tram layer may use only position observati
 
 - If two received observations of the same vehicle on its matched shape have observation times bracketing *d*, interpolate between them along the shape by observation time.
 - If *d* is later than the vehicle's latest received observation, hold the model at that observation; never extrapolate.
-- Before the first observation, permit static startup fallback only for the first APPLY observation of that `(source, vehicle_id)` in the pinned replay scope's complete retained history, referenced by `startup_observation`. It is not the first sample of a new trip/window/browser session. The reference must resolve within the returned observations and counts toward the sample/byte bounds. If this first record cannot be established, only that vehicle uses a labelled static parent observation; other vehicles retain animation. Missing-time observations use a labelled static fallback, never interpolation.
+- If *d* is earlier than the vehicle's first received observation, or an observation lacks an observation time, draw a static model at that observation instead of interpolating.
+- Stale and expired rules are evaluated at *t*, as in the list and area panel.
+
+The legend states that animated tram positions are shown 30 seconds behind the scenario clock. The tram list, selection details and API keep showing the latest received observation at *t*. Changing *D* is a versioned presentation change.
+
+#### Proposed MAP-02 startup and truth labels
+
+Let *t* be the scenario clock. The 3D tram layer may use only position observations whose receipt time is at or before *t*. It draws each vehicle as of the display time *d = t − D*, where *D* is a versioned presentation delay, `tram-display-delay-v1` = 30 seconds, matching the proposed 30-second position cadence.
+
+- If two received observations of the same vehicle on its matched shape have observation times bracketing *d*, interpolate between them along the shape by observation time.
+- If *d* is later than the vehicle's latest received observation, hold the model at that observation; never extrapolate.
+- Before the first observation, permit static startup fallback only for the first APPLY observation of that `(source, vehicle_id)` in the pinned replay scope's complete retained history, referenced by `startup_observation`. It is not the first sample of a new trip/window/browser session. The reference must resolve within the returned observations and counts toward the sample/byte bounds. Evaluate startup eligibility across the entire canonical city interval, not the requested subwindow. If any part needs an unprovable first record, that vehicle uses a labelled static parent observation for the whole interval; other vehicles retain animation. Missing-time observations use a labelled static fallback, never interpolation.
 - Across a trip/shape/continuity break, hold the last eligible observation at/before d; do not reveal the next trip before d reaches it. Only original APPLY observations enter animation history; duplicate/conflict/rejected/SUPERSEDED attempts do not.
 - Stale and expired rules are evaluated at *t*, as in the list and area panel.
 
 The legend states: "Interpolated positions: 30-second display delay. Observed holds/fallbacks: recorded position and timestamp." A valid continuous bracket stays **Interpolated**, including exact observation endpoints, paused frames and coincident coordinates. An isolated observation, old-trip hold, latest-position hold, startup, unmatched or stale/error fallback is **Observed**, with its original timestamp and reason. Buffering freezes the frame and label; it does not relabel an interpolated frame as observed. The tram list, selection details and API keep the latest received observation at t. Changing D is a versioned presentation change.
 
-#### MAP-02 animation inputs
+#### Proposed MAP-02 animation inputs
 
-The [accepted input contract](../architecture/tram-animation-input-contract.md) selects **B**, a same-origin animation endpoint requested only for enabled 3D animation. The parent carries `valid_until` (server-owned city validity; null with `terminal=true` at scenario end) and a shared `position_freshness_policy` derived from the same constants used by server/checkpoint evaluation. For nonterminal ready animation, `window_end <= valid_until` may shorten only for sample/byte bounds. Animation-only continuations retain their paired parent's scope/clock and do not add area requests. A mismatch or failure falls back to the labelled static parent view.
+The [proposed input contract](../architecture/tram-animation-input-contract.md) selects **B**, a same-origin animation endpoint requested only for enabled 3D animation. The parent carries `valid_until` (server-owned city validity; null for unknown validity or scenario end; `terminal` distinguishes them) and a shared `position_freshness_policy` derived from the same constants used by server/checkpoint evaluation. For nonterminal ready animation, `window_end <= valid_until` may shorten only for sample/byte bounds. Animation-only continuations retain their paired parent's scope/clock and do not add area requests. A mismatch or failure falls back to the labelled static parent view.
 
-Queries accept integer `milliseconds` or legacy integer `seconds`, never both. Playback uses integer-millisecond playheads at rate 7.5, floored from monotonic elapsed ticks; direct seek and playback compare the same exact millisecond. Neither view advances city state past parent validity without a new snapshot. The contract specifies terminal/invalid windows and buffering. Eight observations per vehicle and 256 KiB serialized animation JSON remain hard limits; per-vehicle segment tables reduce repeated linkage but do not remove byte checks ([encoding evidence](../evidence/map-02-animation-payload.md)).
+Queries accept integer `milliseconds` or legacy integer `seconds`, never both. Playback uses integer-millisecond playheads at rate 7.5, floored from monotonic elapsed ticks; direct seek and playback compare the same exact millisecond. Neither view advances city state past parent validity without a new snapshot. The proposal specifies terminal/invalid windows and buffering. Unknown validity keeps area responses available and uses shared static polling in both views; only animation becomes unavailable. Eight observations per vehicle and 256 KiB serialized animation JSON remain hard limits; per-vehicle segment tables reduce repeated linkage but do not remove byte checks ([encoding evidence](../evidence/map-02-animation-payload.md)).
 
-The public transport event gains an optional nullable trip descriptor, preserving old wire serialization/fingerprints. Implementation still requires trip-complete fixtures, verified GTFS linkage/tolerance, a model asset record, serializer/query changes and acceptance tests. Implementation must also migrate transition/checkpoint/evidence clocks to milliseconds and use exact timestamp parsing in browser/server freshness evaluation. Per-vehicle status/reason isolates startup, linkage and payload failures; deterministic admission is independent of seek anchors and window chunking. Unmatched/ambiguous observations retain inline trip metadata. These accepted rules do not assert that the runtime already supports MAP-02.
+The public transport event gains an optional nullable trip descriptor, preserving old wire serialization/fingerprints. Implementation still requires trip-complete fixtures, verified GTFS linkage/tolerance, a model asset record, serializer/query changes and acceptance tests. Implementation must also migrate transition/checkpoint/evidence clocks and `area_event` identities through separate versioned run/timeline namespaces, preserving retained v1 recovery IDs, and use integer `position_freshness` arithmetic plus precise browser/server timestamp parsing. Per-vehicle status/reason isolates startup, linkage and payload failures; deterministic admission is independent of seek anchors and window chunking. Unmatched/ambiguous observations retain inline trip metadata. These proposed rules do not assert that the runtime already supports MAP-02.
 
-#### 2D playback
+#### 2D playback transitions
 
-MAP-02 replaces the 6 October stepped-clock/glide exception with the same continuous millisecond playhead used by 3D. Both views refresh area data at parent city boundaries, including fractional input times, and share freshness evaluation. 2D markers stay at the latest received observation, with no 1.5-second glide and no animation endpoint requests. Clock text and progress follow the logical playhead; pausing or seeking preserves that exact millisecond. The previous exception describes the pre-MAP-02 runtime only.
+**Accepted baseline: applies to the current runtime before MAP-02.**
+
+Accepted on 6 October 2026 as a bounded exception for the current 2D map, until MAP-02 replaces it. Playback advances the fixture clock in 15-second steps, so observed tram markers would otherwise jump.
+
+- While playback is running, a tram marker whose previous and new observations are both `current` glides in a straight line from the previous observed point to the new one over 1.5 seconds of wall-clock time, shorter than one playback step. It never moves past the new observation.
+- Seeking, scrubbing, moment jumps, scenario changes, pausing, stale, expired or unknown-time observations and `prefers-reduced-motion` place the marker at its observation immediately. Pausing mid-glide snaps it there.
+- The glide is presentation, not an observation: it follows no track, and the tram list, selection details, freshness, counts and API keep the observed values. The map legend says that movement between observed positions is animated, not observed.
+- The playback progress bar moves continuously towards the next step; the clock text always shows the displayed snapshot's scenario clock.
+
+This exception does not change the 3D tram rules above: the 3D layer still uses the display delay and interpolates only along matched shapes.
+
+#### Proposed MAP-02 2D playback
+
+After approval and implementation, MAP-02 replaces the 6 October stepped-clock/glide exception with the same continuous millisecond playhead used by 3D. Both views refresh area data at parent city boundaries, including fractional input times, and share freshness evaluation. 2D markers stay at the latest received observation, with no 1.5-second glide and no animation endpoint requests. Clock text and progress follow the logical playhead; pausing or seeking preserves that exact millisecond. Unknown validity uses the shared static polling fallback, without predicting city state between responses.
 
 #### Weather gating
 
@@ -144,7 +168,7 @@ Interpolation, track matching and these display windows are presentation rules o
 | ID | Scope | Additional prerequisite |
 | --- | --- | --- |
 | MAP-01 | deck.gl overlay, 3D view control, transparent massing, legend and credits | Building fixture |
-| MAP-02 | 3D tram model and interpolation along GTFS shapes | Accepted transport event/trip metadata and updated fixture; verified GTFS shapes; tram model asset licence; [accepted playback/API contract](../architecture/tram-animation-input-contract.md) |
+| MAP-02 | 3D tram model and interpolation along GTFS shapes | Accepted transport event/trip metadata and updated fixture; verified GTFS shapes; tram model asset licence; [proposed playback/API contract](../architecture/tram-animation-input-contract.md) |
 | MAP-03 | Weather particles and warning pulse | None beyond existing fixtures |
 | MAP-04 | Construction models at DAM points | Model asset licence |
 | MAP-05 | Simulated traffic trails | Road-line fixture |
@@ -155,8 +179,7 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 
 - The building fixture's hash, counts and provenance match its manifest, and only `Structure` footprints intersecting the accepted Southbank revision are included. Invalid elevations are excluded and counted, never defaulted.
 - Stacked podium and tower components render with the relative-height rule.
-- Switching views or toggling any animated layer does not change any area request or area result. Enabling 3D animation may add same-origin animation requests whose `scope_id`/`clock_at` must equal the paired area snapshot; a mismatch or failure falls back to the labelled static view. Animation-only continuations cannot trigger an additional area request.
-- Both views receive parent `valid_until` without requesting animation. Requests using both seconds and milliseconds are rejected. Millisecond seek/playback agree at city boundaries; a shortened animation window never changes city validity. Sample/byte failure does not permit dropping a required discontinuity.
+- Switching views or toggling any animated layer does not change any API request or area result.
 - With the scenario clock paused, observed and interpolated trams stop; scrubbing backwards moves them backwards. No tram moves past its latest observation; a stale tram is static.
 - For several clock values, including one between two fixture position receipts (for example 15 seconds before the next position is received), seeking directly to the time and playing from 0 to it produce identical tram, rain and warning frames, and no record received after the clock is read.
 - At *t*, a tram whose next observation has not yet been received is held at its latest received observation as of *t − 30 s*; it begins moving only after that next observation's receipt time.
@@ -165,21 +188,31 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 - Current warning coverage with no reading, or with a reading more than 60 minutes old: no rain, labelled "No current modelled reading"; warnings follow their lifecycle.
 - A current reading with zero precipitation: no rain, labelled as a dry modelled reading. Scheduled, cancelled and expired warnings never pulse.
 - Reduced motion starts static; WebGL failure shows the existing fallback; keyboard selection works in 2D and 3D.
-- 2D and 3D refresh area data at the same fractional city boundary; 2D has no glide or animation requests. Terminal snapshots have null validity and do not request another window. A single missing startup history does not stop other vehicles; byte admission is stable across direct seek and playback.
+- 2D playback transitions: a glide passes only through points between two consecutive current observations and ends on the new one; seeking or pausing places the tram on its observation; the clock text never shows an intermediate time.
 - Enabling 3D and animation makes no request outside the application origin, and all credits are visible.
 - Measure bundle size, fixture size, frame rate and memory on desktop and mobile emulation before accepting each MAP item; simplify geometry or reduce particles only if measurements require it.
 
+### Proposed MAP-02 acceptance changes
+
+These cases amend the accepted request/glide rules above only after architect approval and MAP-02 implementation:
+
+- View/layer toggles preserve area requests/results. Enabled 3D may add same-origin animation requests aligned by scope/clock; animation-only continuation does not fetch a new parent.
+- Known validity supports continuous 2D/3D playback with identical fractional city boundaries and no 2D glide. Unknown validity keeps the area response and uses shared static polling; terminal snapshots stop polling. Both use null validity, distinguished by `terminal`.
+- Startup admission and its reference remain constant over the full canonical city interval. Byte/sample failures are isolated to vehicles, and seek/continuation preserve the same admitted set.
+- Millisecond boundaries, precise browser/server freshness, evidence URLs and versioned area-event/checkpoint identities agree. Existing v1 runs recover with unchanged IDs and publications; v2 never silently reinterprets their clocks.
+- The proposed contract's detailed frame, parser, payload and failure cases pass before rollout.
+
 ## Decision record
 
-| Decision | Outcome (initial 2026-10-06; MAP-02 amended 2026-10-07) |
+| Decision | Accepted outcome (2026-10-06) |
 | --- | --- |
 | Building source | Option A, retained City of Melbourne footprints |
 | Rendering stack | MapLibre with an interleaved deck.gl overlay |
 | Animation | The five classes and their rules, as written above |
 | Simulated traffic | MAP-05 in scope, under the simulated class and its labelling rule |
 | First building layer | `Structure` only; other footprint types need their own rendering rule and decision |
-| 2D playback | MAP-02 replaces the earlier step/glide exception: continuous millisecond clock, static observed markers, shared area boundaries, no animation requests |
+| 2D playback transitions | Bounded straight-line glide and continuous progress bar under the pre-MAP-02 exception above |
 
-The 7 October amendment accepts endpoint B with parent `valid_until`, aligned animation continuations, millisecond query/scheduler semantics, shared freshness constants, nullable compatible trip metadata, segment-table encoding, APPLY-only history and the narrower startup/truth-label rules. The original same-origin-only restriction remains unchanged.
+The 7 October **proposed** amendment covers endpoint B, parent validity/unknown-validity polling, aligned continuations, millisecond clocks and versioned event identity, shared exact freshness arithmetic, nullable trip metadata, segment encoding, per-vehicle admission and whole-interval startup rules. It also replaces the 2D exception once implemented. Record the project architect's explicit approval in PR #48 and update the amendment/contract/delivery status and approval date together before integration; opening or revising this PR is not that approval.
 
 This decision does not decide A-02's public basemap, live data sources, DAM-to-building matching or any live-data animation. See the [source register](../source-register.md#map-context-sources) and [delivery plan](../delivery-plan.md).
