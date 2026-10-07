@@ -37,6 +37,7 @@ class Record(BaseModel):
 
 class Intent(Record):
     capture_id: UUID
+    capture_sequence: int | None = Field(default=None, ge=1, le=2**63 - 1, strict=True)
     mode: Mode
     provider: Literal["transport-victoria", "synthetic"]
     product: TramFeed
@@ -62,7 +63,7 @@ class Manifest(Record):
     capture_id: UUID
     outcome: Literal["captured", "fetch-failed", "raw-write-failed", "abandoned"]
     completed_at: AwareDatetime
-    reason: Failure | Literal["storage_error", "interrupted"] | None = None
+    reason: Failure | Literal["storage_error", "interrupted", "not_started"] | None = None
     http_status: int | None = Field(default=None, ge=100, le=599)
     receipt: Receipt | None = None
     retry_not_before: AwareDatetime | None = None
@@ -75,7 +76,7 @@ class Manifest(Record):
         elif self.receipt is not None or self.reason is None:
             raise ValueError("failure_requires_reason_without_receipt")
         if self.outcome == "abandoned" and (
-            self.reason != "interrupted" or self.http_status is not None
+            self.reason not in {"interrupted", "not_started"} or self.http_status is not None
         ):
             raise ValueError("invalid_abandoned_outcome")
         if self.outcome == "raw-write-failed" and self.reason != "storage_error":

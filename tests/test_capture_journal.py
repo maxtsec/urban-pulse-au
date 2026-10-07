@@ -221,6 +221,12 @@ def test_unknown_and_symlink_capture_paths_fail(store: Path) -> None:
 
 
 def test_cli_fixture_roundtrip_and_signal_shutdown(store: Path) -> None:
+    from urbanpulse.adapters.capture_checkpoint import CheckpointJournal
+
+    store = store / "cli-v2"
+    store.mkdir()
+    with CheckpointJournal(store).locked(initialize=True):
+        pass
     command = [sys.executable, str(ROOT / "tests/helpers/capture_process.py"), str(store), "cli"]
     result = subprocess.run(
         [*command, "run", "--store", str(store), "--max-attempts", "3", "--interval", "0.01"],
@@ -262,7 +268,7 @@ def test_cli_fixture_roundtrip_and_signal_shutdown(store: Path) -> None:
         if child.poll() is None:
             child.kill()
             child.wait(timeout=10)
-    with CaptureJournal(store).locked():
+    with CheckpointJournal(store).locked():
         pass
 
 
@@ -303,7 +309,13 @@ def test_session_close_failure_preserves_primary_failure(store: Path, monkeypatc
         raise OSError("private diagnostic")
 
     monkeypatch.setattr("workers.capture.main.signal.signal", lambda *_: None)
-    monkeypatch.setattr(CaptureJournal, "begin", fail_begin)
+    from urbanpulse.adapters.capture_checkpoint import CheckpointJournal
+
+    store = store / "cli-v2"
+    store.mkdir()
+    with CheckpointJournal(store).locked(initialize=True):
+        pass
+    monkeypatch.setattr(CheckpointJournal, "begin", fail_begin)
     monkeypatch.setattr(CaptureJournal, "end_session", fail_end)
     monkeypatch.setattr(sys, "argv", ["capture", "run", "--store", str(store)])
     assert main() == 2

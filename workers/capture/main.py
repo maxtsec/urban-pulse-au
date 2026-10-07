@@ -13,7 +13,8 @@ from threading import Event
 import httpx
 from pydantic import SecretStr, ValidationError
 
-from urbanpulse.adapters.capture_journal import CaptureJournal
+from urbanpulse.adapters.capture_checkpoint import CheckpointJournal as CaptureJournal
+from urbanpulse.adapters.capture_verify import CaptureVerifier
 from urbanpulse.adapters.synthetic_capture import SyntheticCapture
 from urbanpulse.adapters.transport_capture import TransportCapture
 from urbanpulse.application.local_collector import collect
@@ -22,7 +23,7 @@ from urbanpulse.contracts.local_capture import CaptureError, Mode, Source
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("init", "status", "run"))
+    parser.add_argument("command", choices=("init", "status", "run", "verify"))
     parser.add_argument("--store", type=Path, required=True)
     parser.add_argument(
         "--live", action="store_true", help="Requires separately approved source policy"
@@ -42,11 +43,28 @@ def main() -> int:
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     try:
+        if args.command == "verify":
+            with CaptureVerifier(args.store).locked() as verifier:
+                report = verifier.verify(stopped=stop.is_set)
+                print(json.dumps(report, sort_keys=True))
+                return 0 if report["status"] == "verified" else 1
         with CaptureJournal(args.store).locked(initialize=args.command == "init") as journal:
             summary = journal.recover()
             if args.command != "run":
-                print(json.dumps({"status": "verified", **summary}, sort_keys=True))
-                return 0
+                print(
+                    json.dumps(
+                        {
+                            "status": "ready"
+                            if summary["collection_allowed"]
+                            else "verification_required",
+                            **summary,
+                        },
+                        sort_keys=True,
+                    )
+                )
+                return 0 if summary["collection_allowed"] else 2
+            if not summary["collection_allowed"]:
+                raise CaptureError("verification_required")
             with httpx.Client(trust_env=False) as client:
                 source: Source = SyntheticCapture()
                 if args.live:
@@ -75,7 +93,7 @@ def main() -> int:
                         journal,
                         source,
                         mode=mode,
-                        version=os.environ.get("COLLECTOR_VERSION", "local-capture-v1"),
+                        version=os.environ.get("COLLECTOR_VERSION", "local-capture-v2"),
                         stop=stop,
                         max_attempts=args.max_attempts,
                         max_seconds=args.max_seconds,
