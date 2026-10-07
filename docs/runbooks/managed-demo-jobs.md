@@ -85,3 +85,7 @@ Execution is a separate approved mutation. For the selected project and region, 
 Use a separately approved disposable target for failure rehearsals; do not edit live secrets to induce errors. A definition rollback changes the image/configuration only: verify schema compatibility and never downgrade or erase history. Restore rehearsal and IAP serving promotion remain separate gates. See [worker recovery](city-job.md) and [initialization recovery](initialization-jobs.md).
 
 References: [Cloud Run Jobs creation](https://docs.cloud.google.com/run/docs/create-jobs), [execution](https://docs.cloud.google.com/run/docs/execute/jobs), [task timeouts](https://docs.cloud.google.com/run/docs/configuring/task-timeout), and the pinned provider's [Job schema](https://registry.terraform.io/providers/hashicorp/google/7.46.1/docs/resources/cloud_run_v2_job).
+
+## Proposed MAP-02 clock-generation cutover
+
+The [MAP-02 rollout/recovery proposal](map-02-clock-migration.md) adds clock-version changes to the new-run-ID rule and defines revision-local input selection plus pinned v1 recovery. It is pending approval/implementation; the existing commands above remain the current runtime procedure. Do not update a v1 Job to a v2 image while retaining its old run ID. Serving CD is not a worker migration.
