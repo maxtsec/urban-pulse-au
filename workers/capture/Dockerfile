@@ -13,7 +13,7 @@ WORKDIR /app
 COPY --from=dependencies /app/.venv /app/.venv
 COPY urbanpulse/__init__.py ./urbanpulse/__init__.py
 COPY urbanpulse/contracts/__init__.py urbanpulse/contracts/local_capture.py urbanpulse/contracts/capture_control.py urbanpulse/contracts/capture_delivery.py ./urbanpulse/contracts/
-COPY urbanpulse/adapters/__init__.py urbanpulse/adapters/capture_journal.py urbanpulse/adapters/capture_checkpoint.py urbanpulse/adapters/capture_verify.py urbanpulse/adapters/capture_v3.py urbanpulse/adapters/capture_v3_verify.py urbanpulse/adapters/synthetic_capture.py urbanpulse/adapters/transport_capture.py ./urbanpulse/adapters/
+COPY urbanpulse/adapters/__init__.py urbanpulse/adapters/capture_journal.py urbanpulse/adapters/capture_runtime.py urbanpulse/adapters/capture_checkpoint.py urbanpulse/adapters/capture_verify.py urbanpulse/adapters/capture_v3.py urbanpulse/adapters/capture_v3_verify.py urbanpulse/adapters/synthetic_capture.py urbanpulse/adapters/transport_capture.py ./urbanpulse/adapters/
 COPY urbanpulse/application/__init__.py urbanpulse/application/local_collector.py urbanpulse/application/tram_schedule.py ./urbanpulse/application/
 COPY workers/__init__.py ./workers/__init__.py
 COPY workers/capture/*.py ./workers/capture/
@@ -28,7 +28,7 @@ CMD ["--help"]
 FROM runtime AS test
 COPY --from=test-dependencies /app/.venv /app/.venv
 COPY pyproject.toml ./
-COPY tests/test_transport_capture.py tests/test_capture_journal.py tests/test_local_collector.py tests/test_capture_checkpoint.py tests/test_capture_v3.py ./tests/
+COPY tests/test_transport_capture.py tests/test_capture_journal.py tests/test_local_collector.py tests/test_capture_checkpoint.py tests/test_capture_v3.py tests/test_capture_runtime.py ./tests/
 COPY tests/helpers/capture_process.py tests/helpers/checkpoint_process.py tests/helpers/benchmark_capture.py tests/helpers/delivery_process.py tests/helpers/v3_records.py ./tests/helpers/
 ENTRYPOINT ["/app/.venv/bin/python", "-m", "pytest"]
-CMD ["-q", "-p", "no:cacheprovider", "tests/test_transport_capture.py", "tests/test_capture_journal.py", "tests/test_local_collector.py", "tests/test_capture_checkpoint.py", "tests/test_capture_v3.py"]
+CMD ["-q", "-p", "no:cacheprovider", "tests/test_transport_capture.py", "tests/test_capture_journal.py", "tests/test_local_collector.py", "tests/test_capture_checkpoint.py", "tests/test_capture_v3.py", "tests/test_capture_runtime.py"]

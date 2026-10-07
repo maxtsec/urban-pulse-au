@@ -14,6 +14,8 @@ import httpx
 from pydantic import SecretStr, ValidationError
 
 from urbanpulse.adapters.capture_checkpoint import CheckpointJournal as CaptureJournal
+from urbanpulse.adapters.capture_journal import RESERVE_BYTES
+from urbanpulse.adapters.capture_runtime import INODE_RESERVE, RuntimeObservation
 from urbanpulse.adapters.capture_v3 import V3Journal
 from urbanpulse.adapters.capture_v3_verify import V3Verifier
 from urbanpulse.adapters.capture_verify import CaptureVerifier
@@ -25,7 +27,7 @@ from urbanpulse.contracts.local_capture import CaptureError, Mode, Source
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("init", "status", "run", "verify"))
+    parser.add_argument("command", choices=("init", "status", "run", "serve", "verify"))
     parser.add_argument("--store", type=Path, required=True)
     parser.add_argument(
         "--live", action="store_true", help="Requires separately approved source policy"
@@ -38,10 +40,16 @@ def main() -> int:
     parser.add_argument(
         "--tram-schedule", action="store_true", help="Use accepted 60/120/60 slots in fixture mode"
     )
+    parser.add_argument("--reserve-bytes", type=int, default=RESERVE_BYTES)
+    parser.add_argument("--reserve-inodes", type=int, default=INODE_RESERVE)
     args = parser.parse_args()
+    if args.reserve_bytes < RESERVE_BYTES or args.reserve_inodes < INODE_RESERVE:
+        parser.error("reserve_below_floor")
+    if args.command == "serve" and args.store_version != "v3":
+        parser.error("continuous_requires_v3")
     if not 1 <= args.max_attempts <= 120 or not 1 <= args.max_seconds <= 3600:
         parser.error("Use 1..120 attempts and 1..3600 seconds")
-    if args.command == "run" and args.live and args.store_version != "v3":
+    if args.command in {"run", "serve"} and args.live and args.store_version != "v3":
         parser.error("live_requires_v3: use a fresh v3 store with --store-version v3")
     mode: Mode = "live" if args.live else "fixture"
     interval = args.interval if args.interval is not None else (15 if args.live else 1)
@@ -58,9 +66,11 @@ def main() -> int:
                 report = verifier.verify(stopped=stop.is_set)
                 print(json.dumps(report, sort_keys=True))
                 return 0 if report["status"] == "verified" else 1
-        with journal_type(args.store).locked(initialize=args.command == "init") as journal:
+        with journal_type(args.store, reserve_bytes=args.reserve_bytes).locked(
+            initialize=args.command == "init"
+        ) as journal:
             summary = journal.recover()
-            if args.command != "run":
+            if args.command not in {"run", "serve"}:
                 print(
                     json.dumps(
                         {
@@ -84,6 +94,13 @@ def main() -> int:
                     if not key or len(key) > 1024 or any(ord(c) < 33 or ord(c) > 126 for c in key):
                         raise CaptureError("key_file_invalid")
                     source = TransportCapture(client, SecretStr(key))
+                observation = RuntimeObservation(
+                    args.store,
+                    mode,
+                    lambda: journal.control.summary,
+                    reserve_bytes=args.reserve_bytes,
+                    reserve_inodes=args.reserve_inodes,
+                )
                 session = journal.start_session(mode, summary)
                 attempts: int | None = None
                 reason = "execution_failed"
@@ -109,7 +126,13 @@ def main() -> int:
                         max_seconds=args.max_seconds,
                         interval=interval,
                         initial_delay=delay,
-                        tram_schedule=args.live or args.tram_schedule,
+                        tram_schedule=args.live or args.tram_schedule or args.command == "serve",
+                        continuous=args.command == "serve",
+                        tick=observation.pulse if args.command == "serve" else lambda: None,
+                        before_capture=observation.guard,
+                        after_capture=observation.completed
+                        if args.command == "serve"
+                        else lambda *_: None,
                     )
                     attempts, reason = result.attempts, result.reason
                     print(
@@ -117,12 +140,19 @@ def main() -> int:
                             {"status": reason, "attempts": attempts, "captured": result.captured}
                         )
                     )
+                    if reason == "source_rejected" and args.command == "serve":
+                        return 78
                     return (
                         1
                         if result.captured < attempts or (attempts == 0 and reason != "stopped")
                         else 0
                     )
+                except CaptureError as error:
+                    reason = str(error)
+                    raise
                 finally:
+                    if args.command == "serve":
+                        observation.pulse(reason, force=True)
                     primary_error = sys.exception()
                     try:
                         journal.end_session(session, reason, attempts)

@@ -105,7 +105,7 @@ The finite rehearsal deliberately stays stopped after Docker stops or restarts, 
 
 Before unattended activation, that slice must test Docker stop/start and restart (including the package-update path): once Docker returns and the volume remains correctly unlocked/mounted, capture automatically resumes with the same store and without duplicate writers. A locked, missing or mismatching mount still refuses capture; deliberate maintenance stop must stay stopped. A process `Restart=` setting alone is not proof of recovery from a dependency-driven stop: explicitly wire and test daemon-recovery activation.
 
-External heartbeat-loss monitoring must detect this interruption even when no local process can send a failure report. Test alert delivery for a prolonged daemon outage, recovery after restart, and continued refusal/alerting while locked. Record capture gaps. The next continuous-service/heartbeat PR owns this restart strategy and its integration tests; these are activation gates, not behavior implemented by the rehearsal unit.
+External heartbeat-loss monitoring must detect this interruption even when no local process can send a failure report. Test alert delivery for a prolonged daemon outage, recovery after restart, and continued refusal/alerting while locked. Record capture gaps. The [continuous service](collector-continuous.md) owns daemon-independent supervision and dry-run heartbeat tests. Its real Docker/mount/alert drill remains an activation gate; the finite rehearsal unit is unchanged.
 
 ## Locked-volume and reboot acceptance
 
