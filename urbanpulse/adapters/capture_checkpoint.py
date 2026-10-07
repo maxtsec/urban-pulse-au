@@ -3,6 +3,7 @@
 import hashlib
 import os
 import shutil
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,14 +29,23 @@ from urbanpulse.contracts.local_capture import (
 )
 
 
-def replace_json(path: Path, value: dict[str, Any]) -> None:
+def replace_json(
+    path: Path,
+    value: dict[str, Any],
+    *,
+    checkpoint: Callable[[str], None] = lambda _: None,
+    stage: str = "metadata",
+) -> None:
     data = canonical(value)
     if len(data) > 16384 or path.is_symlink():
         raise CaptureError("control_invalid")
     temporary = path.with_name(".control-" + uuid4().hex)
     write_bytes(temporary, data)
+    checkpoint(stage + "_written")
     os.replace(temporary, path)
+    checkpoint(stage + "_replaced")
     sync_directory(path.parent)
+    checkpoint(stage + "_synced")
 
 
 def inspect_capture(
@@ -125,19 +135,9 @@ class CheckpointJournal(CaptureJournal):
 
     def _save_control(self, control: Control, stage: str) -> None:
         self._require_lock()
-        data = canonical(control.document())
-        if len(data) > 16384:
-            raise CaptureError("control_invalid")
-        target = self.root / "control.json"
-        if target.is_symlink():
-            raise CaptureError("control_invalid")
-        temporary = self.root / (".control-" + uuid4().hex)
-        write_bytes(temporary, data)
-        self.checkpoint(stage + "_written")
-        os.replace(temporary, target)
-        self.checkpoint(stage + "_replaced")
-        sync_directory(self.root)
-        self.checkpoint(stage + "_synced")
+        replace_json(
+            self.root / "control.json", control.document(), checkpoint=self.checkpoint, stage=stage
+        )
         self.control = control
 
     def _not_blocked(self) -> None:

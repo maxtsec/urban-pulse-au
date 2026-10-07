@@ -138,6 +138,8 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [Local capture runbook](runbooks/local-capture.md) | Ubuntu fixture setup, recovery and bounded live gates | Collector operation or deployment changes |
 | [Local capture evidence](evidence/cloud-01-local-capture.md) | Synthetic HTTP, filesystem and process-crash acceptance | Capture/recovery implementation changes |
 
+| [Incremental capture evidence](evidence/cloud-01-incremental-recovery.md) | V2 checkpoint crash tests, read bounds and reproducible startup measurements | Recovery implementation or measurement changes |
+
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
 Label fixture/live inputs and preserve the scope of dated evidence. The project brief uses revision numbers; software releases use version tags such as `v1.0.0`.
