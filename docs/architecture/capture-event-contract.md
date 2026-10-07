@@ -1,6 +1,6 @@
 # Capture and integration-event contract
 
-CloudEvents 1.0 is accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md). The initial UrbanPulse wire profile below is accepted; capture storage/recovery and handler design remain A-03 proposals. It prepares CONTRACT-01 and the parallel capture track. [Area semantics](area-contract.md) define the consuming view; [delivery status](../delivery-plan.md) owns implementation progress.
+CloudEvents 1.0 is accepted in [ADR 0003](../adr/0003-cloudevents-and-area-conditions.md). The initial UrbanPulse wire profile below is accepted; local capture storage/recovery is accepted in [ADR 0016](../adr/0016-local-capture-recovery.md); remaining handler design stays under A-03. It prepares CONTRACT-01 and the parallel capture track. [Area semantics](area-contract.md) define the consuming view; [delivery status](../delivery-plan.md) owns implementation progress.
 
 ## Weather provider boundary
 
@@ -18,11 +18,11 @@ The existing worker's file hash is a smoke-path content identity. Do not extend 
 
 ## Capture-only record and recovery
 
-Propose one durable intent record before each provider request. It identifies the capture ID, fixture/live mode, provider/product, endpoint alias, request start and collector version. Store no key, authorization header or credential-bearing URL. Each attempt terminates with an immutable manifest: captured, fetch-failed, raw-write-failed or abandoned after reconciliation.
+Persist one durable intent record before each provider request under ADR 0016. It identifies the capture ID, fixture/live mode, provider/product, endpoint alias, request start and collector version. Store no key, authorization header or credential-bearing URL. Each attempt terminates with an immutable manifest: captured, fetch-failed, raw-write-failed or abandoned after reconciliation.
 
 A captured manifest contains its schema version, request/completion times, HTTP status, source timestamp when present, content type, byte count, payload hash and immutable object locator/generation. Missing source time is null with an explicit reason. Format/parser/static-schedule versions and processing outcomes belong to a separate processing record; collection need not wait for schema interpretation or a running API/database.
 
-Use a capture-specific raw prefix containing mode, provider, product, UTC date and capture ID. Write intent, payload and terminal manifest with create-only semantics. [GCS generation preconditions](https://docs.cloud.google.com/storage/docs/request-preconditions) support conditional creation; adapters must verify an existing object's identity/hash after a conflict rather than accepting arbitrary bytes. Keep raw objects private. Lifecycle and accepted retention duration must account for incomplete intents and replay evidence.
+The accepted local layout is `captures/<capture-id>/`, with mode, provider, product and UTC date carried by the intent/receipt. Raw storage is collector-local under ADR 0015; the GCS preconditions below concern later uploaded artifacts. Write intent, payload and terminal manifest with create-only semantics. [GCS generation preconditions](https://docs.cloud.google.com/storage/docs/request-preconditions) support conditional creation; adapters must verify an existing object's identity/hash after a conflict rather than accepting arbitrary bytes. Keep raw objects private. Lifecycle and accepted retention duration must account for incomplete intents and replay evidence.
 
 | Interruption | Reconciliation outcome |
 | --- | --- |
@@ -33,11 +33,11 @@ Use a capture-specific raw prefix containing mode, provider, product, UTC date a
 | Same capture storage operation retried | Verify existing content; one terminal capture outcome |
 | Same bytes fetched again | New capture ID, same content hash; no duplicate domain change or refreshed observation timestamp. Successful receipt follows the [source receipt-time policy](../source-register.md#attribution-acceptance), independently of domain revision |
 
-Persist recovery metadata needed to reconstruct the manifest with the payload at write time. A failed request is never replayed as if it produced a payload. A single active collector plus a durable lease/fencing and shared quota design must handle restart/rollout overlap before CLOUD-01 acceptance; an instance count of one alone is insufficient. Exact lease/storage implementation is reviewed with A-06.
+Persist recovery metadata needed to reconstruct the manifest with the payload at write time. A failed request is never replayed as if it produced a payload. A single active collector plus a durable lease/fencing and shared quota design must handle restart/rollout overlap before CLOUD-01 acceptance; an instance count of one alone is insufficient. ADR 0016 selects a whole-run Linux OS lock for the local store; host moves require explicitly stopping/fencing the old collector.
 
 ## Payload storage options for A-03
 
-The capture-specific payload layout above is a baseline proposal. Compare it with content-addressed payload objects referenced by per-attempt manifests before selecting the storage adapter. Keep a distinct capture ID, request outcome and timestamps for every attempt in either design; payload reuse must not reset source age or merge capture evidence.
+ADR 0016 selects uncompressed, per-attempt local payloads for the initial collector. Compare it with content-addressed payload objects referenced by per-attempt manifests before selecting the storage adapter. Keep a distinct capture ID, request outcome and timestamps for every attempt in either design; payload reuse must not reset source age or merge capture evidence.
 
 Content-addressed storage can reuse identical feed bytes, especially unchanged alerts. Scope keys by fixture/live mode and source-use boundary as well as content hash. Review concurrent writes, integrity checks, orphan recovery and reference-aware garbage collection: a shared payload must remain available while any retained manifest requires it. A simple object-age lifecycle rule can break newer manifests that reference older objects.
 
