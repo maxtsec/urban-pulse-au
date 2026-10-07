@@ -115,6 +115,6 @@ The automated tests exercise guard decisions with synthetic kernel responses. Th
 
 ## Development validation
 
-On 2026-10-08, all 18 guard tests passed on Windows and in the isolated Linux capture test image. Run `uv run pytest -q tests/test_collector_host.py` from the checkout. Cases include wrong/plain/temporary/shadow mounts, wrong crypto identity, swap, mutable image tags and a failed mount lookup proving Docker is never invoked. The Linux run used a read-only checkout, no network and disposable temporary storage.
+On 2026-10-08, all 21 guard tests passed on Windows and in the isolated Linux capture test image. Run `uv run pytest -q tests/test_collector_host.py` from the checkout. Cases include wrong/plain/temporary/shadow mounts, wrong crypto identity, swap, mutable image tags and a failed mount lookup proving Docker is never invoked. The Linux run used a read-only checkout, no network and disposable temporary storage.
 
 Both units passed `systemd-analyze verify --man=no` in a disposable container with the files at their documented install paths/modes. Docker was a stub for this syntax check; it did not exercise service lifetime or mounting. Ruff lint/format and mypy passed. Real encrypted-volume, reboot and mount-loss acceptance remains the operator drill above; no host settings or secrets were changed during development.
