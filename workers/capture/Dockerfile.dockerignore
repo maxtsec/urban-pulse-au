@@ -1,0 +1,17 @@
+*
+!pyproject.toml
+!uv.lock
+!.python-version
+!urbanpulse/
+!urbanpulse/**/
+!urbanpulse/**/*.py
+!workers/
+!workers/__init__.py
+!workers/capture/
+!workers/capture/*.py
+!tests/
+!tests/test_transport_capture.py
+!tests/test_capture_journal.py
+!tests/test_local_collector.py
+!tests/helpers/
+!tests/helpers/capture_process.py
