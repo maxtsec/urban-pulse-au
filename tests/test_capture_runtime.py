@@ -232,3 +232,94 @@ def test_linux_real_cli_crash_restart_and_signal_exit(tmp_path):
             if child.poll() is None:
                 child.kill()
                 child.communicate(timeout=10)
+
+
+@pytest.mark.parametrize("resource", ["bytes", "inodes"])
+def test_linux_reserve_repeated_cli_starts_write_no_sessions(tmp_path, resource):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    if sys.platform != "linux":
+        pytest.skip("Linux durable-store integration")
+    helper = Path(__file__).parent / "helpers" / "capture_process.py"
+    prefix = [sys.executable, str(helper), str(tmp_path), "cli"]
+    suffix = ["--store", str(tmp_path), "--store-version", "v3"]
+    init = subprocess.run(prefix + ["init"] + suffix, capture_output=True, text=True, timeout=15)
+    assert init.returncode == 0, init.stdout + init.stderr
+    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    reason = "disk_reserve_reached" if resource == "bytes" else "inode_reserve_reached"
+    for _ in range(3):
+        result = subprocess.run(
+            prefix + ["serve"] + suffix + ["--reserve-" + resource, str(2**63 - 1)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert result.returncode == 78, result.stdout + result.stderr
+        records = [json.loads(line) for line in result.stdout.splitlines()]
+        assert records[-1] == {"status": "operator_required", "reason": reason}
+        assert any(
+            record.get("kind") == "collector_heartbeat_dry_run" and record["state"] == reason
+            for record in records
+        )
+        assert list((tmp_path / "sessions").iterdir()) == []
+        assert list((tmp_path / "captures").iterdir()) == []
+        after = {
+            p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()
+        }
+        assert after == before
+    verified = subprocess.run(
+        prefix + ["verify"] + suffix, capture_output=True, text=True, timeout=15
+    )
+    assert verified.returncode == 0, verified.stdout + verified.stderr
+
+
+@pytest.mark.parametrize("reason", ["disk_reserve_reached", "inode_reserve_reached"])
+def test_linux_reserve_reached_during_capture_stops_without_restart_churn(
+    tmp_path, monkeypatch, capsys, reason
+):
+    import sys
+
+    from urbanpulse.adapters import capture_journal as storage
+    from urbanpulse.adapters.capture_v3 import V3Journal
+    from urbanpulse.adapters.capture_v3_verify import V3Verifier
+    from workers.capture import main as worker
+
+    if sys.platform != "linux":
+        pytest.skip("Linux durable-store integration")
+    monkeypatch.setattr(storage, "local_filesystem", lambda _: "test-filesystem")
+    monkeypatch.setattr(worker.signal, "signal", lambda *_: None)
+    with V3Journal(tmp_path).locked(initialize=True):
+        pass
+    clock = Clock()
+    real_collect = worker.collect
+
+    def fast_collect(*args, **kwargs):
+        return real_collect(*args, **kwargs, monotonic=clock.monotonic, wait=clock.wait)
+
+    monkeypatch.setattr(worker, "collect", fast_collect)
+    checks = 0
+
+    def guard(_):
+        nonlocal checks
+        checks += 1
+        if checks >= 3:
+            raise CaptureError(reason)
+
+    monkeypatch.setattr(worker.RuntimeObservation, "guard", guard)
+    monkeypatch.setattr(
+        "sys.argv", ["capture", "serve", "--store", str(tmp_path), "--store-version", "v3"]
+    )
+    assert worker.main() == 78
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert records[-1] == {"status": "operator_required", "reason": reason}
+    assert any(record.get("state") == reason for record in records)
+    assert len(list((tmp_path / "captures").iterdir())) == 1
+    sessions = {p.name: p.read_bytes() for p in (tmp_path / "sessions").iterdir()}
+    assert len(sessions) == 2  # Only the original session is closed once.
+    for _ in range(3):
+        assert worker.main() == 78
+        assert {p.name: p.read_bytes() for p in (tmp_path / "sessions").iterdir()} == sessions
+    with V3Verifier(tmp_path).locked() as verifier:
+        assert verifier.verify()["status"] == "verified"
