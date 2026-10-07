@@ -1,8 +1,7 @@
 project_id     = "example-project"
 landing_bucket = "example-project-capture-landing"
 collector_id   = "capture-primary"
-alerts_enabled = false
-monitoring_enrolled = false
+alert_groups = {} # All four groups disabled and unenrolled initially.
 notification_channels = []
 # Set alert_limits in your ignored terraform.tfvars using the runbook's schema.
 # No operational thresholds or notification destinations are published here.

@@ -22,14 +22,16 @@ variable "collector_id" {
     error_message = "Use a stable lowercase logical alias."
   }
 }
-variable "alerts_enabled" {
-  type    = bool
-  default = false
-}
-variable "monitoring_enrolled" {
-  type        = bool
-  default     = false
-  description = "Operator attestation that expected streams and notification channels were verified."
+variable "alert_groups" {
+  description = "Independent activation and operator enrollment for each rollout stage; all disabled by default."
+  nullable    = false
+  type = object({
+    heartbeat = optional(object({ enabled = optional(bool, false), enrolled = optional(bool, false) }), {})
+    capture   = optional(object({ enabled = optional(bool, false), enrolled = optional(bool, false) }), {})
+    capacity  = optional(object({ enabled = optional(bool, false), enrolled = optional(bool, false) }), {})
+    upload    = optional(object({ enabled = optional(bool, false), enrolled = optional(bool, false) }), {})
+  })
+  default = {}
 }
 variable "notification_channels" {
   type        = list(string)

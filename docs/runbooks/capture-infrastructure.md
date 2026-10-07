@@ -12,14 +12,14 @@ terraform -chdir=infra/capture validate
 terraform -chdir=infra/capture test
 ```
 
-On 2026-10-08, readonly init, validate and all 10 mocked plan tests passed on Windows and in an isolated Linux Terraform container. The mocked creation graph contains 23 resources, with no keys, updates or deletions; this is not an actual cloud plan. Workflow syntax, repository formatting and 367 local document links also passed.
+On 2026-10-08, readonly init, validate and all 15 mocked plan tests passed on Windows and in an isolated Linux Terraform container. The mocked creation graph contains 23 resources, with no keys, updates or deletions; this is not an actual cloud plan. Workflow syntax, repository formatting and local document links were also checked.
 
-The provider lock contains the same verified Windows/Linux/macOS checksums as the other roots. Tests use mocked providers and synthetic limits, without cloud credentials or a live plan. They check private/deletion-safe storage, exact accepted grants, every feed, unknown successes, pending-upload age, scoped filters and enrollment/channel/input rejection.
+The provider lock contains the same verified Windows/Linux/macOS checksums as the other roots. Tests use mocked providers and synthetic limits, without cloud credentials or a live plan. They check private/deletion-safe storage, exact accepted grants, every feed, unknown successes, pending-upload age, scoped filters, raw-only activation, missing-data suppression and independent enrollment/channel/input rejection.
 
 ## Prepare the private plan
 
 1. Confirm project, billing, Melbourne region and globally unique bucket/account/custom-role names. Storage and IAM APIs are already owned by existing bootstrap/delivery roots; do not import/manage those same API resources in two states. This root owns the Monitoring API enablement and leaves it enabled on destroy. Check effective org policy, inherited IAM and any existing resource collisions before planning.
-2. Copy `terraform.tfvars.example` to ignored `terraform.tfvars`. Choose a stable logical collector alias (no host identity) and set the required `alert_limits` object below. Keep `alerts_enabled=false` and `monitoring_enrolled=false` for initial provisioning. Notification-channel names are optional while disabled; destinations stay private and out of PRs.
+2. Copy `terraform.tfvars.example` to ignored `terraform.tfvars`. Choose a stable logical collector alias (no host identity) and set the required `alert_limits` object below. Keep `alert_groups={}` for initial provisioning (all groups disabled and unenrolled). Notification-channel names are optional while disabled; destinations stay private and out of PRs.
 3. Use an existing private operator-controlled GCS backend with versioning/locking and a distinct `capture/` prefix if configured. Copy `backend.tf.example` to ignored `backend.tf` only during the reviewed backend setup, then supply bucket/prefix privately at init. Do not use the landing bucket for state, grant the collector state access, or share a prefix with CD/serving. If starting with local state, keep one operator and make protected pre/post-apply backups with hashes, preserving the previous backup. Do not run concurrent applies.
 4. Before a real plan, choose values privately for every field; the root intentionally supplies no production defaults:
 
@@ -41,7 +41,7 @@ terraform -chdir=infra/capture plan "-out=capture.tfplan"
 terraform -chdir=infra/capture show -no-color capture.tfplan
 ```
 
-Stop for unexpected changes/replacements, broader grants, enabled alerts or public access. Present the exact plan for architect approval; **merge does not authorize apply**. Apply only the approved saved file (`terraform -chdir=infra/capture apply capture.tfplan`). Never regenerate a plan silently between review and apply. State/plan output contains private aliases, notification references and thresholds even though no private key is generated; do not publish it.
+For initial provisioning, stop for unexpected changes/replacements, broader grants, enabled alerts or public access. In later enrollment plans, only the explicitly reviewed groups may become enabled. Present the exact plan for architect approval; **merge does not authorize apply**. Apply only the approved saved file (`terraform -chdir=infra/capture apply capture.tfplan`). Never regenerate a plan silently between review and apply. State/plan output contains private aliases, notification references and thresholds even though no private key is generated; do not publish it.
 
 ## IAM and storage acceptance
 
@@ -55,24 +55,44 @@ After separately approved apply:
 
 ## Monitoring enrollment and loss drill
 
-The current [continuous collector](collector-continuous.md) has only a local dry-run sink. The authenticated exporter and durable upload-derived metrics must be integrated and tested before setting `monitoring_enrolled=true`.
+The current [continuous collector](collector-continuous.md) has only a local dry-run sink. Integrate and test the authenticated exporter before enrolling any group. Each entry in `alert_groups` has independent `enabled` and `enrolled` flags, both false by default. Enrollment in one group never satisfies another group's precondition.
+
+| Group | Evidence needed before enabling |
+| --- | --- |
+| `heartbeat` | Actual live pulse arrival, external missing-pulse notification and recovery |
+| `capture` | All three feeds' truthful age/known states, stalled-feed and unknown-success notifications |
+| `capacity` | Byte/inode measurements and warnings above the actual host reserves |
+| `upload` | Durable confirmations, unknown success and oldest-pending measurements/notifications after uploader integration |
+
+After raw-only enrollment and approval, the activation configuration can be:
+
+```hcl
+alert_groups = {
+  heartbeat = { enabled = true, enrolled = true }
+  capture   = { enabled = true, enrolled = true }
+  capacity  = { enabled = true, enrolled = true }
+  # upload omitted: disabled and unenrolled until its own acceptance.
+}
+```
+
+This example is not activation permission. Retain verified channel references and private limits. The initial raw-only plan does not require upload samples, fabricated upload successes or an implemented normalizer/uploader; the shared limit schema still requires a private upload threshold for the disabled policy, to be remeasured before upload enrollment.
 
 Use Terraform's `metric_types` and `monitored_resource` outputs as the wire schema. Resource labels are `project_id`, Melbourne location, namespace `urbanpulse`, job `capture`, and the stable collector alias. Capture age/known metrics have exactly three feed labels. Do not add process IDs, session IDs, object names, hostnames or provider keys as labels. Emit live measurements on the collection loop's bounded pulse cadence; no replay or fixture point may impersonate current live health. Export failures must not change capture outcomes.
 
 Age comes from durable capture completion/upload confirmation, not the last attempted HTTP request. When a timestamp is unknown, emit `*_success_known=0` and omit its age. An empty authoritative upload queue is pending age 0; an unavailable queue is unknown, not empty. If a clock is invalid or backwards, do not fabricate a fresh success or submit future points. Preserve state across restart; keep the logical alias stable. The [Monitoring API](https://docs.cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/create) requires newer point timestamps for each series and reports partial-write failures; check every response.
 
-Enrollment requires a private inventory of all expected streams, actual point arrival and a verified notification channel. Establish truthful success/age and pending-queue measurements through bounded accepted capture/upload tests; do not manufacture successes to seed them. Initial unknown-state metrics must also be exercised. [Metric absence cannot detect a never-created series](https://docs.cloud.google.com/monitoring/alerts/metric-absence); a Terraform flag alone is not proof of coverage.
+Enrollment requires a private inventory of each selected group's expected streams, actual point arrival and a verified notification channel. Establish truthful success/age measurements through bounded accepted capture tests; pending-queue and confirmation tests apply only when enrolling upload. Do not manufacture successes to seed metrics. Initial unknown-state metrics must also be exercised. [Metric absence cannot detect a never-created series](https://docs.cloud.google.com/monitoring/alerts/metric-absence); a Terraform flag alone is not proof of coverage.
 
-Then review a second saved plan enabling policies with chosen channel names and `monitoring_enrolled=true`. After apply, verify fresh points again, because a policy update can reset evaluation. Run controlled tests and record arrival, detection, notification and recovery times privately:
+Then review a second saved plan setting `enabled=true` and `enrolled=true` only for the groups with evidence, with verified channel names. After apply, verify fresh points again, because a policy update can reset evaluation. Run controlled tests and record arrival, detection, notification and recovery times privately:
 
-1. Stop heartbeat/export delivery, including host-offline/locked-volume simulation. Confirm the external notification, then genuine recovery on resume.
+1. Stop heartbeat/export delivery, including host-offline/locked-volume simulation. Confirm the heartbeat absence notification and that missing data creates no new capture/upload/capacity incident, then genuine recovery on resume. Existing threshold incidents may close on missing data; that is not recovery.
 2. Keep heartbeat running while one feed has no further successful captures. Confirm that feed's age/unknown policy fires; other feeds must not hide it.
-3. Keep unrelated uploads succeeding while one required object remains pending. Confirm pending-age notification; test no confirmed upload/unknown history separately.
+3. When enrolling upload later, keep unrelated uploads succeeding while one required object remains pending. Confirm pending-age notification; test no confirmed upload/unknown history separately.
 4. Cross byte and inode warning thresholds on a disposable fixture filesystem. Confirm alerts arrive before the actual collector hard stop, then explicit operator restart after capacity repair. Do not fill the real disk.
-5. Stop one health metric while heartbeat continues. Confirm missing established data is treated as failure. Separately test startup with no samples; enrollment must refuse to claim coverage until every expected stream is accounted for.
+5. Stop one health metric while heartbeat continues. Confirm absence does not create a threshold incident; record this as a telemetry gap, not healthy data. Exercise exporter partial-write reporting and compare stream inventory. Separately test startup with no samples; enrollment must refuse to claim coverage until every expected stream of the selected groups is accounted for.
 
-Planned maintenance is still a gap. Monitoring may auto-close an incident after prolonged missing data; closure alone is not recovery. Check new points and source/upload progress. Changing metric/resource labels or policy configuration requires re-enrollment/loss testing; record the matching image and commit.
+Only heartbeat owns absence notifications. Health conditions use [missing-data-inactive behavior](https://docs.cloud.google.com/monitoring/alerts/using-alerting-ui): explicit bad values still alert, missing values do not, and missing data can close existing threshold incidents. Planned maintenance is still a gap. If suppressing its notification, create an operator-owned Monitoring snooze with an explicit end time, record the maintenance privately and verify points and notification delivery after expiry; do not leave groups disabled as a maintenance workaround. Incident closure alone is not recovery. Check new points and source/upload progress. Changing metric/resource labels or policy configuration requires re-enrollment/loss testing; record the matching image and commit.
 
 ## Remaining rollout gates
 
-This root deliberately has no object deletion rule. The accepted 12-month normalized-history policy still needs an implementation that preserves referenced manifests/static data and records expiry; raw-duration selection and the local expiry writer are separate. Upload confirmation, exporter/client wiring, actual IAM denial evidence, encrypted-host provisioning, notification delivery and bounded live acceptance remain required before unattended capture. Progress lives in the [delivery plan](../delivery-plan.md).
+This root deliberately has no object deletion rule. The accepted 12-month normalized-history policy still needs an implementation that preserves referenced manifests/static data and records expiry; raw-duration selection and the local expiry writer are separate. Raw-only unattended capture requires encrypted-host provisioning, telemetry permission/exporter acceptance, enabled and verified heartbeat/capture/capacity notifications, source acceptance and bounded live acceptance. Upload confirmation and upload alerts are later gates for enabling delivery and raw expiry, not prerequisites for raw-only capture. Until those gates pass, retain raw and stop at the protected byte/inode reserve; never delete unconfirmed raw to extend collection. Progress lives in the [delivery plan](../delivery-plan.md).
