@@ -146,6 +146,7 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [V3 store evidence](evidence/cloud-01-v3-store.md) | Linux recovery, expiry provenance and persistent-volume runtime checks | v3 persistence or verification changes |
 | [ADR 0018](adr/0018-capture-delivery-and-expiry.md) | Accepted v3 expiry mechanism; accepted B metadata confirmation and manual unlock | Capture expiry, downstream progress or IAM/unlock decision |
 | [ADR 0017](adr/0017-incremental-capture-recovery.md) | Capture checkpoint, direct sequence index, downstream trade-offs, verification hold and fresh-store transition | Accepted incremental recovery contract; implementation and verification requirements |
+| [Encrypted collector host](runbooks/collector-encrypted-host.md) | Manual LUKS unlock, swap/reboot maintenance, guarded fixture service and locked-volume drill | Collector host/service configuration changes |
 | [Local capture runbook](runbooks/local-capture.md) | Ubuntu fixture setup, recovery and bounded live gates | Collector operation or deployment changes |
 | [Local capture evidence](evidence/cloud-01-local-capture.md) | Synthetic HTTP, filesystem and process-crash acceptance | Capture/recovery implementation changes |
 | [Incremental capture evidence](evidence/cloud-01-incremental-recovery.md) | V2 checkpoint crash tests, read bounds and reproducible startup measurements | Recovery implementation or measurement changes |
