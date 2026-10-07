@@ -1,4 +1,5 @@
 import type { Polygon, MultiPolygon } from 'geojson';
+import type { PositionFreshnessPolicy } from './animation/position-freshness';
 
 export const AREA_ID = 'au-vic-melbourne-clue-southbank';
 
@@ -21,6 +22,7 @@ export type Snapshot = {
   area: { id: string; name: string; boundary_revision: string };
   geometry_url: string;
   policy_version: string;
+  position_freshness_policy?: PositionFreshnessPolicy;
   scenario: string;
   clock: { at: string; seconds: number; end_seconds: number };
   assessment: {

@@ -25,7 +25,12 @@ from urbanpulse.application.weather import replay_weather
 from urbanpulse.application.weather_replay import WeatherNormalizer, weather_evidence
 from urbanpulse.contracts.composition import TransportServiceStatusChanged
 from urbanpulse.contracts.events import VehiclePositionChanged
-from urbanpulse.location.city import Freshness, PositionProjection, position_freshness
+from urbanpulse.location.city import (
+    Freshness,
+    PositionProjection,
+    position_freshness,
+    position_freshness_policy,
+)
 from urbanpulse.location.published import PublishedProjection
 from urbanpulse.location.status import AdverseFact, Coverage, CoverageState, assess_area
 from urbanpulse.location.weather import WarningMembership
@@ -414,6 +419,7 @@ class CityService:
             ).hexdigest(),
             "scenario": scenario,
             "clock": {"at": at, "seconds": seconds, "end_seconds": MAX_SECONDS},
+            "position_freshness_policy": position_freshness_policy(),
             "assessment": asdict(assessment),
             "service_evidence": service_evidence,
             "composition": {
