@@ -41,6 +41,8 @@ def main() -> int:
     args = parser.parse_args()
     if not 1 <= args.max_attempts <= 120 or not 1 <= args.max_seconds <= 3600:
         parser.error("Use 1..120 attempts and 1..3600 seconds")
+    if args.command == "run" and args.live and args.store_version != "v3":
+        parser.error("live_requires_v3: use a fresh v3 store with --store-version v3")
     mode: Mode = "live" if args.live else "fixture"
     interval = args.interval if args.interval is not None else (15 if args.live else 1)
     if not math.isfinite(interval) or interval < (15 if args.live else 0.01):

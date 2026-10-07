@@ -440,6 +440,18 @@ raise SystemExit(main())
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(result.stdout)["captured"] == 2
     assert cli("status").returncode == 2
+    before = {str(p.relative_to(store)): p.read_bytes() for p in store.rglob("*") if p.is_file()}
+    for version in ((), ("--store-version", "v2")):
+        rejected = cli("run", "--live", *version)
+        assert rejected.returncode == 2
+        assert "live_requires_v3" in rejected.stderr
+    assert before == {
+        str(p.relative_to(store)): p.read_bytes() for p in store.rglob("*") if p.is_file()
+    }
+    # Explicit v3 passes the version gate, but cannot start without a key.
+    live = cli("run", "--live", "--store-version", "v3")
+    assert live.returncode == 2
+    assert json.loads(live.stdout)["reason"] == "key_file_required"
     report = cli("verify", "--store-version", "v3")
     assert report.returncode == 0, report.stdout + report.stderr
     assert json.loads(report.stdout)["retained_payload_bytes"] > 0

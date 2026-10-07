@@ -106,3 +106,31 @@ def test_failed_capture_cannot_be_marked_complete_without_exporting_coverage():
             object_ids=(),
             completed_at=datetime.now(UTC),
         )
+
+
+@pytest.mark.parametrize("version_args", [[], ["--store-version", "v2"]])
+def test_live_v2_is_rejected_before_store_or_key_access(tmp_path, version_args):
+    import subprocess
+    import sys
+
+    store = tmp_path / "must-not-be-created"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "workers.capture.main",
+            "run",
+            "--live",
+            "--store",
+            str(store),
+            "--key-file",
+            str(tmp_path / "missing-key"),
+            *version_args,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 2
+    assert "live_requires_v3" in result.stderr
+    assert not store.exists()
