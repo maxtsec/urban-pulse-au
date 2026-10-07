@@ -170,3 +170,114 @@ def test_live_key_outside_encrypted_mount_is_refused(monkeypatch):
     monkeypatch.setattr(service.host, "mounted", lambda kind, *_: {"target": kind})
     with pytest.raises(service.host.HostRefused, match="key"):
         service.command(CONFIG, True)
+
+
+@pytest.fixture
+def private_keys(monkeypatch):
+    import stat
+
+    monkeypatch.setattr(
+        service.Path,
+        "lstat",
+        lambda _: SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o600, st_uid=10001, st_gid=10001, st_size=64
+        ),
+    )
+    monkeypatch.setattr(service.Path, "resolve", lambda path, **_: path)
+    monkeypatch.setattr(service.host, "mounted", lambda *_: {"source": "encrypted"})
+
+
+def test_monitoring_launch_binds_only_two_readonly_keys(private_keys):
+    args = service.command(CONFIG, True, "example-capture", "pilot")
+    mounts = [args[index + 1] for index, arg in enumerate(args) if arg == "--mount"]
+    assert f"type=bind,src={service.KEY},dst=/run/dtp-key,readonly" in mounts
+    assert (
+        f"type=bind,src={service.MONITORING_KEY},dst=/run/collector-upload.json,readonly" in mounts
+    )
+    assert args[-6:] == [
+        "--monitoring-project",
+        "example-capture",
+        "--monitoring-collector",
+        "pilot",
+        "--monitoring-key-file",
+        "/run/collector-upload.json",
+    ]
+    assert args[args.index("--network") + 1] == "bridge"
+    assert "private_key" not in " ".join(args)
+
+
+@pytest.mark.parametrize(
+    "project,collector,live",
+    [
+        ("example-capture", None, True),
+        (None, "pilot", True),
+        ("../other", "pilot", True),
+        ("example-capture", "pilot", False),
+    ],
+)
+def test_invalid_monitoring_launch_cannot_start_docker(project, collector, live):
+    with pytest.raises(service.host.HostRefused):
+        service.command(CONFIG, live, project, collector)
+
+
+@pytest.mark.parametrize("bad", ["uid", "mode", "size", "symlink", "mount"])
+def test_monitoring_key_must_be_private_on_same_encrypted_volume(private_keys, monkeypatch, bad):
+    import stat
+
+    def metadata(path):
+        values = {"st_mode": stat.S_IFREG | 0o600, "st_uid": 10001, "st_gid": 10001, "st_size": 64}
+        if path == service.MONITORING_KEY:
+            if bad == "uid":
+                values["st_uid"] = 0
+            if bad == "mode":
+                values["st_mode"] = stat.S_IFREG | 0o644
+            if bad == "size":
+                values["st_size"] = 16385
+            if bad == "symlink":
+                values["st_mode"] = stat.S_IFLNK | 0o600
+        return SimpleNamespace(**values)
+
+    monkeypatch.setattr(service.Path, "lstat", metadata)
+    if bad == "mount":
+        monkeypatch.setattr(
+            service.host,
+            "mounted",
+            lambda _, path: {
+                "source": "other" if path == str(service.MONITORING_KEY) else "encrypted"
+            },
+        )
+    with pytest.raises(service.host.HostRefused, match="key"):
+        service.command(CONFIG, True, "example-capture", "pilot")
+
+
+def test_adoption_refuses_existing_process_with_different_monitoring_target(monkeypatch):
+    row = {
+        "Image": IMAGE,
+        "Config": {
+            "Labels": {"au.urbanpulse.collector": "continuous"},
+            "Cmd": [
+                "serve",
+                "--store",
+                "/data",
+                "--store-version",
+                "v3",
+                "--live",
+                "--key-file",
+                "/run/dtp-key",
+                *service.monitoring_arguments("example-capture", "other"),
+            ],
+        },
+        "State": {"Running": True},
+    }
+    monkeypatch.setattr(
+        service,
+        "docker",
+        Mock(
+            side_effect=[
+                SimpleNamespace(returncode=0, stdout="id"),
+                SimpleNamespace(returncode=0, stdout=json.dumps([row])),
+            ]
+        ),
+    )
+    with pytest.raises(service.host.HostRefused, match="mode"):
+        service.owned_container(IMAGE, True, "example-capture", "pilot")

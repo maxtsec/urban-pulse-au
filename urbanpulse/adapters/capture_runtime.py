@@ -28,7 +28,7 @@ class RuntimeObservation:
     """No archive scan or background healthy pulse while capture is stuck.
 
     Each attempted send has one bounded-size record. No retry queue is retained.
-    The sink must return promptly; production network delivery is a later adapter.
+    The sink must return promptly; authenticated delivery has a separate bounded adapter.
     """
 
     def __init__(

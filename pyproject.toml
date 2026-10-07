@@ -6,13 +6,13 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi", "uvicorn[standard]", "pydantic", "pydantic-settings", "sqlalchemy",
   "psycopg[binary]", "alembic", "redis", "httpx", "polars",
-  "google-cloud-storage", "google-cloud-bigquery", "opentelemetry-api",
+  "google-auth", "google-cloud-storage", "google-cloud-bigquery", "opentelemetry-api",
   "opentelemetry-sdk", "opentelemetry-instrumentation-fastapi", "prometheus-client",
 ]
 
 [dependency-groups]
-capture = ["httpx", "pydantic"]
-capture-test = [{include-group = "capture"}, "pytest"]
+capture = ["httpx", "pydantic", "google-auth"]
+capture-test = [{include-group = "capture"}, "pytest", "cryptography"]
 dev = [
     "pytest",
     "ruff",

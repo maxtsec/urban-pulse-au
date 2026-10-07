@@ -2397,6 +2397,7 @@ default-groups = ["dev", "pipeline"]
 dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "google-auth" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-storage" },
     { name = "httpx" },
@@ -2415,10 +2416,13 @@ dependencies = [
 
 [package.dev-dependencies]
 capture = [
+    { name = "google-auth" },
     { name = "httpx" },
     { name = "pydantic" },
 ]
 capture-test = [
+    { name = "cryptography" },
+    { name = "google-auth" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pytest" },
@@ -2440,6 +2444,7 @@ pipeline = [
 requires-dist = [
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "google-auth" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-storage" },
     { name = "httpx" },
@@ -2458,10 +2463,13 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 capture = [
+    { name = "google-auth" },
     { name = "httpx" },
     { name = "pydantic" },
 ]
 capture-test = [
+    { name = "cryptography" },
+    { name = "google-auth" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pytest" },
