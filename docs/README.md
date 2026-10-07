@@ -81,6 +81,8 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [Local evidence](evidence/phase-0-local.md)              | Actual checks and their limits                                     | A new verification checkpoint is recorded               |
 | [BASE-01 evidence](evidence/base-01-clean-checkout.md)   | Dated clean-checkout results, measurements and verification scope  | A new clean-checkout checkpoint is recorded             |
 | [SRC-01 evidence](evidence/src-01-source-feasibility.md) | Official source findings, pilot comparison and reproduction method | Source evidence changes or a new comparison is measured |
+| [SRC-02 transport evidence](evidence/src-02-transport-probe.md) | Bounded authentication, payload, freshness and exact GTFS-linkage measurements | New source samples or adapter assumptions change |
+| [Transport probe runbook](runbooks/transport-source-probe.md) | Offline inspection, bounded live probe and private evidence handling | Probe limits, credentials or reproduction steps change |
 | [ADR 0009](adr/0009-durable-event-delivery.md) | Durable transport decision and transaction/recovery model | Architect reviews durable delivery scope |
 | [EVENT-01 specification](architecture/event-01-durable-delivery.md) | Implementation sequence and crash/concurrency/replay acceptance cases | Durable recovery behavior or test scope changes |
 | [Observation storage](architecture/observation-storage.md) | Versioned event slots, migration compatibility and rollback rules | Stored observation format changes |
