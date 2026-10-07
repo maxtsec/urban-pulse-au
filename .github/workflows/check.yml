@@ -34,6 +34,8 @@ jobs:
       - run: uv sync --locked
       - run: uv run --locked ruff check . && uv run --locked ruff format --check .
       - run: uv run --locked mypy && uv run --locked pytest -q
+      - name: Strictly type-check the Linux collector host guard
+        run: uv run --locked mypy --strict --platform linux scripts/collector_host.py
       - run: uv run --locked pytest -m integration -q
       - name: Verify isolated Linux capture recovery
         run: |

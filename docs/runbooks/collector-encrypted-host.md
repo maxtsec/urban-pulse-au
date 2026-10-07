@@ -99,6 +99,14 @@ The launcher verifies exact ext4 mount/UUID, filesystem root, LUKS2 device-mappe
 
 The service runs the Docker supervisor as root; capture inside Docker runs as 10001. `BindsTo` plus `After` ties service lifetime to the mount and Docker ([systemd semantics](https://github.com/systemd/systemd/blob/main/man/systemd.unit.xml)). Starting while locked may attempt the mount and fail; it cannot unlock the volume. `ExecStop` stops the named container before unmount, including during shutdown. No restart policy, timer or enable-at-boot target is supplied. Unexpected stale containers are an error: inspect their ownership before cleanup; no blind force removal occurs.
 
+## Continuous-service handoff
+
+The finite rehearsal deliberately stays stopped after Docker stops or restarts, including a Docker/containerd package update that restarts the daemon. The operator must restart an interrupted rehearsal after checking its outcome. This is not acceptable behavior for the later continuous service.
+
+Before unattended activation, that slice must test Docker stop/start and restart (including the package-update path): once Docker returns and the volume remains correctly unlocked/mounted, capture automatically resumes with the same store and without duplicate writers. A locked, missing or mismatching mount still refuses capture; deliberate maintenance stop must stay stopped. A process `Restart=` setting alone is not proof of recovery from a dependency-driven stop: explicitly wire and test daemon-recovery activation.
+
+External heartbeat-loss monitoring must detect this interruption even when no local process can send a failure report. Test alert delivery for a prolonged daemon outage, recovery after restart, and continued refusal/alerting while locked. Record capture gaps. The next continuous-service/heartbeat PR owns this restart strategy and its integration tests; these are activation gates, not behavior implemented by the rehearsal unit.
+
 ## Locked-volume and reboot acceptance
 
 Use fixture data only. Keep exact commands/results privately; public evidence describes behavior without host inventory.
@@ -115,6 +123,6 @@ The automated tests exercise guard decisions with synthetic kernel responses. Th
 
 ## Development validation
 
-On 2026-10-08, all 21 guard tests passed on Windows and in the isolated Linux capture test image. Run `uv run pytest -q tests/test_collector_host.py` from the checkout. Cases include wrong/plain/temporary/shadow mounts, wrong crypto identity, swap, mutable image tags and a failed mount lookup proving Docker is never invoked. The Linux run used a read-only checkout, no network and disposable temporary storage.
+On 2026-10-08, all 31 guard tests passed on Windows and in the isolated Linux capture test image. Run `uv run pytest -q tests/test_collector_host.py` from the checkout. Cases include wrong/plain/temporary/shadow mounts, wrong crypto identity, swap, mutable image tags malformed mount JSON, and a failed mount lookup proving Docker is never invoked. The Linux run used a read-only checkout, no network and disposable temporary storage.
 
-Both units passed `systemd-analyze verify --man=no` in a disposable container with the files at their documented install paths/modes. Docker was a stub for this syntax check; it did not exercise service lifetime or mounting. Ruff lint/format and mypy passed. Real encrypted-volume, reboot and mount-loss acceptance remains the operator drill above; no host settings or secrets were changed during development.
+Both units passed `systemd-analyze verify --man=no` in a disposable container with the files at their documented install paths/modes. Docker was a stub for this syntax check; it did not exercise service lifetime or mounting. Ruff lint/format and the existing application mypy scope passed. The guard is now separately checked in CI with `uv run --locked mypy --strict --platform linux scripts/collector_host.py`; the original 81-file application check did not include it. Real encrypted-volume, reboot and mount-loss acceptance remains the operator drill above; no host settings or secrets were changed during development.

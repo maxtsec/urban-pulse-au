@@ -23,7 +23,7 @@ def output(*args: str) -> str:
     return subprocess.check_output(args, text=True, encoding="utf-8", timeout=10)
 
 
-def validate_mount(row: dict, fs_uuid: str, luks_uuid: str, dm_uuid: str) -> None:
+def validate_mount(row: dict[str, str], fs_uuid: str, luks_uuid: str, dm_uuid: str) -> None:
     options = set(row.get("options", "").split(","))
     if (
         row.get("target") != MOUNT.as_posix()
@@ -36,8 +36,8 @@ def validate_mount(row: dict, fs_uuid: str, luks_uuid: str, dm_uuid: str) -> Non
         raise HostRefused("encrypted_mount_mismatch")
 
 
-def mounted(*args: str) -> dict:
-    rows = json.loads(
+def mounted(*args: str) -> dict[str, str]:
+    document: object = json.loads(
         output(
             "/usr/bin/findmnt",
             "--json",
@@ -45,19 +45,29 @@ def mounted(*args: str) -> dict:
             "--output",
             "TARGET,SOURCE,FSTYPE,FSROOT,OPTIONS,UUID,MAJ:MIN",
         )
-    )["filesystems"]
-    if len(rows) != 1:
+    )
+    if not isinstance(document, dict):
+        raise HostRefused("invalid_mount_response")
+    rows: object = document.get("filesystems")
+    if not isinstance(rows, list) or len(rows) != 1:
         raise HostRefused("ambiguous_mount")
-    return rows[0]
+    return string_record(rows[0], "invalid_mount_record")
 
 
-def check(config: dict) -> None:
-    fields = {"filesystem_uuid", "luks_uuid", "image_id"}
-    if (
-        not isinstance(config, dict)
-        or set(config) != fields
-        or any(not isinstance(value, str) for value in config.values())
-    ):
+def string_record(value: object, reason: str) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise HostRefused(reason)
+    result: dict[str, str] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not isinstance(item, str):
+            raise HostRefused(reason)
+        result[key] = item
+    return result
+
+
+def check(value: object) -> dict[str, str]:
+    config = string_record(value, "invalid_config")
+    if set(config) != {"filesystem_uuid", "luks_uuid", "image_id"}:
         raise HostRefused("invalid_config")
     fs_uuid = str(UUID(config["filesystem_uuid"]))
     luks_uuid = str(UUID(config["luks_uuid"]))
@@ -89,6 +99,7 @@ def check(config: dict) -> None:
         raise HostRefused("store_permissions")
     if len(Path("/proc/swaps").read_text(encoding="utf-8").splitlines()) != 1:
         raise HostRefused("swap_must_be_disabled")
+    return config
 
 
 def docker_command(command: str, image: str) -> list[str]:
@@ -153,8 +164,7 @@ def main() -> int:
             or metadata.st_size > 4096
         ):
             raise HostRefused("private_root_config_required")
-        config = json.loads(CONFIG.read_text(encoding="utf-8"))
-        check(config)
+        config = check(json.loads(CONFIG.read_text(encoding="utf-8")))
         if args.command == "check":
             print("collector_host_ready")
         else:
