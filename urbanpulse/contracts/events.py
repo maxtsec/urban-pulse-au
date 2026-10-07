@@ -16,7 +16,9 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    SerializerFunctionWrapHandler,
     StringConstraints,
+    model_serializer,
     model_validator,
 )
 
@@ -141,11 +143,35 @@ class Position(WireModel):
     latitude: float = Field(strict=True, ge=-90, le=90)
 
 
+class TripDescriptor(WireModel):
+    """Producer trip identity; geometry linkage belongs to a pinned schedule view."""
+
+    trip_id: Identifier | None = None
+    service_date: str | None = Field(default=None, pattern=r"^[0-9]{8}$")
+    start_time: str | None = Field(default=None, pattern=r"^[0-9]{2,}:[0-5][0-9]:[0-5][0-9]$")
+    direction_id: int | None = Field(default=None, strict=True, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def calendar_date(self) -> Self:
+        if self.service_date is not None:
+            datetime.strptime(self.service_date, "%Y%m%d")
+        return self
+
+
 class VehiclePosition(WireModel):
     vehicle_id: Identifier
     route_id: Identifier | None
     position: Position
     observed_at: Timestamp | None
+    trip: TripDescriptor | None = None
+
+    @model_serializer(mode="wrap")
+    def preserve_absent_trip(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        # A default null must not change retained v1 wires or receipt fingerprints.
+        if "trip" not in self.model_fields_set and self.trip is None:
+            result.pop("trip", None)
+        return result
 
 
 class EventData[Payload: WireModel](WireModel):

@@ -6,7 +6,7 @@ Scope: observed/interpolated MAP-02 trams only. **MAP-05 simulated road traffic 
 
 ## Decisions and implementation prerequisites
 
-The current `VehiclePosition` has only `vehicle_id`, `route_id`, `position` and `observed_at`. Neither the event contract nor retained fixture supplies trip identity or a verified shape link. The current frontend advances 15 scenario seconds after each two-second wait and fetches a snapshot; that produces discrete steps.
+The [transport/GTFS foundation](../evidence/map-02-trip-foundation.md) adds nullable trip metadata without changing absent-field receipts, plus an independent trip-complete synthetic fixture and pinned clipped geometry. Real observation matching and its tolerance remain unverified. The current frontend advances 15 scenario seconds after each two-second wait and fetches a snapshot; that produces discrete steps.
 
 | Decision | Accepted rule | Consequence |
 | --- | --- | --- |
