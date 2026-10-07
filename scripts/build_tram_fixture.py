@@ -88,7 +88,8 @@ def select_full_shapes(connection, shapes, boundary):
         (json.dumps(boundary), json.dumps(shapes)),
     ).fetchall()
     features = []
-    for identity, geometry, distances in rows:
+    # Source IDs have a portable byte order, independent of database collation.
+    for identity, geometry, distances in sorted(rows, key=lambda row: row[0]):
         if len(distances) != len(geometry["coordinates"]) or not all(
             math.isfinite(d) and d >= 0 for d in distances
         ):
