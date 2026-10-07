@@ -4,6 +4,8 @@ Date: 2026-10-07
 
 Status: **Persistence mechanism accepted by the project architect on 2026-10-07, with the conditions below.** The architect additionally accepted B (known-object metadata confirmation), replacing A, and the manual-unlock host policy on 2026-10-07. Raw retention is separately proposed at 14 days, following the latest review. This decision enables no resources or live sources.
 
+[ADR 0019](0019-capture-infrastructure-and-monitoring.md) records the 2026-10-08 accepted addition: the same collector identity may write Monitoring time series through a project-scoped custom role containing only `monitoring.timeSeries.create`. Storage permissions remain confined to the landing bucket.
+
 ## Scope and source policy
 
 Fetch complete tram feeds at the accepted 60/120/60-second cadence. Preserve normalized Southbank and Melbourne CBD history at the collected grain for 12 months, without sampling or a health score. Keep source/capture times, completeness, failures and coverage. DTP/CC BY 4.0 attribution is accepted under the [collection policy](../architecture/tram-collection-policy.md). Supporting static schedule/boundary material remains available while referenced.
@@ -41,7 +43,7 @@ Metadata has no automatic deletion in this slice. The review estimate is about *
 
 ## Accepted cloud confirmation: B
 
-**Accepted by the project architect on 2026-10-07: B replaces the previously accepted A.** Keep `roles/storage.objectCreator` on the dedicated landing bucket and add a custom role containing **only `storage.objects.get`**, bound to that bucket. No objectViewer, list, delete, overwrite or project-wide data access. This amends ADR 0015's write-only boundary. No separate confirmation bucket or cloud reconciliation service is required.
+**Accepted by the project architect on 2026-10-07: B replaces the previously accepted A.** Keep `roles/storage.objectCreator` on the dedicated landing bucket and add a custom role containing **only `storage.objects.get`**, bound to that bucket. No objectViewer, list, delete, overwrite or project-wide Storage data access. This amends ADR 0015's write-only boundary. No separate confirmation bucket or cloud reconciliation service is required.
 
 | | A: Separate confirmations (superseded) | B: Known-object metadata (accepted) |
 | --- | --- | --- |

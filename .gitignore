@@ -35,3 +35,6 @@ apps/web/playwright-report/
 
 # Explicitly enabled serving remote backend; bucket supplied privately.
 infra/demo-serving/backend.tf
+
+# CLOUD-01 backend configuration is supplied privately.
+infra/capture/backend.tf

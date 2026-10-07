@@ -6,6 +6,8 @@ Status: **Accepted by the project architect on 2026-10-07** for the hosting, ret
 
 Resolves the capture-host part of A-06. Amends [ADR 0010](0010-hosted-fixture-demo.md)'s keyless-identity direction for one named upload identity only. Source-use approval, SRC-02 live-access proof and the [capture contract](../architecture/capture-event-contract.md) remain separate gates.
 
+[ADR 0019](0019-capture-infrastructure-and-monitoring.md) records the 2026-10-08 accepted addition: the same collector identity may write Monitoring time series through a project-scoped custom role containing only `monitoring.timeSeries.create`. Storage permissions remain confined to the landing bucket.
+
 ## Context
 
 Provider feeds cannot be requested per area: GTFS-Realtime returns the whole tram network and the warning feed covers the state. Raw captures are therefore the largest data layer, while UrbanPulse needs selected-area history. The [hosting comparison](../architecture/early-capture-options.md) listed local, free-tier, regional VM, worker-pool and shared-host options. Continuous cloud compute and raw object storage add recurring cost before any source has been measured.
@@ -18,7 +20,7 @@ Provider feeds cannot be requested per area: GTFS-Realtime returns the whole tra
 
 **Tram cadence (accepted 2026-10-07).** Collect positions / trip updates / alerts every **60 / 120 / 60 seconds**, preferring retained history over minimum live latency. The [collection policy](../architecture/tram-collection-policy.md) records storage estimates, shared request/retry limits and remaining activation gates. This does not change fixture freshness or the animation display-delay version.
 
-**Upload identity.** Use one dedicated service account with `roles/storage.objectCreator` plus a custom role containing only `storage.objects.get`, both bound to the dedicated landing bucket. The 2026-10-07 B amendment in ADR 0018 replaces the original write-only grant and supersedes separate-bucket confirmations. Get allows content and metadata for known names; the implementation uses metadata only. The identity cannot list, overwrite or delete objects and has no project-wide data role. Its JSON key is the single accepted exception to keyless identities. Runtime, Job, deployer and builder identities remain keyless.
+**Upload identity.** Use one dedicated service account with `roles/storage.objectCreator` plus a custom role containing only `storage.objects.get`, both bound to the dedicated landing bucket. The 2026-10-07 B amendment in ADR 0018 replaces the original write-only grant and supersedes separate-bucket confirmations. Get allows content and metadata for known names; the implementation uses metadata only. The identity cannot list, overwrite or delete objects and has no project-wide Storage data role. Its JSON key is the single accepted exception to keyless identities. Runtime, Job, deployer and builder identities remain keyless.
 
 ## Key handling
 
