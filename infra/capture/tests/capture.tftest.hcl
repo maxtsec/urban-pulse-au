@@ -96,8 +96,7 @@ run "disabled_until_enrolled" {
 run "enrolled_alert_filters_and_unknown_states" {
   command = plan
   variables {
-    alerts_enabled        = true
-    monitoring_enrolled   = true
+    alert_groups          = { for group in ["heartbeat", "capture", "capacity", "upload"] : group => { enabled = true, enrolled = true } }
     notification_channels = ["projects/fixture-project/notificationChannels/12345"]
   }
   assert {
@@ -110,7 +109,7 @@ run "enrolled_alert_filters_and_unknown_states" {
         alltrue([for condition in policy.conditions :
           strcontains(condition.condition_threshold[0].filter, "resource.type = \"generic_task\"") &&
           strcontains(condition.condition_threshold[0].filter, "resource.labels.task_id = \"fixture-primary\"") &&
-          condition.condition_threshold[0].evaluation_missing_data == "EVALUATION_MISSING_DATA_ACTIVE"
+          condition.condition_threshold[0].evaluation_missing_data == "EVALUATION_MISSING_DATA_INACTIVE"
         ])
       ]) &&
       length(google_monitoring_alert_policy.health["upload"].conditions) == 3 &&
@@ -135,7 +134,7 @@ run "enrolled_alert_filters_and_unknown_states" {
 run "reject_enable_without_enrollment" {
   command = plan
   variables {
-    alerts_enabled        = true
+    alert_groups          = { for group in ["heartbeat", "capture", "capacity", "upload"] : group => { enabled = true } }
     notification_channels = ["projects/fixture-project/notificationChannels/12345"]
   }
   expect_failures = [google_monitoring_alert_policy.heartbeat, google_monitoring_alert_policy.health]
@@ -143,8 +142,7 @@ run "reject_enable_without_enrollment" {
 run "reject_enable_without_channel" {
   command = plan
   variables {
-    alerts_enabled      = true
-    monitoring_enrolled = true
+    alert_groups = { for group in ["heartbeat", "capture", "capacity", "upload"] : group => { enabled = true, enrolled = true } }
   }
   expect_failures = [google_monitoring_alert_policy.heartbeat, google_monitoring_alert_policy.health]
 }
@@ -179,4 +177,81 @@ run "reject_missing_feed_and_fractional_absence" {
     }
   }
   expect_failures = [var.alert_limits]
+}
+
+
+run "raw_only_without_upload_enrollment" {
+  command = plan
+  variables {
+    alert_groups = {
+      heartbeat = { enabled = true, enrolled = true }
+      capture   = { enabled = true, enrolled = true }
+      capacity  = { enabled = true, enrolled = true }
+    }
+    notification_channels = ["projects/fixture-project/notificationChannels/12345"]
+  }
+  assert {
+    condition = (
+      google_monitoring_alert_policy.heartbeat.enabled &&
+      alltrue([for key, policy in google_monitoring_alert_policy.health : key == "upload" ? !policy.enabled : policy.enabled]) &&
+      !var.alert_groups.upload.enrolled
+    )
+    error_message = "Raw capture must have heartbeat/feed/capacity alerts without an uploader or upload enrollment."
+  }
+}
+
+run "heartbeat_only_enrollment" {
+  command = plan
+  variables {
+    alert_groups          = { heartbeat = { enabled = true, enrolled = true } }
+    notification_channels = ["projects/fixture-project/notificationChannels/12345"]
+  }
+  assert {
+    condition = google_monitoring_alert_policy.heartbeat.enabled && alltrue([
+      for policy in google_monitoring_alert_policy.health : !policy.enabled
+    ])
+    error_message = "Heartbeat enrollment must not enable health groups."
+  }
+}
+
+run "reject_upload_using_raw_enrollment" {
+  command = plan
+  variables {
+    alert_groups = {
+      heartbeat = { enabled = true, enrolled = true }
+      capture   = { enabled = true, enrolled = true }
+      capacity  = { enabled = true, enrolled = true }
+      upload    = { enabled = true }
+    }
+    notification_channels = ["projects/fixture-project/notificationChannels/12345"]
+  }
+  expect_failures = [google_monitoring_alert_policy.health["upload"]]
+}
+
+run "reject_capture_using_other_enrollment" {
+  command = plan
+  variables {
+    alert_groups = {
+      heartbeat = { enabled = true, enrolled = true }
+      capture   = { enabled = true }
+      capacity  = { enrolled = true }
+      upload    = { enrolled = true }
+    }
+    notification_channels = ["projects/fixture-project/notificationChannels/12345"]
+  }
+  expect_failures = [google_monitoring_alert_policy.health]
+}
+
+run "reject_capacity_using_other_enrollment" {
+  command = plan
+  variables {
+    alert_groups = {
+      heartbeat = { enabled = true, enrolled = true }
+      capture   = { enrolled = true }
+      capacity  = { enabled = true }
+      upload    = { enrolled = true }
+    }
+    notification_channels = ["projects/fixture-project/notificationChannels/12345"]
+  }
+  expect_failures = [google_monitoring_alert_policy.health]
 }

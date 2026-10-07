@@ -20,13 +20,13 @@ locals {
   ])
   rules = merge({
     for feed, age in var.alert_limits.capture_age_seconds : "capture-${feed}" => {
-      metric     = "capture_age_seconds", known = "capture_success_known", threshold = age,
+      group      = "capture", metric = "capture_age_seconds", known = "capture_success_known", threshold = age,
       comparison = "COMPARISON_GT", feed_filter = " AND metric.labels.feed = \"${feed}\""
     }
     }, {
-    upload = { metric = "upload_age_seconds", known = "upload_success_known", threshold = var.alert_limits.upload_age_seconds, comparison = "COMPARISON_GT", feed_filter = "" }
-    bytes  = { metric = "free_bytes", known = null, threshold = var.alert_limits.free_bytes, comparison = "COMPARISON_LT", feed_filter = "" }
-    inodes = { metric = "free_inodes", known = null, threshold = var.alert_limits.free_inodes, comparison = "COMPARISON_LT", feed_filter = "" }
+    upload = { group = "upload", metric = "upload_age_seconds", known = "upload_success_known", threshold = var.alert_limits.upload_age_seconds, comparison = "COMPARISON_GT", feed_filter = "" }
+    bytes  = { group = "capacity", metric = "free_bytes", known = null, threshold = var.alert_limits.free_bytes, comparison = "COMPARISON_LT", feed_filter = "" }
+    inodes = { group = "capacity", metric = "free_inodes", known = null, threshold = var.alert_limits.free_inodes, comparison = "COMPARISON_LT", feed_filter = "" }
   })
 }
 
@@ -52,7 +52,7 @@ resource "google_monitoring_metric_descriptor" "collector" {
 
 resource "google_monitoring_alert_policy" "heartbeat" {
   display_name          = "Collector heartbeat missing"
-  enabled               = var.alerts_enabled
+  enabled               = var.alert_groups.heartbeat.enabled
   combiner              = "OR"
   notification_channels = var.notification_channels
   conditions {
@@ -69,8 +69,8 @@ resource "google_monitoring_alert_policy" "heartbeat" {
   }
   lifecycle {
     precondition {
-      condition     = !var.alerts_enabled || (var.monitoring_enrolled && length(var.notification_channels) > 0)
-      error_message = "Enroll and verify expected metric streams/channels before enabling alerts."
+      condition     = !var.alert_groups.heartbeat.enabled || (var.alert_groups.heartbeat.enrolled && length(var.notification_channels) > 0)
+      error_message = "Enroll this group and verify its expected streams/channels before enabling it."
     }
   }
 }
@@ -78,7 +78,7 @@ resource "google_monitoring_alert_policy" "heartbeat" {
 resource "google_monitoring_alert_policy" "health" {
   for_each              = local.rules
   display_name          = "Collector ${each.key}"
-  enabled               = var.alerts_enabled
+  enabled               = var.alert_groups[each.value.group].enabled
   combiner              = "OR"
   notification_channels = var.notification_channels
   conditions {
@@ -88,7 +88,7 @@ resource "google_monitoring_alert_policy" "health" {
       comparison              = each.value.comparison
       threshold_value         = each.value.threshold
       duration                = "${var.alert_limits.sustained_seconds}s"
-      evaluation_missing_data = "EVALUATION_MISSING_DATA_ACTIVE"
+      evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
       aggregations {
         alignment_period   = "60s"
         per_series_aligner = each.value.comparison == "COMPARISON_LT" ? "ALIGN_MIN" : "ALIGN_MAX"
@@ -105,7 +105,7 @@ resource "google_monitoring_alert_policy" "health" {
         comparison              = "COMPARISON_LT"
         threshold_value         = 1
         duration                = "${var.alert_limits.sustained_seconds}s"
-        evaluation_missing_data = "EVALUATION_MISSING_DATA_ACTIVE"
+        evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
         aggregations {
           alignment_period   = "60s"
           per_series_aligner = "ALIGN_MIN"
@@ -123,7 +123,7 @@ resource "google_monitoring_alert_policy" "health" {
         comparison              = "COMPARISON_GT"
         threshold_value         = var.alert_limits.upload_age_seconds
         duration                = "${var.alert_limits.sustained_seconds}s"
-        evaluation_missing_data = "EVALUATION_MISSING_DATA_ACTIVE"
+        evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
         aggregations {
           alignment_period   = "60s"
           per_series_aligner = "ALIGN_MAX"
@@ -138,8 +138,8 @@ resource "google_monitoring_alert_policy" "health" {
   }
   lifecycle {
     precondition {
-      condition     = !var.alerts_enabled || (var.monitoring_enrolled && length(var.notification_channels) > 0)
-      error_message = "Enroll and verify expected metric streams/channels before enabling alerts."
+      condition     = !var.alert_groups[each.value.group].enabled || (var.alert_groups[each.value.group].enrolled && length(var.notification_channels) > 0)
+      error_message = "Enroll this group and verify its expected streams/channels before enabling it."
     }
   }
 }

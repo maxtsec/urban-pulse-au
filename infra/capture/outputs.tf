@@ -19,6 +19,6 @@ output "monitored_resource" {
     }
   }
 }
-output "alerts_enabled" {
-  value = var.alerts_enabled
+output "alert_groups" {
+  value = var.alert_groups
 }
