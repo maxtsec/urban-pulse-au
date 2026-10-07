@@ -52,6 +52,13 @@ def mounted(*args: str) -> dict:
 
 
 def check(config: dict) -> None:
+    fields = {"filesystem_uuid", "luks_uuid", "image_id"}
+    if (
+        not isinstance(config, dict)
+        or set(config) != fields
+        or any(not isinstance(value, str) for value in config.values())
+    ):
+        raise HostRefused("invalid_config")
     fs_uuid = str(UUID(config["filesystem_uuid"]))
     luks_uuid = str(UUID(config["luks_uuid"]))
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", config["image_id"]):

@@ -143,3 +143,11 @@ def test_launcher_is_bounded_offline_and_has_no_key_or_init_side_effect():
     assert args[-4:] == ["--max-attempts", "6", "--max-seconds", "120"]
     assert "--live" not in args and "--key-file" not in args and "init" not in args
     assert "--pull=never" in args and IMAGE in args
+
+
+@pytest.mark.parametrize(
+    "config", [None, [], dict(filesystem_uuid=12, luks_uuid=LUKS, image_id=IMAGE)]
+)
+def test_malformed_config_is_refused_before_system_inspection(config):
+    with pytest.raises(host.HostRefused, match="invalid_config"):
+        host.check(config)
