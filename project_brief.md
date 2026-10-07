@@ -141,7 +141,7 @@ Adapters isolate provider-specific authentication and payload formats from inter
 
 ### Early raw capture
 
-On the parallel capture track, target phase 1 for provisioning a minimal capture environment after source use/retention is agreed. [ADR 0015](docs/adr/0015-local-capture-collector.md) selects an operator-hosted collector with collector-local raw storage, a write-only landing bucket and a scoped upload identity, plus retention rules, a request budget, heartbeat monitoring and restart handling. Target phase 2 for adding weather/planning captures as each source is cleared.
+On the parallel capture track, target phase 1 for provisioning a minimal capture environment after source use/retention is agreed. [ADR 0015](docs/adr/0015-local-capture-collector.md) selects an operator-hosted collector with collector-local raw storage, a private landing bucket and a scoped create/get upload identity under the [ADR 0018 amendment](docs/adr/0018-capture-delivery-and-expiry.md), plus retention rules, a request budget, heartbeat monitoring and restart handling. Target phase 2 for adding weather/planning captures as each source is cleared.
 
 This collector writes source bytes and manifests to local storage without waiting for a hosted API, area model, broker or BigQuery pipeline. Raw bytes are not retained in the cloud; loss of the collector disk loses raw history inside the window, while uploaded records survive. Record source time, capture time, checksum, schema/product version, first retained date and gaps. Verify a bounded real capture and retrieval, then monitor ongoing collection. Manage these resources as code so full deployment can adopt them later.
 
@@ -156,7 +156,7 @@ Each successful capture follows this sequence:
 1. Store the original payload on collector-local storage with a content hash and capture identifier; fixture mode uses the same filesystem adapter.
 2. Record a manifest containing provider, feed, capture time, available source timestamps, storage location, format and applicable schema version.
 3. Validate and normalise the payload against the domain contract and, for transport, the relevant static timetable version, then select the configured areas.
-4. Upload the normalised records and manifest to the landing bucket with create-only names. A lost acknowledgement or HTTP 412 is unconfirmed until a cloud-side verifier or operator reconciliation matches the stored hash; keep the pending record until then.
+4. Upload the normalised records and manifest to the landing bucket with create-only names. A lost acknowledgement or HTTP 412 is unconfirmed until the collector matches the known object’s generation-pinned GCS CRC32C/MD5 and size against its pending record using metadata only; keep the pending record until then. Use single-request non-composite uploads, without list/delete permissions or content downloads.
 5. Persist accepted domain records, update owned projections and record processing completion within the relevant database transaction. When integration events are introduced, persist recoverable event publication intent consistently with that change.
 6. Make the updated projection available to the API; invalidate or expire related cache entries according to the cache policy.
 
