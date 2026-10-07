@@ -13,6 +13,16 @@ from urbanpulse.contracts.events import (
 
 POSITION_STALE_SECONDS = 120
 POSITION_EXPIRED_SECONDS = 300
+POSITION_FRESHNESS_VERSION = "southbank-position-freshness-v1"
+
+
+def position_freshness_policy() -> dict[str, str | int]:
+    """Versioned fixture thresholds shared with HTTP clients and checkpoints."""
+    return {
+        "version": POSITION_FRESHNESS_VERSION,
+        "stale_after_seconds": POSITION_STALE_SECONDS,
+        "expired_after_seconds": POSITION_EXPIRED_SECONDS,
+    }
 
 
 class Freshness(StrEnum):
@@ -25,10 +35,11 @@ class Freshness(StrEnum):
 def position_freshness(observed_at: datetime | None, at: datetime) -> Freshness:
     if observed_at is None or observed_at > at:
         return Freshness.UNKNOWN
-    age = (at - observed_at).total_seconds()
-    if age >= POSITION_EXPIRED_SECONDS:
+    elapsed = at - observed_at
+    age_us = (elapsed.days * 86400 + elapsed.seconds) * 1_000_000 + elapsed.microseconds
+    if age_us >= POSITION_EXPIRED_SECONDS * 1_000_000:
         return Freshness.EXPIRED
-    if age >= POSITION_STALE_SECONDS:
+    if age_us >= POSITION_STALE_SECONDS * 1_000_000:
         return Freshness.STALE
     return Freshness.CURRENT
 

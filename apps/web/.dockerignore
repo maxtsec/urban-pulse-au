@@ -32,6 +32,7 @@
 !src/labels.ts
 !src/animation/tram-path.ts
 !src/animation/exact-time.ts
+!src/animation/position-freshness.ts
 !src/moments.ts
 !src/useReducedMotion.ts
 
