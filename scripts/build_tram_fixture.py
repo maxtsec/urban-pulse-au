@@ -221,7 +221,8 @@ def synthetic_fixture(geometry, trips, starts, pilot_vertices):
     }
 
 
-def build(path, connection):
+def read_tram_archive(path):
+    """Read the pinned tram member after validating both archive hashes."""
     if path.stat().st_size > 300 * 1024 * 1024:
         raise ValueError("Archive too large")
     with path.open("rb") as source:
@@ -235,6 +236,11 @@ def build(path, connection):
         raw = outer.read("3/google_transit.zip")
     if hashlib.sha256(raw).hexdigest() != TRAM_SHA256:
         raise ValueError("Tram archive hash differs")
+    return raw
+
+
+def build(path, connection):
+    raw = read_tram_archive(path)
     boundary_bytes = BOUNDARY.read_bytes().replace(b"\r\n", b"\n")
     boundary = json.loads(boundary_bytes)["geometry"]
     with ZipFile(io.BytesIO(raw)) as archive:
