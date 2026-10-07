@@ -125,6 +125,25 @@ def test_area_api_boundary_and_evidence_contract(client):
     assert client.get("/api/v1/fixture/captures/unknown").status_code == 404
 
 
+def test_actual_snapshot_http_encoding_preserves_fractional_observations(monkeypatch, captured):
+    # Keep real replay and route serialization; only spatial membership is isolated.
+    event = captured.scenario["frames"][0]["event"]
+    event["data"]["state"]["observed_at"] = "2026-10-04T00:00:00.750400Z"
+    event["data"]["effective_from"] = event["data"]["state"]["observed_at"]
+    event["data"]["provenance"]["source_observed_at"] = event["data"]["state"]["observed_at"]
+    service = CityService(MemoryCapture(captured), FixedMembership())
+    monkeypatch.setattr("apps.api.city.city_service", lambda request: service)
+    before = service.snapshot(0)
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/areas/{AREA_ID}")
+    assert response.status_code == 200
+    snapshot = response.json()
+    vehicle = next(v for v in snapshot["vehicles"] if v["id"] == event["subject"])
+    assert vehicle["observed_at"] == "2026-10-04T00:00:00.750400Z"
+    assert snapshot["clock"]["at"].endswith("Z")
+    assert service.snapshot(0) == before
+
+
 @pytest.mark.parametrize("query", ["seconds=-1", "seconds=361", "seconds=1.5", "scenario=live"])
 def test_invalid_clock_and_scenario_are_rejected(client, query):
     assert client.get(f"/api/v1/areas/{AREA_ID}?{query}").status_code == 422

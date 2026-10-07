@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy.exc import SQLAlchemyError
 
 from apps.api.database import ApiDatabase
+from apps.api.view_encoding import encode_view
 from urbanpulse.adapters.city_store import CityInputStore
 from urbanpulse.adapters.postgis import PostgisMembership
 from urbanpulse.application.city import AREA_ID, MAX_SECONDS, CaptureNotFoundError, CityService
@@ -46,7 +47,7 @@ def area_snapshot(
 ) -> dict[str, Any]:
     require_area(area_id)
     try:
-        return city_service(request).snapshot(seconds, scenario)
+        return encode_view(city_service(request).snapshot(seconds, scenario))
     except (psycopg.Error, SQLAlchemyError, OSError, ValueError, KeyError) as error:
         raise HTTPException(
             status_code=503,
