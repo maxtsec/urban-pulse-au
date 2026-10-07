@@ -1,0 +1,5 @@
+{
+  "filesystem_uuid": "REPLACE_WITH_EXT4_UUID",
+  "luks_uuid": "REPLACE_WITH_LUKS_UUID",
+  "image_id": "REPLACE_WITH_LOCAL_SHA256_IMAGE_ID"
+}
