@@ -17,14 +17,54 @@ const path = new TramPath(
   ],
   [0, 100, 400],
 );
-const observation = (time: number, distance: number): MatchedObservation => ({
+const observation = (timeMs: number, distance: number): MatchedObservation => ({
   shapeId: 'shape',
   continuityId: 'trip/component',
-  observedAtMs: time,
+  observedAtUs: timeMs * 1000,
   distanceMetres: distance,
 });
 const from = observation(0, 0);
 const to = observation(4000, 400);
+
+test('sub-millisecond observation boundaries never become eligible early', () => {
+  const start = { ...from, observedAtUs: 52_750_400 };
+  const end = { ...to, observedAtUs: 53_750_400 };
+  assert.equal(interpolateTramBracket(path, start, end, 52_750), null);
+  const frame = interpolateTramBracket(path, start, end, 52_751)!;
+  assert.equal(frame.distanceMetres, (400 * 600) / 1_000_000);
+  assert.deepEqual(frame.observationTimesUs, [52_750_400, 53_750_400]);
+  assert.equal(frame.label, 'Interpolated');
+  assert.ok(interpolateTramBracket(path, start, end, 53_750));
+  assert.equal(interpolateTramBracket(path, start, end, 53_751), null);
+  for (let ms = 52_750; ms <= 53_751; ms++) {
+    const direct = interpolateTramBracket(path, start, end, ms);
+    interpolateTramBracket(path, start, end, 53_751);
+    assert.deepEqual(interpolateTramBracket(path, start, end, ms), direct);
+  }
+});
+
+test('epoch microseconds preserve fractions and reject unsafe millisecond conversion', () => {
+  const epochMs = Date.UTC(2026, 9, 7);
+  const start = { ...from, observedAtUs: epochMs * 1000 + 400 };
+  const end = { ...to, observedAtUs: epochMs * 1000 + 1_000_400 };
+  assert.equal(interpolateTramBracket(path, start, end, epochMs), null);
+  assert.equal(
+    interpolateTramBracket(path, start, end, epochMs + 501)?.distanceMetres,
+    (400 * 500_600) / 1_000_000,
+  );
+  const unsafeMs = Math.floor(Number.MAX_SAFE_INTEGER / 1000) + 1;
+  assert.equal(interpolateTramBracket(path, start, end, unsafeMs), null);
+  const shortStart = { ...from, observedAtUs: 52_750_100 };
+  const shortEnd = { ...to, observedAtUs: 52_750_900 };
+  assert.equal(
+    interpolateTramBracket(path, shortStart, shortEnd, 52_750),
+    null,
+  );
+  assert.equal(
+    interpolateTramBracket(path, shortStart, shortEnd, 52_751),
+    null,
+  );
+});
 
 test('quarter/half/three-quarter time follows distance around the bend', () => {
   for (const [time, coordinate] of [
@@ -44,7 +84,7 @@ test('exact endpoints keep the Interpolated label and supporting times', () => {
     coordinate: [0, 0],
     distanceMetres: 0,
     displayAtMs: 0,
-    observationTimesMs: [0, 4000],
+    observationTimesUs: [0, 4_000_000],
     label: 'Interpolated',
   });
   assert.deepEqual(
@@ -119,7 +159,7 @@ test('invalid clocks, reversed distances and out-of-path matches cannot produce 
   for (const time of [NaN, Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
     assert.equal(interpolateTramBracket(path, from, to, time), null);
     assert.equal(
-      interpolateTramBracket(path, { ...from, observedAtMs: time }, to, 2000),
+      interpolateTramBracket(path, { ...from, observedAtUs: time }, to, 2000),
       null,
     );
   }
@@ -128,7 +168,7 @@ test('invalid clocks, reversed distances and out-of-path matches cannot produce 
     null,
   );
   assert.equal(
-    interpolateTramBracket(path, from, { ...to, observedAtMs: 0 }, 0),
+    interpolateTramBracket(path, from, { ...to, observedAtUs: 0 }, 0),
     null,
   );
   assert.equal(
