@@ -75,7 +75,7 @@ def test_live_restore_attaches_existing_owned_process_without_second_writer(boun
     ]
 
 
-def test_permanent_source_rejection_stays_stopped(boundary):
+def test_operator_required_exit_stays_stopped(boundary):
     _, launch = boundary
     launch.return_value = SimpleNamespace(poll=lambda: 78, wait=lambda: 78)
     assert service.supervise(Stop(), live=False) == 78

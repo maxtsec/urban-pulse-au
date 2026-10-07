@@ -85,6 +85,19 @@ def main() -> int:
                 return 0 if summary["collection_allowed"] else 2
             if not summary["collection_allowed"]:
                 raise CaptureError("verification_required")
+            observation = RuntimeObservation(
+                args.store,
+                mode,
+                lambda: journal.control.summary,
+                reserve_bytes=args.reserve_bytes,
+                reserve_inodes=args.reserve_inodes,
+            )
+            try:
+                observation.guard()
+            except CaptureError as error:
+                if args.command == "serve":
+                    observation.pulse(str(error), force=True)
+                raise
             with httpx.Client(trust_env=False) as client:
                 source: Source = SyntheticCapture()
                 if args.live:
@@ -94,13 +107,6 @@ def main() -> int:
                     if not key or len(key) > 1024 or any(ord(c) < 33 or ord(c) > 126 for c in key):
                         raise CaptureError("key_file_invalid")
                     source = TransportCapture(client, SecretStr(key))
-                observation = RuntimeObservation(
-                    args.store,
-                    mode,
-                    lambda: journal.control.summary,
-                    reserve_bytes=args.reserve_bytes,
-                    reserve_inodes=args.reserve_inodes,
-                )
                 session = journal.start_session(mode, summary)
                 attempts: int | None = None
                 reason = "execution_failed"
@@ -163,8 +169,16 @@ def main() -> int:
     except (CaptureError, OSError, ValueError, ValidationError) as error:
         # No arbitrary exception, response body, path, URL or key appears in logs.
         reason = str(error) if isinstance(error, CaptureError) else "local_capture_failed"
-        print(json.dumps({"status": "failed", "reason": reason}))
-        return 2
+        operator_required = args.command == "serve" and reason in {
+            "disk_reserve_reached",
+            "inode_reserve_reached",
+        }
+        print(
+            json.dumps(
+                {"status": "operator_required" if operator_required else "failed", "reason": reason}
+            )
+        )
+        return 78 if operator_required else 2
 
 
 if __name__ == "__main__":

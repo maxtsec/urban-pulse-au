@@ -109,7 +109,7 @@ def supervise(stop: Event, *, live: bool) -> int:
                 code = child.wait()
                 child = None
                 if code == 78:
-                    print("collector_configuration_refused", flush=True)
+                    print("collector_operator_required", flush=True)
                     return 78
             except host.HostRefused:
                 print("collector_host_refused", flush=True)
