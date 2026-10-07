@@ -14,6 +14,8 @@ import httpx
 from pydantic import SecretStr, ValidationError
 
 from urbanpulse.adapters.capture_checkpoint import CheckpointJournal as CaptureJournal
+from urbanpulse.adapters.capture_v3 import V3Journal
+from urbanpulse.adapters.capture_v3_verify import V3Verifier
 from urbanpulse.adapters.capture_verify import CaptureVerifier
 from urbanpulse.adapters.synthetic_capture import SyntheticCapture
 from urbanpulse.adapters.transport_capture import TransportCapture
@@ -29,6 +31,7 @@ def main() -> int:
         "--live", action="store_true", help="Requires separately approved source policy"
     )
     parser.add_argument("--key-file", type=Path)
+    parser.add_argument("--store-version", choices=("v2", "v3"), default="v2")
     parser.add_argument("--max-attempts", type=int, default=6)
     parser.add_argument("--max-seconds", type=float, default=120)
     parser.add_argument("--interval", type=float)
@@ -45,13 +48,15 @@ def main() -> int:
     stop = Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
+    journal_type = V3Journal if args.store_version == "v3" else CaptureJournal
+    verifier_type = V3Verifier if args.store_version == "v3" else CaptureVerifier
     try:
         if args.command == "verify":
-            with CaptureVerifier(args.store).locked() as verifier:
+            with verifier_type(args.store).locked() as verifier:
                 report = verifier.verify(stopped=stop.is_set)
                 print(json.dumps(report, sort_keys=True))
                 return 0 if report["status"] == "verified" else 1
-        with CaptureJournal(args.store).locked(initialize=args.command == "init") as journal:
+        with journal_type(args.store).locked(initialize=args.command == "init") as journal:
             summary = journal.recover()
             if args.command != "run":
                 print(

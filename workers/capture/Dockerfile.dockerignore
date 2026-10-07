@@ -19,3 +19,7 @@
 !tests/test_capture_checkpoint.py
 !tests/helpers/checkpoint_process.py
 !tests/helpers/benchmark_capture.py
+
+!tests/test_capture_v3.py
+!tests/helpers/delivery_process.py
+!tests/helpers/v3_records.py

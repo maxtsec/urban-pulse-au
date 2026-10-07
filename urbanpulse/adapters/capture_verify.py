@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from urbanpulse.adapters.capture_checkpoint import CheckpointJournal, inspect_capture, replace_json
+from urbanpulse.adapters.capture_checkpoint import CheckpointJournal, replace_json
 from urbanpulse.adapters.capture_journal import MARKER, read_json, sync_directory
 from urbanpulse.contracts.capture_control import Summary
 from urbanpulse.contracts.local_capture import CaptureError
@@ -84,6 +84,8 @@ class CaptureVerifier(CheckpointJournal):
                 stage="verify_result",
             )
             self.checkpoint("verify_report")
+            if report.get("recovery_required", False):
+                return report
             for name in ("verification-in-progress.json", "verification-block.json"):
                 (self.root / name).unlink(missing_ok=True)
                 sync_directory(self.root)
@@ -107,7 +109,7 @@ class CaptureVerifier(CheckpointJournal):
                     raise CaptureError("integrity_failure")
                 incomplete += 1
                 continue
-            intent, receipt, manifest = inspect_capture(self, directory)
+            intent, receipt, manifest = self._inspect_capture(directory)
             if not self.legacy:
                 sequence = intent.capture_sequence
                 if sequence is None or sequence in sequences:
