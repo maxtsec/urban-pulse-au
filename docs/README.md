@@ -129,6 +129,7 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [ADR 0014](adr/0014-managed-demo-continuous-delivery.md) | Accepted remote-state and candidate/promotion direction; accepted MAP-02 import pins, staging and compatibility gates | Deployment ownership or security boundary changes |
 | [Managed CD runbook](runbooks/managed-demo-cd.md) | Backend migration, workflow activation, private records and failure recovery | Delivery implementation or operating procedure changes |
 | [Managed CD evidence](evidence/demo-01-continuous-delivery.md) | Offline guards, runner failure tests and activation limits | Deployment validation changes |
+| [Tram collection policy](architecture/tram-collection-policy.md) | Proposed polling, raw retention and attribution choices | Architect source-policy decision or new measurement |
 | [ADR 0015](adr/0015-local-capture-collector.md) | Accepted operator-hosted collector, tiered retention and scoped upload key | Capture host, retention tiers or upload identity change |
 | [CD operational evidence](evidence/cd-01-managed-delivery.md) | Exact publication, candidate and promotion runs, retained rollback and validation limits | A managed delivery milestone is verified |
 | [MAP-01 walkthrough](demos/map-01.md) | 2D/3D controls, building scope and fallback | Map interactions change |
