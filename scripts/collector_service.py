@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import re
 import signal
 import stat
 import subprocess
+from pathlib import Path
 from threading import Event
 
 from scripts import collector_host as host
@@ -12,29 +14,67 @@ from scripts import collector_host as host
 NAME = "urbanpulse-capture-continuous"
 LABEL = "au.urbanpulse.collector=continuous"
 KEY = host.MOUNT / "keys" / "transport-victoria"
+MONITORING_KEY = host.MOUNT / "keys" / "collector-upload.json"
 
 
-def command(config: dict[str, str], live: bool) -> list[str]:
+def monitoring_arguments(project: str | None, collector: str | None) -> list[str]:
+    if project is None and collector is None:
+        return []
+    if (
+        project is None
+        or collector is None
+        or re.fullmatch(r"[a-z][a-z0-9-]{4,28}[a-z0-9]", project) is None
+        or re.fullmatch(r"[a-z][a-z0-9-]{0,62}", collector) is None
+    ):
+        raise host.HostRefused("invalid_monitoring_target")
+    return [
+        "--monitoring-project",
+        project,
+        "--monitoring-collector",
+        collector,
+        "--monitoring-key-file",
+        "/run/collector-upload.json",
+    ]
+
+
+def encrypted_key(path: Path, limit: int) -> None:
+    metadata = path.lstat()
+    if (
+        path.resolve(strict=True) != path
+        or not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != 10001
+        or metadata.st_gid != 10001
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+        or not 0 < metadata.st_size <= limit
+        or host.mounted("--target", str(path)) != host.mounted("--mountpoint", str(host.MOUNT))
+    ):
+        raise host.HostRefused("private_encrypted_key_required")
+
+
+def command(
+    config: dict[str, str], live: bool, project: str | None = None, collector: str | None = None
+) -> list[str]:
+    monitoring = monitoring_arguments(project, collector)
+    if monitoring and not live:
+        raise host.HostRefused("monitoring_requires_live")
     args = host.docker_command("serve", config["image_id"])
     args[args.index(host.NAME)] = NAME
     at = args.index(config["image_id"])
     args[at:at] = ["--label", LABEL]
     if live:
-        metadata = KEY.lstat()
-        if (
-            KEY.resolve(strict=True) != KEY
-            or not stat.S_ISREG(metadata.st_mode)
-            or metadata.st_uid != 10001
-            or metadata.st_gid != 10001
-            or stat.S_IMODE(metadata.st_mode) != 0o600
-            or metadata.st_size > 1024
-            or host.mounted("--target", str(KEY)) != host.mounted("--mountpoint", str(host.MOUNT))
-        ):
-            raise host.HostRefused("private_encrypted_key_required")
+        encrypted_key(KEY, 1024)
         args[args.index("--network") + 1] = "bridge"
         at = args.index(config["image_id"])
         args[at:at] = ["--mount", f"type=bind,src={KEY},dst=/run/dtp-key,readonly"]
         args += ["--live", "--key-file", "/run/dtp-key"]
+    if monitoring:
+        encrypted_key(MONITORING_KEY, 16384)
+        at = args.index(config["image_id"])
+        args[at:at] = [
+            "--mount",
+            f"type=bind,src={MONITORING_KEY},dst=/run/collector-upload.json,readonly",
+        ]
+        args += monitoring
     return args
 
 
@@ -48,7 +88,9 @@ def docker(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def owned_container(image: str, live: bool = False) -> bool | None:
+def owned_container(
+    image: str, live: bool = False, project: str | None = None, collector: str | None = None
+) -> bool | None:
     """None = absent; bool = running. Only inspect/remove the exact owned name."""
     result = docker("container", "ls", "-a", "--filter", f"name=^/{NAME}$", "--format", "{{.ID}}")
     if result.returncode:
@@ -76,13 +118,16 @@ def owned_container(image: str, live: bool = False) -> bool | None:
     expected = ["serve", "--store", "/data", "--store-version", "v3"]
     if live:
         expected += ["--live", "--key-file", "/run/dtp-key"]
+    expected += monitoring_arguments(project, collector)
     if config.get("Cmd") != expected:
         raise host.HostRefused("container_mode_mismatch")
     running: bool = state["Running"]
     return running
 
 
-def supervise(stop: Event, *, live: bool) -> int:
+def supervise(
+    stop: Event, *, live: bool, project: str | None = None, collector: str | None = None
+) -> int:
     """No dependency on docker.service lifetime, no persisted desired-run flag."""
     child: subprocess.Popen[bytes] | None = None
     image: str | None = None
@@ -91,8 +136,8 @@ def supervise(stop: Event, *, live: bool) -> int:
             try:
                 config = host.configuration()  # Repeat after every daemon/process loss.
                 image = config["image_id"]
-                args = command(config, live)
-                running = owned_container(image, live)
+                args = command(config, live, project, collector)
+                running = owned_container(image, live, project, collector)
                 if running is False:
                     removed = docker("rm", NAME)  # Stopped owned container only, never force.
                     if removed.returncode:
@@ -123,7 +168,7 @@ def supervise(stop: Event, *, live: bool) -> int:
     finally:
         if image is not None:
             try:
-                if owned_container(image, live):
+                if owned_container(image, live, project, collector):
                     if docker("stop", "--time", "30", NAME).returncode:
                         print("collector_stop_unconfirmed", flush=True)
             except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
@@ -140,11 +185,21 @@ def supervise(stop: Event, *, live: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true")
+    parser.add_argument("--monitoring-project")
+    parser.add_argument("--monitoring-collector")
     args = parser.parse_args()
+    try:
+        monitoring = monitoring_arguments(args.monitoring_project, args.monitoring_collector)
+        if monitoring and not args.live:
+            raise host.HostRefused("monitoring_requires_live")
+    except host.HostRefused:
+        parser.error("monitoring_requires_live_and_valid_project_and_collector")
     stop = Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
-    return supervise(stop, live=args.live)
+    return supervise(
+        stop, live=args.live, project=args.monitoring_project, collector=args.monitoring_collector
+    )
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import math
 import os
 import signal
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
@@ -15,6 +16,8 @@ from pydantic import SecretStr, ValidationError
 
 from urbanpulse.adapters.capture_checkpoint import CheckpointJournal as CaptureJournal
 from urbanpulse.adapters.capture_journal import RESERVE_BYTES
+from urbanpulse.adapters.capture_metrics import MonitoringTarget
+from urbanpulse.adapters.capture_monitoring import MonitoringSink
 from urbanpulse.adapters.capture_runtime import INODE_RESERVE, RuntimeObservation
 from urbanpulse.adapters.capture_v3 import V3Journal
 from urbanpulse.adapters.capture_v3_verify import V3Verifier
@@ -42,7 +45,22 @@ def main() -> int:
     )
     parser.add_argument("--reserve-bytes", type=int, default=RESERVE_BYTES)
     parser.add_argument("--reserve-inodes", type=int, default=INODE_RESERVE)
+    parser.add_argument("--monitoring-project")
+    parser.add_argument("--monitoring-collector")
+    parser.add_argument("--monitoring-key-file", type=Path)
     args = parser.parse_args()
+    send: Callable[[str], None] = print
+    monitoring = (args.monitoring_project, args.monitoring_collector, args.monitoring_key_file)
+    if any(value is not None for value in monitoring):
+        if not all(monitoring) or args.command != "serve" or not args.live:
+            parser.error("monitoring_requires_live_serve_and_all_three_options")
+        try:
+            target = MonitoringTarget(
+                project=args.monitoring_project, collector=args.monitoring_collector
+            )
+        except ValidationError:
+            parser.error("invalid_monitoring_target")
+        send = MonitoringSink(target, args.monitoring_key_file)
     if args.reserve_bytes < RESERVE_BYTES or args.reserve_inodes < INODE_RESERVE:
         parser.error("reserve_below_floor")
     if args.command == "serve" and args.store_version != "v3":
@@ -91,6 +109,7 @@ def main() -> int:
                 lambda: journal.control.summary,
                 reserve_bytes=args.reserve_bytes,
                 reserve_inodes=args.reserve_inodes,
+                send=send,
             )
             try:
                 observation.guard()

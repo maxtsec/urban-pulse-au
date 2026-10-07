@@ -55,7 +55,7 @@ After separately approved apply:
 
 ## Monitoring enrollment and loss drill
 
-The current [continuous collector](collector-continuous.md) has only a local dry-run sink. Integrate and test the authenticated exporter before enrolling any group. Each entry in `alert_groups` has independent `enabled` and `enrolled` flags, both false by default. Enrollment in one group never satisfies another group's precondition.
+The [continuous collector](collector-continuous.md#authenticated-raw-only-exporter) provides an opt-in authenticated exporter for heartbeat, capture and capacity, with local dry-run output as the default. Validate its actual point arrival and notifications before enrolling any group. Each entry in `alert_groups` has independent `enabled` and `enrolled` flags, both false by default. Enrollment in one group never satisfies another group's precondition.
 
 | Group | Evidence needed before enabling |
 | --- | --- |

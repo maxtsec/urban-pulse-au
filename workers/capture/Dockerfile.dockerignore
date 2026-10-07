@@ -25,3 +25,5 @@
 !tests/helpers/v3_records.py
 
 !tests/test_capture_runtime.py
+
+!tests/test_capture_monitoring.py
