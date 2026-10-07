@@ -1,0 +1,5 @@
+# Optional reviewed state setup: copy to ignored backend.tf and configure an
+# existing operator-controlled backend bucket with a distinct capture/ prefix.
+terraform {
+  backend "gcs" {}
+}

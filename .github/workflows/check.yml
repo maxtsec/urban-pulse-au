@@ -87,6 +87,9 @@ jobs:
       - run: terraform -chdir=infra/demo-cd init -backend=false -input=false -lockfile=readonly
       - run: terraform -chdir=infra/demo-cd validate
       - run: terraform -chdir=infra/demo-cd test
+      - run: terraform -chdir=infra/capture init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=infra/capture validate
+      - run: terraform -chdir=infra/capture test
 
   compose:
     runs-on: ubuntu-latest
