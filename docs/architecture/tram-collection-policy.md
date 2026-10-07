@@ -4,6 +4,8 @@ Date: 2026-10-07. Status: **Cadence accepted by the project architect on 2026-10
 
 The accepted preference prioritizes useful retained history over minimum live latency. The accepted MAP-02 design uses constant-speed interpolation between two eligible observations on the same verified path; increasing polling frequency is not required to draw intermediate frames. Interpolation cannot recover unobserved changes or advance beyond the latest eligible observation.
 
+**Live animation needs a separate display-delay decision.** The retained probe measured median position ages of 90.2–118.4 seconds at receipt (about 100 seconds), with much older outliers. Applying the fixture’s 30-second display delay to that live feed would generally leave no received pair bracketing display time, so vehicles would hold at labelled Observed positions. Measure a candidate delay of roughly **three minutes** against the accepted 60-second position polling: producer age, polling phase, receipt jitter and the fraction of vehicles with usable brackets. Three minutes is a measurement starting point, not an approved policy or smoothness guarantee. Live delay and freshness must be measured and separately accepted together; do not silently change the fixture delay, extrapolate, or treat old observations as fresh.
+
 ## Options
 
 Intervals are positions / trip updates / alerts, in seconds. One subscription-wide dispatcher includes every request and retry; no concurrent probe or second collector may spend the same budget.
@@ -27,6 +29,12 @@ for intervals, days in [((30, 60, 60), 14), ((60, 120, 120), 14), ((60, 120, 60)
     print(intervals, days, [round(n / 1_000_000, 2) for n in daily])
     print([round(n * days / 1_000_000_000, 2) for n in daily])
 ```
+
+## Allocated disk capacity
+
+The table above counts payload bytes only and must not size host capacity or the disk reserve. At 3,600 captures/day, payload allocation rounds up to filesystem blocks; each capture also retains intent, manifest, checksum and sequence-index metadata plus its directory. Small files can each consume a 4 KiB block even when their logical contents are much smaller. Sessions, shared directory/index growth, filesystem metadata and temporary writes add further overhead.
+
+Use **about 170 MiB/day** (about 2.3 GiB per illustrative 14 days) as an initial allocation allowance for this cadence, roughly twice the payload-only estimate. This is an estimate, not a target-host measurement or upper bound. Before unattended operation, measure a representative bounded run on the actual persistent store: record before/after allocated bytes with `du -s --block-size=1 <store>`, available bytes with `df -B1 <store>` and free inodes with `df -i <store>`, alongside attempts, successes, payload totals and elapsed time. Keep host paths and raw operator records private. Use the measured allocated-byte growth, peak temporary space, inode growth, pinned upload/normalization backlog and an operational margin to size capacity and reserve; retain the collector’s existing reserve floor. Never subtract a presumed retention saving until expiry is implemented and downstream pins permit it.
 
 ## Scheduling and failure behavior
 
@@ -52,10 +60,10 @@ Proposed visible credit:
 
 > Transport data: Department of Transport and Planning, Victoria — GTFS Realtime and GTFS Schedule, CC BY 4.0. Filtered and transformed by UrbanPulse; not an official transport service.
 
-Link dataset names and CC BY 4.0 in the map attribution/data-source panel. Describe shape clipping, selected-area normalization and timestamp handling in evidence/export metadata. Carry source URL, release/capture identity, original notices, licence URL and transformation version in manifests and published derived exports. Keep Observed, Interpolated and Synthetic labels separate; synthetic vehicle movement over official geometry must never look like a live provider observation. Keep raw provider payloads and credentials out of the public repository.
+Link dataset names and CC BY 4.0 in the map attribution/data-source panel. Describe full-shape selection, selected-area normalization and timestamp handling in evidence/export metadata. Carry source URL, release/capture identity, original notices, licence URL and transformation version in manifests and published derived exports. Keep Observed, Interpolated and Synthetic labels separate; synthetic vehicle movement over official geometry must never look like a live provider observation. Keep raw provider payloads and credentials out of the public repository.
 
 ## Architect selection and activation gates
 
 Cadence is selected above. The architect must still select the raw retention duration and accept/amend the source-use and attribution rules. Record those decisions explicitly; the cadence decision does not implicitly approve the illustrative 14-day window or start collection.
 
-After selection: implement/test the schedule, review retention persistence separately, verify dedicated-host requirements, monitoring and free-space/backlog behavior, confirm subscription scope, then authorize a bounded live run with explicit duration/request limits. That run must record observed byte totals, cadence, errors and gaps. Live projection freshness, correction/disappearance semantics, public live UI and unattended operation remain separate decisions; this policy does not select them.
+After selection: implement/test the schedule, review retention persistence separately, verify dedicated-host requirements, monitoring and free-space/backlog behavior, confirm subscription scope, then authorize a bounded live run with explicit duration/request limits. That run must record payload and allocated-disk growth, free bytes/inodes, cadence, errors and gaps. Live projection freshness, correction/disappearance semantics, public live UI and unattended operation remain separate decisions; this policy does not select them.
