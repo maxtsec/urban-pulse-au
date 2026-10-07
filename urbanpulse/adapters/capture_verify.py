@@ -11,6 +11,10 @@ from urbanpulse.contracts.capture_control import Summary
 from urbanpulse.contracts.local_capture import CaptureError
 
 
+class VerificationInterrupted(CaptureError):
+    """Controlled cancellation before a finding; never inferred from exception text."""
+
+
 class CaptureVerifier(CheckpointJournal):
     """Own the same OS lock; never reconcile or rewrite capture evidence."""
 
@@ -30,6 +34,7 @@ class CaptureVerifier(CheckpointJournal):
     def verify(self, *, stopped: Callable[[], bool] = lambda: False) -> dict[str, Any]:
         self._require_lock()
         record: dict[str, Any] = {}
+        previously_blocked = not self.legacy and self.verification_required()
         if not self.legacy:
             record = {
                 "schema_version": "capture-verification-v1",
@@ -47,17 +52,28 @@ class CaptureVerifier(CheckpointJournal):
             self.checkpoint("verify_started")
         try:
             report = self._scan(stopped)
-        except (CaptureError, OSError, ValueError) as error:
-            if not self.legacy and str(error) != "verification_interrupted":
-                replace_json(
-                    self.root / "verification-block.json",
-                    {**record, "reason": "integrity_failure"},
-                    checkpoint=self.checkpoint,
-                    stage="verify_failure",
-                )
+        except VerificationInterrupted:
+            if not self.legacy and not previously_blocked:
+                # Only this scan's clean, controlled cancellation can release its
+                # hold. A retry cannot cancel away an earlier failed/unknown scan.
+                (self.root / "verification-in-progress.json").unlink()
+                sync_directory(self.root)
+                self.checkpoint("verify_cancelled")
+            raise
+        except Exception:
+            if not self.legacy:
+                # The pre-scan in-progress hold is already durable. Even if this
+                # diagnostic write fails, later collection remains blocked.
+                try:
+                    replace_json(
+                        self.root / "verification-block.json",
+                        {**record, "reason": "integrity_failure"},
+                        checkpoint=self.checkpoint,
+                        stage="verify_failure",
+                    )
+                except Exception:
+                    raise CaptureError("verification_failure_record_unwritable") from None
                 self.checkpoint("verify_failed")
-            if isinstance(error, CaptureError):
-                raise
             raise CaptureError("integrity_failure") from None
         if not self.legacy:
             report = {**record, **report, "completed_at": datetime.now(UTC).isoformat()}
@@ -82,7 +98,7 @@ class CaptureVerifier(CheckpointJournal):
         pending_seen = False
         for directory in (self.root / "captures").iterdir():
             if stopped():
-                raise CaptureError("verification_interrupted")
+                raise VerificationInterrupted("verification_interrupted")
             identity = UUID(directory.name)
             if directory.is_symlink() or not directory.is_dir():
                 raise CaptureError("integrity_failure")
@@ -97,6 +113,16 @@ class CaptureVerifier(CheckpointJournal):
                 if sequence is None or sequence in sequences:
                     raise CaptureError("integrity_failure")
                 sequences.add(sequence)
+                index = self._sequence_entry(sequence)
+                if pending is not None and identity == pending.capture_id and not index.exists():
+                    if (
+                        index.is_symlink()
+                        or receipt is not None
+                        or (manifest is not None and manifest.reason != "not_started")
+                    ):
+                        raise CaptureError("sequence_index_conflict")
+                else:
+                    self._check_index(intent)
             captures += 1
             payload_bytes += receipt.byte_length if receipt else 0
             if pending is not None and identity == pending.capture_id:
@@ -112,14 +138,35 @@ class CaptureVerifier(CheckpointJournal):
                 raise CaptureError("integrity_failure")
             self.checkpoint("verify_capture")
         if stopped():
-            raise CaptureError("verification_interrupted")
+            raise VerificationInterrupted("verification_interrupted")
         if not self.legacy:
             if pending is not None and not pending_seen:
                 if pending.capture_sequence is None or pending.capture_sequence in sequences:
                     raise CaptureError("integrity_failure")
                 sequences.add(pending.capture_sequence)
                 incomplete += 1
+            indexed = 0
+            for entry in (self.root / "by-sequence").iterdir():
+                if stopped():
+                    raise VerificationInterrupted("verification_interrupted")
+                sequence = int(entry.name)
+                if entry != self._sequence_entry(sequence) or sequence not in sequences:
+                    raise CaptureError("sequence_index_conflict")
+                if entry.is_symlink() or not entry.is_file():
+                    raise CaptureError("sequence_index_conflict")
+                indexed += 1
             expected = self.control.next_capture_sequence - 1
+            if indexed != expected - int(
+                pending is not None
+                and not self._sequence_entry(pending.capture_sequence or 0).exists()
+            ):
+                raise CaptureError("sequence_index_conflict")
+            if (
+                pending is not None
+                and not pending_seen
+                and self._sequence_entry(pending.capture_sequence or 0).exists()
+            ):
+                raise CaptureError("sequence_index_conflict")
             if (
                 len(sequences) != expected
                 or (sequences and (min(sequences) != 1 or max(sequences) != expected))

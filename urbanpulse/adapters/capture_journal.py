@@ -211,11 +211,12 @@ class CaptureJournal:
                 Manifest(
                     capture_id=intent.capture_id,
                     outcome="fetch-failed",
-                    completed_at=result.received_at,
+                    completed_at=max(result.received_at, intent.requested_at),
                     reason=result.reason or "network_error",
                     http_status=result.http_status,
                     retry_not_before=(
-                        result.received_at + timedelta(seconds=result.retry_after_seconds)
+                        max(result.received_at, intent.requested_at)
+                        + timedelta(seconds=result.retry_after_seconds)
                     )
                     if result.retry_after_seconds is not None
                     else None,
@@ -266,7 +267,7 @@ class CaptureJournal:
                         Manifest(
                             capture_id=intent.capture_id,
                             outcome="raw-write-failed",
-                            completed_at=datetime.now(UTC),
+                            completed_at=max(datetime.now(UTC), intent.requested_at),
                             reason="storage_error",
                             http_status=200,
                         ),
@@ -333,7 +334,7 @@ class CaptureJournal:
                         Manifest(
                             capture_id=identity,
                             outcome="abandoned",
-                            completed_at=datetime.now(UTC),
+                            completed_at=max(datetime.now(UTC), intent.requested_at),
                             reason="interrupted",
                         ),
                     )

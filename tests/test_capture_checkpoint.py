@@ -1,9 +1,10 @@
 """V2 filesystem behavior, restart read bounds, verification and legacy isolation."""
 
+import errno
 import json
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -63,6 +64,9 @@ def crash(store, action, point):
         ("intent_written", "abandoned", "not_started"),
         ("intent_replaced", "abandoned", "interrupted"),
         ("intent", "abandoned", "interrupted"),
+        ("sequence_written", "abandoned", "interrupted"),
+        ("sequence_linked", "abandoned", "interrupted"),
+        ("sequence_synced", "abandoned", "interrupted"),
         ("payload", "abandoned", "interrupted"),
         ("receipt", "abandoned", "interrupted"),
         ("response", "captured", None),
@@ -200,17 +204,21 @@ def test_full_verify_finds_corruption_and_blocks_until_fixed(store):
 
 
 @pytest.mark.parametrize("point", ["verify_started", "verify_capture", "verify_report"])
-def test_interrupted_inspection_does_not_permanently_block_capture(store, point):
+def test_interrupted_inspection_requires_successful_verify_before_capture(store, point):
     with CheckpointJournal(store).locked() as journal:
         capture(journal)
     crash(store, "verify", point)
     with CheckpointJournal(store).locked() as journal:
         status = journal.recover()
-        assert status["collection_allowed"]
+        assert not status["collection_allowed"]
         assert status["verification"] == "interrupted"
-        capture(journal)
+        with pytest.raises(CaptureError, match="verification_required"):
+            capture(journal)
     with CaptureVerifier(store).locked() as verifier:
-        assert verifier.verify()["captures"] == 2
+        assert verifier.verify()["captures"] == 1
+    with CheckpointJournal(store).locked() as journal:
+        assert journal.recover()["collection_allowed"]
+        capture(journal)
 
 
 def test_crash_after_finding_preserves_block(store):
@@ -309,11 +317,12 @@ def test_verification_cancel_records_interruption_not_failure(store):
             verifier.verify(stopped=lambda: True)
     with CheckpointJournal(store).locked() as journal:
         summary = journal.recover()
-        assert summary["verification"] == "interrupted"
+        assert summary["verification"] == "not_checked"
         assert summary["collection_allowed"]
 
 
-def test_failure_marker_write_failure_never_claims_success(store, monkeypatch):
+@pytest.mark.parametrize("storage_errno", [errno.ENOSPC, errno.EROFS])
+def test_failure_marker_write_failure_never_claims_success(store, monkeypatch, storage_errno):
     from urbanpulse.adapters import capture_verify
 
     with CheckpointJournal(store).locked() as journal:
@@ -323,14 +332,18 @@ def test_failure_marker_write_failure_never_claims_success(store, monkeypatch):
 
     def fail(path, value, **kwargs):
         if path.name == "verification-block.json":
-            raise OSError("disk failure")
+            raise OSError(storage_errno, "storage unavailable")
         original(path, value, **kwargs)
 
     monkeypatch.setattr(capture_verify, "replace_json", fail)
-    with pytest.raises(OSError):
+    with pytest.raises(CaptureError, match="verification_failure_record_unwritable"):
         with CaptureVerifier(store).locked() as verifier:
             verifier.verify()
     assert not (store / "last-verification.json").exists()
+    with CheckpointJournal(store).locked() as journal:
+        assert not journal.recover()["collection_allowed"]
+        with pytest.raises(CaptureError, match="verification_required"):
+            capture(journal)
 
 
 def test_duplicate_archive_sequence_is_detected(store):
@@ -393,10 +406,11 @@ def test_v2_cli_verify_is_offline_and_has_full_integrity_scope(store):
 @pytest.mark.parametrize(
     "point", ["verify_progress_written", "verify_progress_replaced", "verify_progress_synced"]
 )
-def test_verify_start_publication_interruption_allows_bounded_recovery(store, point):
+def test_verify_start_publication_holds_before_any_archive_read(store, point):
     crash(store, "verify", point)
     with CheckpointJournal(store).locked() as journal:
-        assert journal.recover()["collection_allowed"]
+        # Before publishing the hold, the verifier has not read any archive data.
+        assert journal.recover()["collection_allowed"] == (point == "verify_progress_written")
 
 
 @pytest.mark.parametrize(
@@ -409,8 +423,8 @@ def test_finding_block_publication_boundaries(store, point):
     crash(store, "verify", point)
     with CheckpointJournal(store).locked() as journal:
         status = journal.recover()
-        # A not-yet-published finding is intentionally outside fast-startup proof.
-        assert status["collection_allowed"] == (point == "verify_failure_written")
+        # The pre-scan hold covers even a failure record that never publishes.
+        assert not status["collection_allowed"]
     with pytest.raises(CaptureError, match="integrity_failure"):
         with CaptureVerifier(store).locked() as verifier:
             verifier.verify()
@@ -432,3 +446,177 @@ def test_success_report_publication_never_erases_existing_failure_early(store, p
     crash(store, "verify", point)
     with CheckpointJournal(store).locked() as journal:
         assert not journal.recover()["collection_allowed"]
+
+
+@pytest.mark.parametrize("state", ["reserved", "intent", "fetch-failed", "raw-write-failed"])
+def test_clock_rollback_cannot_publish_unverifiable_terminal_time(store, monkeypatch, state):
+    from urbanpulse.adapters import capture_checkpoint
+
+    requested = datetime.now(UTC) + timedelta(seconds=30)
+
+    class FutureClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return requested
+
+    if state == "reserved":
+
+        def die(stage):
+            if stage == "reserve_synced":
+                raise RuntimeError("simulated crash")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(capture_checkpoint, "datetime", FutureClock)
+            with pytest.raises(RuntimeError):
+                with CheckpointJournal(store, checkpoint=die).locked() as journal:
+                    journal.begin("fixture", "vehicle-positions", "test")
+    else:
+        with CheckpointJournal(store).locked() as journal:
+            with monkeypatch.context() as patch:
+                patch.setattr(capture_checkpoint, "datetime", FutureClock)
+                intent = journal.begin("live", "vehicle-positions", "test")
+            now = datetime.now(UTC)
+            if state == "fetch-failed":
+                result = FetchResult(now, now, 429, None, "http_error", 900)
+                manifest = journal.complete(intent, result)
+                assert journal.complete(intent, result) == manifest
+                assert manifest.retry_not_before >= requested + timedelta(seconds=900)
+            elif state == "raw-write-failed":
+                original = storage.write_bytes
+
+                def fail(path, data):
+                    if path.name == "payload.bin":
+                        raise OSError("full")
+                    original(path, data)
+
+                with monkeypatch.context() as patch:
+                    patch.setattr(storage, "write_bytes", fail)
+                    with pytest.raises(CaptureError, match="storage_error"):
+                        journal.complete(
+                            intent, FetchResult(requested, requested, 200, b"synthetic")
+                        )
+    with CheckpointJournal(store).locked() as journal:
+        assert sum(journal.recover()["outcomes"].values()) == 1
+        assert journal.capture_at_sequence(1).requested_at == requested
+    manifest = json.loads(next(store.glob("captures/*/manifest.json")).read_bytes())
+    assert datetime.fromisoformat(manifest["completed_at"]) == requested
+    for _ in range(2):
+        with CaptureVerifier(store).locked() as verifier:
+            assert verifier.verify()["status"] == "verified"
+    with CheckpointJournal(store).locked() as journal:
+        assert journal.recover()["collection_allowed"]
+
+
+def test_sequence_lookup_opens_only_named_index_and_intent(store, monkeypatch):
+    with CheckpointJournal(store).locked() as journal:
+        intents = [capture(journal)[0] for _ in range(5)]
+    original = Path.open
+    opened = []
+
+    def record(path, *args, **kwargs):
+        opened.append(path)
+        return original(path, *args, **kwargs)
+
+    def no_scan(path):
+        pytest.fail("cursor lookup scanned a directory")
+
+    with CheckpointJournal(store).locked() as journal:
+        monkeypatch.setattr(Path, "open", record)
+        monkeypatch.setattr(Path, "iterdir", no_scan)
+        assert journal.capture_at_sequence(4) == intents[3]
+        assert opened == [
+            store / "by-sequence" / "0000000000000000004",
+            store / "captures" / str(intents[3].capture_id) / "intent.json",
+        ]
+        assert journal.capture_at_sequence(6) is None
+
+
+def test_unfinished_sequence_never_advances_downstream_cursor(store):
+    with CheckpointJournal(store).locked() as journal:
+        intent = journal.begin("fixture", "vehicle-positions", "test")
+        assert (store / "by-sequence" / "0000000000000000001").exists()
+        assert journal.capture_at_sequence(1) is None
+        journal.recover()
+        assert journal.capture_at_sequence(1) == intent
+
+
+@pytest.mark.parametrize("damage", ["missing", "wrong_id", "extra", "symlink"])
+def test_verify_detects_invalid_sequence_index(store, damage):
+    with CheckpointJournal(store).locked() as journal:
+        capture(journal)
+    entry = store / "by-sequence" / "0000000000000000001"
+    if damage == "missing":
+        entry.unlink()
+    elif damage == "wrong_id":
+        value = json.loads(entry.read_bytes())
+        value["capture_id"] = "00000000-0000-0000-0000-000000000000"
+        entry.write_text(json.dumps(value))
+    elif damage == "extra":
+        (entry.parent / "0000000000000000002").write_bytes(entry.read_bytes())
+    else:
+        entry.unlink()
+        entry.symlink_to(store / "control.json")
+    with pytest.raises(CaptureError, match="integrity_failure"):
+        with CaptureVerifier(store).locked() as verifier:
+            verifier.verify()
+    with CheckpointJournal(store).locked() as journal:
+        assert not journal.recover()["collection_allowed"]
+
+
+def test_pending_recovery_refuses_conflicting_index(store):
+    crash(store, "capture", "sequence_synced")
+    entry = store / "by-sequence" / "0000000000000000001"
+    entry.write_text("{}")
+    with pytest.raises(CaptureError, match="sequence_index_conflict"):
+        with CheckpointJournal(store).locked() as journal:
+            journal.recover()
+    assert entry.read_text() == "{}"
+
+
+@pytest.mark.parametrize("prior", ["interrupted", "failed"])
+def test_cancel_cannot_clear_preexisting_verification_hold(store, prior):
+    if prior == "failed":
+        with CheckpointJournal(store).locked() as journal:
+            capture(journal)
+        next(store.glob("captures/*/response/payload.bin")).write_bytes(b"bad")
+        with pytest.raises(CaptureError):
+            with CaptureVerifier(store).locked() as verifier:
+                verifier.verify()
+    else:
+        crash(store, "verify", "verify_started")
+    with CaptureVerifier(store).locked() as verifier:
+        with pytest.raises(CaptureError, match="verification_interrupted"):
+            verifier.verify(stopped=lambda: True)
+    with CheckpointJournal(store).locked() as journal:
+        assert not journal.recover()["collection_allowed"]
+
+
+@pytest.mark.parametrize(
+    "failure", [RuntimeError("unexpected private diagnostic"), TypeError("unexpected")]
+)
+def test_unexpected_verify_errors_fail_closed_and_are_redacted(store, monkeypatch, failure):
+    def fail(*_):
+        raise failure
+
+    monkeypatch.setattr(CaptureVerifier, "_scan", fail)
+    with pytest.raises(CaptureError, match="^integrity_failure$"):
+        with CaptureVerifier(store).locked() as verifier:
+            verifier.verify()
+    with CheckpointJournal(store).locked() as journal:
+        assert not journal.recover()["collection_allowed"]
+
+
+def test_verify_does_not_scan_if_hold_cannot_be_persisted(store, monkeypatch):
+    from urbanpulse.adapters import capture_verify
+
+    def fail(*_, **__):
+        raise OSError("read only")
+
+    def must_not_scan(*_):
+        pytest.fail("archive read before durable hold")
+
+    monkeypatch.setattr(capture_verify, "replace_json", fail)
+    monkeypatch.setattr(CaptureVerifier, "_scan", must_not_scan)
+    with pytest.raises(OSError):
+        with CaptureVerifier(store).locked() as verifier:
+            verifier.verify()
