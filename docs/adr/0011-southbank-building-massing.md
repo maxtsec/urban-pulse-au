@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 
-MAP-02 amendment: 2026-10-07, accepted by the project architect for endpoint B, parent validity, integer-millisecond clocks, trip compatibility and the startup/truth-label rules below. The 2D playback choice is explicitly pending in this documentation review.
+MAP-02 amendment: 2026-10-07, accepted by the project architect for endpoint B, parent validity, integer-millisecond clocks, trip compatibility and the startup/truth-label rules below. Both views use a continuous millisecond playhead; vehicle-local failures fall back independently.
 
 Status: **Accepted by the project architect on 2026-10-06** for building option A, MapLibre with deck.gl, the five animation classes and their rules, MAP-05 simulated traffic in scope, and a `Structure`-only first building layer. Implementation (MAP-01 to MAP-05) follows DEMO-01; each item still needs its own source/asset records and review.
 
@@ -104,7 +104,7 @@ Let *t* be the scenario clock. The 3D tram layer may use only position observati
 
 - If two received observations of the same vehicle on its matched shape have observation times bracketing *d*, interpolate between them along the shape by observation time.
 - If *d* is later than the vehicle's latest received observation, hold the model at that observation; never extrapolate.
-- Before the first observation, permit static startup fallback only for the first APPLY observation of that `(source, vehicle_id)` in the pinned replay scope's complete retained history, referenced by `startup_observation`. It is not the first sample of a new trip/window/browser session. The reference must resolve within the returned observations and counts toward the sample/byte bounds. If this first record cannot be established, animation is unavailable rather than guessing. Missing-time observations use a labelled static fallback, never interpolation.
+- Before the first observation, permit static startup fallback only for the first APPLY observation of that `(source, vehicle_id)` in the pinned replay scope's complete retained history, referenced by `startup_observation`. It is not the first sample of a new trip/window/browser session. The reference must resolve within the returned observations and counts toward the sample/byte bounds. If this first record cannot be established, only that vehicle uses a labelled static parent observation; other vehicles retain animation. Missing-time observations use a labelled static fallback, never interpolation.
 - Across a trip/shape/continuity break, hold the last eligible observation at/before d; do not reveal the next trip before d reaches it. Only original APPLY observations enter animation history; duplicate/conflict/rejected/SUPERSEDED attempts do not.
 - Stale and expired rules are evaluated at *t*, as in the list and area panel.
 
@@ -112,22 +112,15 @@ The legend states: "Interpolated positions: 30-second display delay. Observed ho
 
 #### MAP-02 animation inputs
 
-The [accepted input contract](../architecture/tram-animation-input-contract.md) selects **B**, a same-origin animation endpoint requested only for enabled 3D animation. The parent carries `valid_until` (server-owned city validity) and a shared `position_freshness_policy` derived from the same constants used by server/checkpoint evaluation. Animation `window_end <= valid_until` may shorten only for sample/byte bounds. Animation-only continuations retain their paired parent's scope/clock and do not add area requests. A mismatch or failure falls back to the labelled static parent view.
+The [accepted input contract](../architecture/tram-animation-input-contract.md) selects **B**, a same-origin animation endpoint requested only for enabled 3D animation. The parent carries `valid_until` (server-owned city validity; null with `terminal=true` at scenario end) and a shared `position_freshness_policy` derived from the same constants used by server/checkpoint evaluation. For nonterminal ready animation, `window_end <= valid_until` may shorten only for sample/byte bounds. Animation-only continuations retain their paired parent's scope/clock and do not add area requests. A mismatch or failure falls back to the labelled static parent view.
 
 Queries accept integer `milliseconds` or legacy integer `seconds`, never both. Playback uses integer-millisecond playheads at rate 7.5, floored from monotonic elapsed ticks; direct seek and playback compare the same exact millisecond. Neither view advances city state past parent validity without a new snapshot. The contract specifies terminal/invalid windows and buffering. Eight observations per vehicle and 256 KiB serialized animation JSON remain hard limits; per-vehicle segment tables reduce repeated linkage but do not remove byte checks ([encoding evidence](../evidence/map-02-animation-payload.md)).
 
-The public transport event gains an optional nullable trip descriptor, preserving old wire serialization/fingerprints. Implementation still requires trip-complete fixtures, verified GTFS linkage/tolerance, a model asset record, serializer/query changes and acceptance tests. These accepted rules do not assert that the runtime already supports MAP-02.
+The public transport event gains an optional nullable trip descriptor, preserving old wire serialization/fingerprints. Implementation still requires trip-complete fixtures, verified GTFS linkage/tolerance, a model asset record, serializer/query changes and acceptance tests. Implementation must also migrate transition/checkpoint/evidence clocks to milliseconds and use exact timestamp parsing in browser/server freshness evaluation. Per-vehicle status/reason isolates startup, linkage and payload failures; deterministic admission is independent of seek anchors and window chunking. Unmatched/ambiguous observations retain inline trip metadata. These accepted rules do not assert that the runtime already supports MAP-02.
 
-#### 2D playback transitions
+#### 2D playback
 
-Accepted on 6 October 2026 as a bounded exception for the current implementation. The exact MAP-02 replacement is awaiting the architect's 2D-mode choice in the contract; do not infer it from selecting endpoint B. Playback advances the fixture clock in 15-second steps, so observed tram markers would otherwise jump.
-
-- While playback is running, a tram marker whose previous and new observations are both `current` glides in a straight line from the previous observed point to the new one over 1.5 seconds of wall-clock time, shorter than one playback step. It never moves past the new observation.
-- Seeking, scrubbing, moment jumps, scenario changes, pausing, stale, expired or unknown-time observations and `prefers-reduced-motion` place the marker at its observation immediately. Pausing mid-glide snaps it there.
-- The glide is presentation, not an observation: it follows no track, and the tram list, selection details, freshness, counts and API keep the observed values. The map legend says that movement between observed positions is animated, not observed.
-- The playback progress bar moves continuously towards the next step; the clock text always shows the displayed snapshot's scenario clock.
-
-This exception does not change the 3D tram rules above: the 3D layer still uses the display delay and interpolates only along matched shapes.
+MAP-02 replaces the 6 October stepped-clock/glide exception with the same continuous millisecond playhead used by 3D. Both views refresh area data at parent city boundaries, including fractional input times, and share freshness evaluation. 2D markers stay at the latest received observation, with no 1.5-second glide and no animation endpoint requests. Clock text and progress follow the logical playhead; pausing or seeking preserves that exact millisecond. The previous exception describes the pre-MAP-02 runtime only.
 
 #### Weather gating
 
@@ -172,7 +165,7 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 - Current warning coverage with no reading, or with a reading more than 60 minutes old: no rain, labelled "No current modelled reading"; warnings follow their lifecycle.
 - A current reading with zero precipitation: no rain, labelled as a dry modelled reading. Scheduled, cancelled and expired warnings never pulse.
 - Reduced motion starts static; WebGL failure shows the existing fallback; keyboard selection works in 2D and 3D.
-- 2D playback transitions: a glide passes only through points between two consecutive current observations and ends on the new one; seeking or pausing places the tram on its observation; the clock text never shows an intermediate time.
+- 2D and 3D refresh area data at the same fractional city boundary; 2D has no glide or animation requests. Terminal snapshots have null validity and do not request another window. A single missing startup history does not stop other vehicles; byte admission is stable across direct seek and playback.
 - Enabling 3D and animation makes no request outside the application origin, and all credits are visible.
 - Measure bundle size, fixture size, frame rate and memory on desktop and mobile emulation before accepting each MAP item; simplify geometry or reduce particles only if measurements require it.
 
@@ -185,7 +178,7 @@ Each item is a separate reviewed PR with its own tests and measurements. MAP-05 
 | Animation | The five classes and their rules, as written above |
 | Simulated traffic | MAP-05 in scope, under the simulated class and its labelling rule |
 | First building layer | `Structure` only; other footprint types need their own rendering rule and decision |
-| 2D playback transitions | Bounded straight-line glide between consecutive current observations during playback and a continuous progress bar, labelled as animation; exact MAP-02 replacement pending the 2D-mode choice |
+| 2D playback | MAP-02 replaces the earlier step/glide exception: continuous millisecond clock, static observed markers, shared area boundaries, no animation requests |
 
 The 7 October amendment accepts endpoint B with parent `valid_until`, aligned animation continuations, millisecond query/scheduler semantics, shared freshness constants, nullable compatible trip metadata, segment-table encoding, APPLY-only history and the narrower startup/truth-label rules. The original same-origin-only restriction remains unchanged.
 
