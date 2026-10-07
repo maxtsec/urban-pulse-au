@@ -23,6 +23,14 @@ These are uncompressed canonical JSON bytes and vertex counts, not browser memor
 
 There are **203 shared shapes** and **163 additional CBD shapes**. Expanding the retained geometry adds **1,613,754 bytes**, about 63% over Southbank alone. Sharing saves 2,507,679 bytes compared with separate complete copies. The index and boundary files are additional metadata, excluded from the geometry column. Static shapes belong in immutable shared assets, not each bounded animation response or every 2D snapshot.
 
+## Serving gate: order-independent shape pool
+
+The current primary-plus-additions layout is **offline verification storage only**, not the serving layout. A CBD-only cold load through this index would require both assets: 4,170,253 bytes rather than CBD's standalone 4,121,433 bytes. The extra 48,820 bytes include five Southbank-only shapes and an additional collection wrapper. The shared-storage saving above is not a CBD download saving. With more areas, assigning shape ownership to the first area can scatter later areas across several earlier files; request count and cold-load bytes would depend on area-addition history.
+
+Before serving these shapes, replace geographic ownership with a shared pool whose chunk identities and membership do not depend on area registration order, for example content-addressed shape or route chunks. Each area's immutable manifest lists only its own shape IDs and resolves them to pool objects, with release/provenance and content hashes retained. Measure the trade-off between per-shape request count and any extra geometry in coarser chunks; do not reuse this offline index as the browser asset contract.
+
+Serving acceptance must compare Southbank-first, CBD-first and a later third-area addition: an unchanged area's manifest, required object set and cold-load bytes must remain identical under the same source release and chunk policy. Also verify per-area completeness, shared-object cache reuse, hash/missing-object failure and bounded loading. Record both retained storage and per-area cold/warm transfer sizes separately. Shared geometry must not expand area membership or animation eligibility.
+
 ## Reproduce and validate
 
 With local PostGIS and the retained pinned statewide ZIP:
