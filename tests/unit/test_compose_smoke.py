@@ -12,6 +12,25 @@ import pytest
 from scripts import compose_smoke
 
 
+def test_city_parity_compares_exact_receipt_instants_but_preserves_other_content():
+    retained = {
+        "weather": {
+            "reading": {"received_at": "2026-10-07T00:00:00.750400+00:00"},
+            "evidence": [{"received_at": "2026-10-07T00:00:00+00:00"}],
+        },
+        "planning": {"last_successful_received_at": None},
+    }
+    wire = deepcopy(retained)
+    wire["weather"]["reading"]["received_at"] = "2026-10-07T00:00:00.750400Z"
+    assert compose_smoke.comparable_city_view(wire) == compose_smoke.comparable_city_view(retained)
+    assert retained["weather"]["reading"]["received_at"].endswith("+00:00")
+    wire["weather"]["reading"]["received_at"] = "2026-10-07T00:00:00.750401Z"
+    assert compose_smoke.comparable_city_view(wire) != compose_smoke.comparable_city_view(retained)
+    wire = deepcopy(retained)
+    wire["weather"]["evidence"][0]["received_at"] = "2026-10-07T00:00:00Z"
+    assert compose_smoke.comparable_city_view(wire) != compose_smoke.comparable_city_view(retained)
+
+
 @pytest.fixture
 def smoke(monkeypatch, tmp_path):
     monkeypatch.setattr(compose_smoke, "ROOT", tmp_path)

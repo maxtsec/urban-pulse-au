@@ -14,6 +14,7 @@ import pytest
 from psycopg import sql
 from sqlalchemy.engine import make_url
 
+from scripts.compose_smoke import comparable_city_view
 from scripts.demo_database import (
     activate_roles,
     bootstrap,
@@ -174,7 +175,7 @@ with TestClient(app) as client:
         for snapshot in (expected, actual):
             snapshot["composition"].pop("delivery")
             snapshot["composition"].pop("recovery", None)
-        assert actual == expected
+        assert comparable_city_view(actual) == comparable_city_view(expected)
 
 
 @contextmanager

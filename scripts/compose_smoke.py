@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -17,6 +18,27 @@ ROOT = Path(__file__).resolve().parents[1]
 def require_equal(actual: object, expected: object, context: str) -> None:
     if actual != expected:
         raise RuntimeError(f"{context}: city response changed")
+
+
+def comparable_city_view(snapshot):
+    """Compare retained receipt instants with HTTP views, preserving raw evidence."""
+    view = json.loads(json.dumps(snapshot))
+    paths = (
+        ("weather", "reading", "received_at"),
+        ("weather", "last_feed_update_received_at"),
+        ("weather", "source_generated_at"),
+        ("planning", "last_successful_received_at"),
+    )
+    for path in paths:
+        parent = view
+        for key in path[:-1]:
+            parent = parent.get(key) if parent is not None else None
+        if parent is not None and parent.get(path[-1]) is not None:
+            instant = datetime.fromisoformat(parent[path[-1]])
+            if instant.utcoffset() is None:
+                raise ValueError("Receipt timestamp must have a timezone")
+            parent[path[-1]] = instant.astimezone(UTC).isoformat()
+    return view
 
 
 def verify_database_restart(
@@ -83,7 +105,9 @@ def verify_city_checkpoints(run, city, read, api):
         for view in (expected, actual):
             view["composition"].pop("delivery", None)
             view["composition"].pop("recovery", None)
-        require_equal(actual, expected, "Durable city checkpoint")
+        require_equal(
+            comparable_city_view(actual), comparable_city_view(expected), "Durable city checkpoint"
+        )
         return value
 
     city("create", "compose-city", "--scenario", "city")
@@ -127,7 +151,9 @@ def verify_city_job(command, city, expected):
     for view in (actual, expected):
         view["composition"].pop("delivery")
         view["composition"].pop("recovery", None)
-    require_equal(actual, expected, "Finite worker/API parity")
+    require_equal(
+        comparable_city_view(actual), comparable_city_view(expected), "Finite worker/API parity"
+    )
 
 
 def verify_cache_modes(base, run, read, url, route, view):
