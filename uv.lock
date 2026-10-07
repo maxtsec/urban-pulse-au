@@ -2414,6 +2414,15 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+capture = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+capture-test = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pytest" },
+]
 dev = [
     { name = "gtfs-realtime-bindings" },
     { name = "mypy" },
@@ -2448,6 +2457,15 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+capture = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+capture-test = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pytest" },
+]
 dev = [
     { name = "gtfs-realtime-bindings", specifier = ">=2.2.0" },
     { name = "mypy" },

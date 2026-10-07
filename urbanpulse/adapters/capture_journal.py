@@ -82,7 +82,7 @@ def local_filesystem(root: Path) -> str:
     if not matches:
         raise CaptureError("unsupported_filesystem")
     filesystem = max(matches)[1]
-    if filesystem not in {"ext4", "xfs", "btrfs", "tmpfs", "overlay"}:
+    if filesystem not in {"ext4", "xfs", "btrfs"}:
         raise CaptureError("unsupported_filesystem")
     return filesystem
 

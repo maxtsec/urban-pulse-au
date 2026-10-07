@@ -15,7 +15,7 @@ Status: **Accepted by the project architect on 2026-10-07: option A**. ADR 0015 
 
 Use a versioned, collector-owned directory on one local Linux filesystem. Each upstream request has a fresh UUID capture ID, including retries after HTTP failure and identical successful bytes. A retry of a local storage operation reuses the existing ID. Capture identity is separate from payload SHA-256 and future domain revisions.
 
-Initialize an explicit store marker before starting. Runtime refuses missing/wrong markers or unsuitable storage; it never silently creates a replacement data directory when a configured mount is missing. Hold an OS file lock for the whole run, including recovery. One local host is the ownership boundary; moving hosts requires stopping/fencing the old collector, transferring the store and recording the gap. A local lock does not coordinate two different disks or hosts.
+Initialize an explicit store marker before starting. Runtime refuses missing/wrong markers or unsuitable storage; it never silently creates a replacement data directory when a configured mount is missing. Runtime permits ext4/XFS/Btrfs only; tmpfs and container overlay are rejected even for fixtures. Ephemeral-storage testing uses injection in test code, not a runtime bypass. Hold an OS file lock for the whole run, including recovery. One local host is the ownership boundary; moving hosts requires stopping/fencing the old collector, transferring the store and recording the gap. A local lock does not coordinate two different disks or hosts.
 
 Persist an intent before requesting a feed. A completed response is published as a single immutable response directory containing exact bytes and receipt metadata, then a terminal manifest is published. Temporary files/directories are on the same filesystem. Synchronize file contents and containing directories around publication; no overwrite of published records. Verify content hashes when an existing identity is encountered.
 
@@ -33,6 +33,10 @@ HTTP success with durably retained bytes means raw capture succeeded, not that s
 | Raw storage failure | Record raw-write-failed if possible; otherwise restart reconciles unfinished intent; stop collection |
 
 The first implementation stores uncompressed per-attempt bytes. Deduplication, compression, automatic deletion and normalized uploads remain separate reviewed changes. Until a retention policy and uploader exist, use an explicit disk reserve and stop when it is exhausted; do not run unattended indefinitely. Pending upload confirmation must eventually pin its source raw bytes as ADR 0015 requires.
+
+## Live activation gate
+
+The architect's review on 2026-10-07 keeps the current full-history scan for fixture acceptance and defers incremental recovery as mandatory work **before live activation**. That follow-up must select a durable pending index, reconcile only incomplete attempts on ordinary startup, and expose full payload verification separately. Preserve immutable capture evidence and test every index/publication interruption. No pending-index format or migration is accepted by this record; record that refinement before implementation.
 
 ## First implementation acceptance
 
