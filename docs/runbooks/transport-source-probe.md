@@ -34,7 +34,17 @@ The printed result names a unique private directory. Each successful HTTP body i
 
 Raw payload equality includes the header. `unchanged_entities` ignores header changes and entity ordering using a diagnostic fingerprint; neither measure substitutes for production event identity. `linked` only verifies exact static references and service date, not physical shape matching. Reports do not infer current coverage from an empty feed or from the FULL_DATASET flag.
 
-Recheck retained payload hashes before offline analysis. Decode them using `scripts.gtfs_probe.decode`, recompute `summarize` with the **original** report receipt timestamp and the identical static archive, and use `entity_fingerprint` for header-independent comparison. This needs no further live requests. The first run's subsequent entity/motion analysis is retained separately as `analysis.json`, preserving its original `report.json`.
+### Offline replay
+
+From the repository root, replay the original measurement with:
+
+```powershell
+uv run --locked python -m scripts.transport_probe --static-zip .local/map-02-source/tram.zip --replay .local/src-02-transport/20261007T034415Z-4657eeab
+```
+
+For another run, replace only the capture-directory argument and use its exact static ZIP. `--replay` and `--live` are mutually exclusive. Replay makes no provider requests and does not read credentials. It verifies the static archive hash and each retained payload's byte count/hash, rejects missing files or paths outside the capture directory, and recalculates all summary/entity/motion fields using original receipt times in capture order. Live and replay use the same analyzer.
+
+The command writes derived `replay.json`, replacing a previous replay output while preserving `report.json`, raw bytes and the earlier `analysis.json`. A corrupt or mismatched capture fails the command. An originally rejected capture remains rejected. Legacy reports without `capture_code` explicitly retain a null acquisition version; `analysis_code` identifies the current replay commit, dirty state and source hashes. New live reports record acquisition provenance before their first request. Run from a clean reviewed checkout when exact commit reproducibility is required.
 
 Keep keys, raw source bytes and detailed local reports out of commits. Publish only reviewed aggregate evidence and provenance hashes. These samples have no automated deletion policy; review their local retention with SRC-02. If interrupted, retain the partial directory; check that no process owns `probe.lock` before removing that exact stale file. Do not restart repeatedly to bypass the request budget.
 
