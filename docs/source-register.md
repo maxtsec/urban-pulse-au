@@ -133,4 +133,4 @@ Credentials remain outside Git. Use synthetic public fixtures until any real sam
 
 Resolve source policy and A-06 early so CLOUD-01 can collect transport in phase 1 and weather/planning in phase 2. Track first retained date and capture gaps separately from feature milestones. Collection may begin after its own source/capture/cloud gates pass without waiting for a hosted API or warehouse. A-03 defines capture identity and manifests before storage is provisioned.
 
-The [SRC-02 tram collection proposal](architecture/tram-collection-policy.md) compares polling, raw retention and attribution. It requires architect selection before implementation or live activation.
+The [SRC-02 tram collection policy](architecture/tram-collection-policy.md) records cadence accepted on 2026-10-07: positions 60 seconds, updates 120 seconds and alerts 60 seconds. Raw duration and source-use/attribution acceptance remain open; live activation requires its remaining gates.
