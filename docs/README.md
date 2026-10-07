@@ -38,7 +38,7 @@ For the hosted fixture demo: [DEMO-01 accepted hosting and deployment design](ad
 
 For the building layer: [MAP-01 walkthrough](demos/map-01.md) and [fixture/rendering evidence](evidence/map-01-building-massing.md).
 
-For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
+For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → [MAP-02 input contract](architecture/tram-animation-input-contract.md) → [map context sources](source-register.md#map-context-sources).
 
 For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [managed delivery evidence](evidence/cd-01-managed-delivery.md).
 
@@ -98,10 +98,10 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [Compiled web serving](runbooks/web-serving.md) | Runtime settings, local rehearsal, route/cache behavior and failure checks | Serving packaging or its runtime contract changes |
 | [Web serving evidence](evidence/demo-01-web-serving.md) | Compiled browser flows, same-origin API and dependency outage/recovery | Serving acceptance is verified |
 | [Optional cache evidence](evidence/demo-01-optional-cache.md) | Explicit cache modes, readiness failures and Redis-free Compose verification | Cache mode or its dependency checks change |
-| [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Accepted 6 October baseline and pre-MAP-02 glide; proposed 7 October MAP-02 clock, request and fallback amendments | A MAP item or map context source changes |
-| [MAP-02 input contract proposal](architecture/tram-animation-input-contract.md) | Proposed MAP-02 endpoint B, validity/polling, versioned clocks/identity, startup admission and receipt/shape semantics | Contract decisions or MAP-02 implementation change |
+| [ADR 0011: 3D and animated map](adr/0011-southbank-building-massing.md) | Accepted 6 October baseline and pre-MAP-02 glide; accepted 7 October MAP-02 clock, request and fallback amendments | A MAP item or map context source changes |
+| [MAP-02 input contract](architecture/tram-animation-input-contract.md) | Accepted MAP-02 endpoint B, validity/polling, versioned clocks/identity, startup admission and receipt/shape semantics | Contract decisions or MAP-02 implementation change |
 | [MAP-02 payload estimate](evidence/map-02-animation-payload.md) | Like-for-like encoding sizes, bounded per-vehicle fallback and recorded Python/zlib environment | The wire shape changes or real fixture measurements become available |
-| [MAP-02 clock rollout proposal](runbooks/map-02-clock-migration.md) | Normalizer coexistence, versioned fixtures/runs, revision-local input selection, managed cutover and pinned v1 recovery prerequisites | Clock migration or deployment compatibility changes |
+| [MAP-02 clock rollout](runbooks/map-02-clock-migration.md) | Normalizer coexistence, versioned fixtures/runs, revision-local input selection, managed cutover and pinned v1 recovery prerequisites | Clock migration or deployment compatibility changes |
 | [Google Cloud identity bootstrap](runbooks/gcp-bootstrap.md) | Terraform bootstrap for APIs, image repository, GitHub federation and the image builder | Bootstrap identities, trust conditions or apply steps change |
 | [ADR 0012: managed demo resources](adr/0012-managed-demo-resource-profile.md) | Accepted database, connectivity, recovery, audience and worker profile | A later architect decision changes the profile |
 | [Managed resource plan](architecture/demo-cloud-resource-plan.md) | Foundation ownership, connection envelope and deployment prerequisites | Resource/runtime controls or deployment gates change |
@@ -124,7 +124,7 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [Consumer IAP evidence](evidence/demo-01-consumer-iap.md) | Closed bootstrap and explicit-user mocked plan checks | OAuth/access validation is repeated |
 | [Managed serving runbook](runbooks/managed-demo-serving.md) | IAP/sidecar inputs, private candidate deployment, promotion and rollback acceptance | Serving configuration or deployment procedure changes |
 | [Managed serving evidence](evidence/demo-01-managed-serving.md) | Mocked topology/access/traffic tests, local runtime checks and managed bootstrap/read-back evidence | A serving boundary is verified |
-| [ADR 0014](adr/0014-managed-demo-continuous-delivery.md) | Accepted remote-state and candidate/promotion direction; proposed MAP-02 import pins, staging and compatibility gates | Deployment ownership or security boundary changes |
+| [ADR 0014](adr/0014-managed-demo-continuous-delivery.md) | Accepted remote-state and candidate/promotion direction; accepted MAP-02 import pins, staging and compatibility gates | Deployment ownership or security boundary changes |
 | [Managed CD runbook](runbooks/managed-demo-cd.md) | Backend migration, workflow activation, private records and failure recovery | Delivery implementation or operating procedure changes |
 | [Managed CD evidence](evidence/demo-01-continuous-delivery.md) | Offline guards, runner failure tests and activation limits | Deployment validation changes |
 | [CD operational evidence](evidence/cd-01-managed-delivery.md) | Exact publication, candidate and promotion runs, retained rollback and validation limits | A managed delivery milestone is verified |
