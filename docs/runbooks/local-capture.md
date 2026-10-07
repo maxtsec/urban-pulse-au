@@ -103,3 +103,11 @@ docker run --rm --network none --read-only   --tmpfs /tmp:rw,nosuid,nodev,size=5
 ```
 
 The same command runs in CI. Filesystem/process tests explicitly inject a test filesystem check for their disposable tmpfs store. The test helper is absent from the runtime image; unmodified CLI subprocess tests also assert real tmpfs rejection. Separate runtime-image acceptance uses a persistent Docker volume. Tests terminate child processes at journal publication boundaries and verify recovery, exclusive ownership, immutable retry, low disk, corruption, signals and real CLI output. Process termination verifies Linux filesystem behavior; it is not a physical power-loss or host-disk durability certification. The [Ubuntu rehearsal record](../evidence/cloud-01-ubuntu-acceptance.md) contains a completed representative-host reboot drill and reproducible steps. Verify dedicated, always-on operation and the remaining ADR 0015 host requirements before live deployment. Repeat host acceptance when moving stores/hosts or changing persistence behavior.
+
+## Accepted tram schedule
+
+Live finite runs automatically use positions every 60 seconds, updates every 120 seconds and alerts every 60 seconds. All starts share the minimum 15-second spacing and persisted Retry-After guard. A slot tolerates less than 15 seconds of wakeup/publication delay; older missed slots are skipped. Independent feed backoff preserves healthy-feed progress. No second collector or probe may spend the same subscription budget.
+
+For an offline rehearsal, append `--tram-schedule --max-attempts 5 --max-seconds 115` to the existing fixture `run` command. This takes real elapsed time and reaches slots 0, 15, 30, 60 and 90; it does not contact the provider. Live retains the 60-second startup cooldown, so its first five healthy slots need a duration exceeding 150 seconds. `--interval` can slow the minimum spacing but cannot accelerate live cadence. Ordinary fixture tests retain their fast default loop.
+
+This schedule does not start unattended operation or change the v2 store. [ADR 0018](../adr/0018-capture-delivery-and-expiry.md) records the accepted fresh-v3 expiry mechanism, separate raw-duration decision and confirmation/encryption alternatives.

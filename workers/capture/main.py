@@ -32,6 +32,9 @@ def main() -> int:
     parser.add_argument("--max-attempts", type=int, default=6)
     parser.add_argument("--max-seconds", type=float, default=120)
     parser.add_argument("--interval", type=float)
+    parser.add_argument(
+        "--tram-schedule", action="store_true", help="Use accepted 60/120/60 slots in fixture mode"
+    )
     args = parser.parse_args()
     if not 1 <= args.max_attempts <= 120 or not 1 <= args.max_seconds <= 3600:
         parser.error("Use 1..120 attempts and 1..3600 seconds")
@@ -99,6 +102,7 @@ def main() -> int:
                         max_seconds=args.max_seconds,
                         interval=interval,
                         initial_delay=delay,
+                        tram_schedule=args.live or args.tram_schedule,
                     )
                     attempts, reason = result.attempts, result.reason
                     print(

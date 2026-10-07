@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Status: **Accepted by the project architect on 2026-10-07** for the hosting, retention tiers and upload identity below. Polling cadence was additionally accepted on 2026-10-07: positions 60 seconds, trip updates 120 seconds and alerts 60 seconds. Retention durations, long-term grain and final source-use/attribution acceptance remain open. This decision provisions no resources and enables no live source.
+Status: **Accepted by the project architect on 2026-10-07** for the hosting, retention tiers and upload identity below. Polling cadence was additionally accepted on 2026-10-07: positions 60 seconds, trip updates 120 seconds and alerts 60 seconds. Normalized retention of 12 months, collected-grain Southbank plus Melbourne CBD history, DTP/CC BY 4.0 attribution and dedicated-host use were subsequently accepted. Raw duration remains proposed at 14 days after the latest review. [ADR 0018](0018-capture-delivery-and-expiry.md) accepts v3 persistence and records the separately reviewed confirmation/unlock alternatives. This decision provisions no resources and enables no live source.
 
 Resolves the capture-host part of A-06. Amends [ADR 0010](0010-hosted-fixture-demo.md)'s keyless-identity direction for one named upload identity only. Source-use approval, SRC-02 live-access proof and the [capture contract](../architecture/capture-event-contract.md) remain separate gates.
 
@@ -38,7 +38,7 @@ A write-only identity cannot read back what it stored. The collector therefore o
 
 ## Host requirements
 
-- An operating system with current security updates, automatic security patching, full-disk encryption and no inbound service ports.
+- An operating system with current security updates and automatic security patching. The accepted [ADR 0018 amendment](0018-capture-delivery-and-expiry.md#host-encryption-and-rollout) uses a dedicated encrypted data/key volume with manual unlock, encrypted or disabled swap, controlled maintenance reboots and no automatic reboot. No public inbound service ports; private operator SSH remains permitted.
 - Wired network where possible, NTP time synchronization, auto-start under a service manager, and no sleep.
 - Disk capacity for the raw window plus headroom, with an alert before it fills. Removable storage must fail loudly when detached rather than writing elsewhere.
 - One active collector. A local lock prevents duplicate writers; any move to another host transfers the lease and records the gap.
@@ -58,7 +58,7 @@ The collector sends a periodic heartbeat. A cloud-side check alerts when no hear
 
 ## Open items
 
-- Raw retention per feed and long-term areas/grain: decide from SRC-02 measurements. Tram cadence is accepted above; scheduler implementation and live activation remain separate.
+- Raw retention duration: separately proposed at 14 days. Normalized duration, scope/grain and attribution are accepted above; expiry implementation and live activation remain separate.
 - Landing bucket, upload identity, heartbeat alert and upload verifier: provisioned in CLOUD-01 through reviewed infrastructure code. CLOUD-01 acceptance includes a lost-acknowledgement retry that is reconciled rather than assumed successful.
 - How uploaded records load into the serving database or warehouse: decided with A-07/HIST-01.
-- Source terms: confirm each source permits the planned local and cloud retention before enabling it.
+- Tram catalogue attribution/use is accepted under the collection policy; confirm subscription scope before unattended capture. Other sources still need their own terms and retention decisions.

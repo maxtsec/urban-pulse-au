@@ -136,12 +136,13 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [ADR 0014](adr/0014-managed-demo-continuous-delivery.md) | Accepted remote-state and candidate/promotion direction; accepted MAP-02 import pins, staging and compatibility gates | Deployment ownership or security boundary changes |
 | [Managed CD runbook](runbooks/managed-demo-cd.md) | Backend migration, workflow activation, private records and failure recovery | Delivery implementation or operating procedure changes |
 | [Managed CD evidence](evidence/demo-01-continuous-delivery.md) | Offline guards, runner failure tests and activation limits | Deployment validation changes |
-| [Tram collection policy](architecture/tram-collection-policy.md) | Accepted tram cadence; proposed raw retention and attribution | Architect source-policy decision or new measurement |
+| [Tram collection policy](architecture/tram-collection-policy.md) | Accepted tram cadence, normalized history and attribution; raw duration separately proposed | Architect source-policy decision or new measurement |
 | [ADR 0015](adr/0015-local-capture-collector.md) | Accepted operator-hosted collector, tiered retention and scoped upload key | Capture host, retention tiers or upload identity change |
 | [CD operational evidence](evidence/cd-01-managed-delivery.md) | Exact publication, candidate and promotion runs, retained rollback and validation limits | A managed delivery milestone is verified |
 | [MAP-01 walkthrough](demos/map-01.md) | 2D/3D controls, building scope and fallback | Map interactions change |
 | [MAP-01 evidence](evidence/map-01-building-massing.md) | Building provenance, extrusion/packaging tests and rendering measurements | Fixture or renderer changes |
 | [ADR 0016](adr/0016-local-capture-recovery.md) | Accepted local immutable capture journal and Linux recovery | Capture persistence or ownership changes |
+| [ADR 0018](adr/0018-capture-delivery-and-expiry.md) | Accepted v3 expiry mechanism; confirmation and encryption alternatives | Capture expiry, downstream progress or IAM/unlock decision |
 | [ADR 0017](adr/0017-incremental-capture-recovery.md) | Capture checkpoint, direct sequence index, downstream trade-offs, verification hold and fresh-store transition | Accepted incremental recovery contract; implementation and verification requirements |
 | [Local capture runbook](runbooks/local-capture.md) | Ubuntu fixture setup, recovery and bounded live gates | Collector operation or deployment changes |
 | [Local capture evidence](evidence/cloud-01-local-capture.md) | Synthetic HTTP, filesystem and process-crash acceptance | Capture/recovery implementation changes |

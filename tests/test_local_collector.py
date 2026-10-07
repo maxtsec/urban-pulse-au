@@ -1,6 +1,7 @@
 """Deterministic scheduling tests exercise limits, retries and stop handling."""
 
 from datetime import UTC, datetime
+from itertools import pairwise
 from threading import Event
 from types import SimpleNamespace
 from uuid import uuid4
@@ -122,6 +123,102 @@ def test_three_feeds_are_served_under_one_budget():
         "service-alerts",
         "vehicle-positions",
     ]
+
+
+def scheduled_run(
+    statuses, *, attempts=10, seconds=1000, retry_after=None, fetch_seconds=0, jitter=0
+):
+    clock, journal = Clock(), Journal()
+    source = Source(clock, statuses, retry_after)
+    fetch = source.fetch
+
+    def slow_fetch(feed):
+        result = fetch(feed)
+        clock.now += fetch_seconds
+        return result
+
+    source.fetch = slow_fetch
+
+    def wait(seconds):
+        clock.now += seconds + jitter
+        return False
+
+    result = collect(
+        journal,
+        source,
+        mode="live",
+        version="test",
+        stop=Event(),
+        max_attempts=attempts,
+        max_seconds=seconds,
+        interval=15,
+        initial_delay=60,
+        tram_schedule=True,
+        monotonic=clock.monotonic,
+        wait=wait,
+    )
+    return result, source.calls
+
+
+def test_accepted_schedule_has_differentiated_cadence_and_one_shared_start_budget():
+    result, calls = scheduled_run([200] * 10)
+    assert result.attempts == 10
+    assert calls == [
+        (60, "vehicle-positions"),
+        (75, "trip-updates"),
+        (90, "service-alerts"),
+        (120, "vehicle-positions"),
+        (150, "service-alerts"),
+        (180, "vehicle-positions"),
+        (195, "trip-updates"),
+        (210, "service-alerts"),
+        (240, "vehicle-positions"),
+        (270, "service-alerts"),
+    ]
+    for start, _ in calls:
+        assert sum(start <= instant < start + 60 for instant, _ in calls) <= 4
+    assert all(b[0] - a[0] >= 15 for a, b in pairwise(calls))
+
+
+def test_scheduled_failed_feed_does_not_starve_other_feeds():
+    result, calls = scheduled_run([503, 200, 200, 503, 200, 503, 200, 200, 503, 200])
+    assert result.captured == 6
+    assert [time for time, feed in calls if feed == "trip-updates"] == [75, 195]
+    assert [time for time, feed in calls if feed == "service-alerts"] == [90, 150, 210, 270]
+
+
+def test_scheduled_retry_after_is_shared_and_missed_slots_are_not_replayed():
+    result, calls = scheduled_run([429, 200, 200], attempts=3, retry_after=121)
+    assert result.attempts == 3
+    assert calls[0] == (60, "vehicle-positions")
+    assert calls[1] == (181, "vehicle-positions")
+    assert calls[2][0] >= calls[1][0] + 121
+
+
+def test_slow_responses_skip_missed_slots_instead_of_bursting():
+    _, calls = scheduled_run([200] * 4, attempts=4, fetch_seconds=31)
+    assert calls == [
+        (60, "vehicle-positions"),
+        (91, "service-alerts"),
+        (122, "vehicle-positions"),
+        (153, "service-alerts"),
+    ]
+
+
+def test_scheduler_tolerates_real_wakeup_jitter_without_losing_each_next_slot():
+    _, calls = scheduled_run([200] * 10, jitter=0.004, fetch_seconds=0.3)
+    assert [feed for _, feed in calls].count("vehicle-positions") == 4
+    assert [feed for _, feed in calls].count("trip-updates") == 2
+    assert [feed for _, feed in calls].count("service-alerts") == 4
+    assert all(b[0] - a[0] >= 15 for a, b in pairwise(calls))
+    assert calls[-1][0] < 271
+
+
+def test_scheduled_permanent_rejection_and_startup_deadline_still_stop():
+    result, calls = scheduled_run([403])
+    assert result.reason == "source_rejected" and len(calls) == 1
+    result, calls = scheduled_run([], seconds=30)
+    assert result.reason == "duration_limit" and not calls
 
 
 def test_initial_cooldown_cannot_fetch_after_deadline():
