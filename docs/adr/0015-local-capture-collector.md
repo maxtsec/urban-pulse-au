@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Status: **Accepted by the project architect on 2026-10-07** for the hosting, retention tiers and upload identity below. Retention durations, long-term grain and polling cadence remain open until SRC-02 measurements. This decision provisions no resources and enables no live source.
+Status: **Accepted by the project architect on 2026-10-07** for the hosting, retention tiers and upload identity below. Polling cadence was additionally accepted on 2026-10-07: positions 60 seconds, trip updates 120 seconds and alerts 60 seconds. Retention durations, long-term grain and final source-use/attribution acceptance remain open. This decision provisions no resources and enables no live source.
 
 Resolves the capture-host part of A-06. Amends [ADR 0010](0010-hosted-fixture-demo.md)'s keyless-identity direction for one named upload identity only. Source-use approval, SRC-02 live-access proof and the [capture contract](../architecture/capture-event-contract.md) remain separate gates.
 
@@ -15,6 +15,8 @@ Provider feeds cannot be requested per area: GTFS-Realtime returns the whole tra
 **Hosting.** Run the collector on a dedicated, operator-managed, always-on Linux host outside Google Cloud. The development workstation is not the collector. Host details are kept in private operator notes, not the repository.
 
 **Tiered retention.** Fetch complete provider feeds. Keep exact raw bytes and capture manifests on the collector host for a short window, used for debugging, reprocessing and short backfill. Normalize on the host, filter to the selected areas, and upload only the resulting records and manifests to Google Cloud for long-term use. Capture-time area filtering of raw payloads is rejected: it would break exact-byte replay, trip updates lack coordinates, and later areas could not be backfilled.
+
+**Tram cadence (accepted 2026-10-07).** Collect positions / trip updates / alerts every **60 / 120 / 60 seconds**, preferring retained history over minimum live latency. The [collection policy](../architecture/tram-collection-policy.md) records storage estimates, shared request/retry limits and remaining activation gates. This does not change fixture freshness or the animation display-delay version.
 
 **Upload identity.** Use one dedicated service account whose only grant is `roles/storage.objectCreator` on one dedicated landing bucket. It cannot read, list, overwrite or delete objects and has no other project role. Its JSON key is the single accepted exception to keyless identities. Runtime, Job, deployer and builder identities remain keyless.
 
@@ -56,7 +58,7 @@ The collector sends a periodic heartbeat. A cloud-side check alerts when no hear
 
 ## Open items
 
-- Raw retention per feed, long-term areas and grain, and polling cadence: decide from SRC-02 measurements of payload size, compression, update interval and unchanged-snapshot ratio.
+- Raw retention per feed and long-term areas/grain: decide from SRC-02 measurements. Tram cadence is accepted above; scheduler implementation and live activation remain separate.
 - Landing bucket, upload identity, heartbeat alert and upload verifier: provisioned in CLOUD-01 through reviewed infrastructure code. CLOUD-01 acceptance includes a lost-acknowledgement retry that is reconciled rather than assumed successful.
 - How uploaded records load into the serving database or warehouse: decided with A-07/HIST-01.
 - Source terms: confirm each source permits the planned local and cloud retention before enabling it.

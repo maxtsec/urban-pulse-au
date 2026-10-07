@@ -1,34 +1,36 @@
-# SRC-02 tram collection policy proposal
+# SRC-02 tram collection policy
 
-Date: 2026-10-07. Status: **Proposed; architect selection required.** This proposal does not start live collection, change retention or provision cloud resources. It supplies the remaining polling/retention/attribution decision under [ADR 0015](../adr/0015-local-capture-collector.md). [Probe evidence](../evidence/src-02-transport-probe.md) is a short sample; rates below are operating proposals, not verified subscription limits.
+Date: 2026-10-07. Status: **Cadence accepted by the project architect on 2026-10-07: positions 60 seconds, trip updates 120 seconds, alerts 60 seconds.** Raw retention duration and final source-use/attribution acceptance remain proposed. This decision does not start live collection, delete history or provision cloud resources. It refines polling under [ADR 0015](../adr/0015-local-capture-collector.md). [Probe evidence](../evidence/src-02-transport-probe.md) remains a short sample, not a verified subscription limit.
+
+The accepted preference prioritizes useful retained history over minimum live latency. The accepted MAP-02 design uses constant-speed interpolation between two eligible observations on the same verified path; increasing polling frequency is not required to draw intermediate frames. Interpolation cannot recover unobserved changes or advance beyond the latest eligible observation.
 
 ## Options
 
 Intervals are positions / trip updates / alerts, in seconds. One subscription-wide dispatcher includes every request and retry; no concurrent probe or second collector may spend the same budget.
 
-| Option | Intervals | Requests/day | Requests/minute | Unused share of 20/min comparison floor | Raw window | Raw MB/day | Raw GB/window |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| A: smaller archive | 60 / 120 / 120 | 2,880 | 2 | 90% | 7 days | 82.18–84.83 | 0.58–0.59 |
-| B: balanced (recommended) | 30 / 60 / 60 | 5,760 | 4 | 80% | 14 days | 164.35–169.66 | 2.30–2.38 |
-| C: longer debugging window | 30 / 60 / 60 | 5,760 | 4 | 80% | 30 days | 164.35–169.66 | 4.93–5.09 |
+| Cadence option | Intervals | Requests/day | Average requests/minute | Unused share of 20/min comparison floor | Raw MB/day | Raw GB/14 days (illustration only) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Higher sampling | 30 / 60 / 60 | 5,760 | 4 | 80% | 164.35–169.66 | 2.30–2.38 |
+| Lowest request count | 60 / 120 / 120 | 2,880 | 2 | 90% | 82.18–84.83 | 1.15–1.19 |
+| **Accepted cadence** | **60 / 120 / 60** | **3,600** | **2.5** | **87.5%** | **82.86–86.36** | **1.16–1.21** |
 
-A sacrifices observation detail for fewer files. B preserves the measured 30-second position cadence and gives two weeks for debugging. C adds replay time without polling faster, at about twice B's raw storage. All windows are proposed minimum debugging horizons, conditional on successful downstream processing and confirmation; they are not deletion permission or hard disk caps.
+The accepted cadence keeps alerts at one minute while roughly halving payload storage relative to higher sampling. Its additional raw bytes over 60/120/120 are small because alerts were small in the sample. Fewer positions/updates retain less temporal detail; future interpolation does not restore missing observations. The 14-day column compares equal horizons and does not select retention.
 
-Estimates use decimal MB/GB and the observed minimum/maximum payload bytes: positions 13,868–14,229, updates 85,444–87,229, alerts 955–2,130. Formula per day: `sum(86400 / interval * bytes_per_response)`. They exclude retries, manifests, sequence indexes, sessions, filesystem allocation, pinned backlog, static archives and backups. These are samples, not bounds on a full day's feed size. B creates 5,760 captures/day (80,640 in 14 days); many small metadata files may materially increase disk use. Compression and deduplication are unimplemented and are not credited to these estimates.
+Estimates use decimal MB/GB and the observed minimum/maximum payload bytes: positions 13,868–14,229, updates 85,444–87,229, alerts 955–2,130. Formula per day: `sum(86400 / interval * bytes_per_response)`. They exclude retries, manifests, sequence indexes, sessions, filesystem allocation, pinned backlog, static archives and backups. These are samples, not bounds on a full day's feed size. The accepted cadence creates 3,600 captures/day (50,400 in an illustrative 14 days); many small metadata files may materially increase disk use. Compression and deduplication are unimplemented and are not credited to these estimates.
 
 Reproduce the table without network access:
 
 ```python
 sizes = [(13868, 14229), (85444, 87229), (955, 2130)]
-for intervals, days in [((60, 120, 120), 7), ((30, 60, 60), 14), ((30, 60, 60), 30)]:
+for intervals, days in [((30, 60, 60), 14), ((60, 120, 120), 14), ((60, 120, 60), 14)]:
     daily = [sum(86400 // s * size[i] for s, size in zip(intervals, sizes)) for i in (0, 1)]
     print(intervals, days, [round(n / 1_000_000, 2) for n in daily])
     print([round(n * days / 1_000_000_000, 2) for n in daily])
 ```
 
-## Recommended scheduling and failure behavior
+## Scheduling and failure behavior
 
-For B/C, healthy slots are positions at second 0, updates at 15, positions at 30 and alerts at 45 of each minute. The dispatcher serializes requests, spaces starts by at least 15 seconds and enforces at most four starts in any half-open rolling 60-second window, including failures/retries. Slow responses, backoff or outages move work later: skip missed slots, never burst to catch up. Honor longer Retry-After deadlines across restart. Retain the existing 60-second live startup delay and finite CLI bounds until continuous operation has its own reviewed implementation.
+For the accepted cadence, healthy slots in each two-minute cycle are positions at seconds 0 and 60, updates at 15, and alerts at 30 and 90. This is five requests per two minutes; individual minutes need not contain the average 2.5 requests. The dispatcher serializes requests, spaces starts by at least 15 seconds and enforces at most four starts in any half-open rolling 60-second window, including failures/retries. Slow responses, backoff or outages move work later: skip missed slots, never burst to catch up. Honor longer Retry-After deadlines across restart. Retain the existing 60-second live startup delay and finite CLI bounds until continuous operation has its own reviewed implementation.
 
 The current collector rotates all three feeds equally and retries the failed feed. It cannot implement the differentiated schedule above unchanged. A scheduler change must test per-feed fairness, retry accounting, restart/backoff and no catch-up bursts. Repeated failure of one source must remain visible without quietly starving the other two. No request-rate increase is part of this proposal.
 
@@ -36,7 +38,7 @@ The [official collection](https://opendata.transport.vic.gov.au/dataset/gtfs-rea
 
 ## Retention and downstream history
 
-Recommend **14 days of complete raw responses** locally, measured from successful receipt, retaining exact bytes and provenance. Normalize selected-area history separately for later multi-month analysis; a short raw window is not the analytical-history window. Long-term normalized retention/grain remains A-07/HIST-01.
+Raw duration is **not yet selected**. The proposal remains **14 days of complete raw responses** locally, measured from successful receipt, retaining exact bytes and provenance. Normalize selected-area history separately for later multi-month analysis; a short raw window is not the analytical-history window. Long-term normalized retention/grain remains A-07/HIST-01.
 
 Never expire an unnormalized capture, unresolved verification finding, or raw evidence backing an unconfirmed upload. Preserve pending object records until confirmation under ADR 0015; HTTP 412 alone is not confirmation. If the uploader is not ready, these pins can make every capture ineligible for deletion. Report oldest capture, pinned bytes, free bytes and gaps; stop safely before the existing reserve is crossed. Do not overwrite or manually delete history to keep collection running.
 
@@ -54,6 +56,6 @@ Link dataset names and CC BY 4.0 in the map attribution/data-source panel. Descr
 
 ## Architect selection and activation gates
 
-Select A, B or C (or specify cadence and duration separately), and accept/amend the source-use and attribution rules. Record acceptance date and choice here and in ADR 0015; merging a proposal alone does not select a policy.
+Cadence is selected above. The architect must still select the raw retention duration and accept/amend the source-use and attribution rules. Record those decisions explicitly; the cadence decision does not implicitly approve the illustrative 14-day window or start collection.
 
 After selection: implement/test the schedule, review retention persistence separately, verify dedicated-host requirements, monitoring and free-space/backlog behavior, confirm subscription scope, then authorize a bounded live run with explicit duration/request limits. That run must record observed byte totals, cadence, errors and gaps. Live projection freshness, correction/disappearance semantics, public live UI and unattended operation remain separate decisions; this policy does not select them.
