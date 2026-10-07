@@ -1,4 +1,4 @@
-"""One bounded capture loop with a shared request budget and stop-aware waits."""
+"""Finite or continuous capture with shared request spacing and stop-aware waits."""
 
 import math
 import time
@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from threading import Event
 
 from urbanpulse.application.tram_schedule import TramSchedule
-from urbanpulse.contracts.local_capture import FEEDS, Journal, Mode, Source
+from urbanpulse.contracts.local_capture import FEEDS, Intent, Journal, Manifest, Mode, Source
 
 
 @dataclass(frozen=True)
@@ -30,20 +30,24 @@ def collect(
     interval: float,
     initial_delay: float = 0,
     tram_schedule: bool = False,
+    continuous: bool = False,
+    tick: Callable[[], None] = lambda: None,
+    before_capture: Callable[[], None] = lambda: None,
+    after_capture: Callable[[Intent, Manifest], None] = lambda *_: None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: Callable[[float], bool] | None = None,
 ) -> CollectionResult:
-    """No catch-up burst. Retry and scheduled polls consume the same finite budget."""
+    """No catch-up burst. Continuous mode retains the same scheduler until stopped."""
     if not 1 <= max_attempts <= 120 or not 1 <= max_seconds <= 3600:
         raise ValueError("invalid_collection_limits")
     if not math.isfinite(interval) or interval < (15 if mode == "live" else 0.01):
         raise ValueError("invalid_request_interval")
     wait = wait or stop.wait
-    deadline = monotonic() + max_seconds
+    deadline = math.inf if continuous else monotonic() + max_seconds
     attempts = captured = feed_index = failures = 0
     delay = max(initial_delay, 0)
     schedule = TramSchedule(monotonic() + delay, max(15, interval)) if tram_schedule else None
-    while attempts < max_attempts:
+    while continuous or attempts < max_attempts:
         if schedule is not None:
             feed, due = schedule.next(monotonic())
             delay = max(0, due - monotonic())
@@ -52,14 +56,24 @@ def collect(
         remaining = deadline - monotonic()
         if remaining <= 0:
             return CollectionResult(attempts, captured, "duration_limit")
-        if stop.is_set() or wait(min(delay, remaining)):
-            return CollectionResult(attempts, captured, "stopped")
+        wake_at = monotonic() + min(delay, remaining)
+        while True:
+            tick()
+            if stop.is_set():
+                return CollectionResult(attempts, captured, "stopped")
+            sleep_for = max(0, wake_at - monotonic())
+            if wait(min(sleep_for, 30) if continuous else sleep_for):
+                return CollectionResult(attempts, captured, "stopped")
+            if monotonic() >= wake_at:
+                break
         if monotonic() >= deadline:
             return CollectionResult(attempts, captured, "duration_limit")
+        before_capture()
         intent = journal.begin(mode, feed, version)
         started = monotonic()
         result = source.fetch(feed)
         manifest = journal.complete(intent, result)
+        after_capture(intent, manifest)
         attempts += 1
         delay = interval
         if manifest.outcome == "captured":

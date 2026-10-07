@@ -1,0 +1,23 @@
+[Unit]
+Description=UrbanPulse continuous collector (fixture until explicit live override)
+BindsTo=srv-urbanpulse.mount
+After=srv-urbanpulse.mount
+AssertPathIsMountPoint=/srv/urbanpulse
+
+[Service]
+Type=exec
+User=root
+WorkingDirectory=/usr/local/lib/urbanpulse
+ExecStart=/usr/bin/python3 -m scripts.collector_service
+Restart=on-failure
+RestartSec=60s
+RestartPreventExitStatus=78
+KillMode=control-group
+TimeoutStopSec=90s
+UMask=0077
+LimitCORE=0
+MemoryMax=192M
+TasksMax=64
+
+# Deliberately no Install target: unlock and start explicitly after reboot.
+# No BindsTo/Requires=docker.service: supervisor waits through daemon outages.

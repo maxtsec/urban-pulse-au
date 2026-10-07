@@ -149,22 +149,27 @@ def docker_command(command: str, image: str) -> list[str]:
     return args
 
 
+def configuration() -> dict[str, str]:
+    if os.geteuid() != 0:
+        raise HostRefused("root_operator_required")
+    metadata = CONFIG.lstat()
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+        or metadata.st_size > 4096
+    ):
+        raise HostRefused("private_root_config_required")
+    config = check(json.loads(CONFIG.read_text(encoding="utf-8")))
+    return config
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("check", "init", "run", "status", "verify"))
     args = parser.parse_args()
     try:
-        if os.geteuid() != 0:
-            raise HostRefused("root_operator_required")
-        metadata = CONFIG.lstat()
-        if (
-            not stat.S_ISREG(metadata.st_mode)
-            or metadata.st_uid != 0
-            or stat.S_IMODE(metadata.st_mode) != 0o600
-            or metadata.st_size > 4096
-        ):
-            raise HostRefused("private_root_config_required")
-        config = check(json.loads(CONFIG.read_text(encoding="utf-8")))
+        config = configuration()
         if args.command == "check":
             print("collector_host_ready")
         else:
