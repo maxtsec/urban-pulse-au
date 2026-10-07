@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "preview": "vite preview --host 127.0.0.1",
     "test:e2e": "npm run build && playwright test",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "test:unit": "tsc -p tsconfig.unit.json && node --test unit/*.test.ts"
   },
   "dependencies": {
     "@deck.gl/core": "9.4.0",

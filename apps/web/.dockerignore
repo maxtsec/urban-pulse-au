@@ -30,6 +30,7 @@
 !src/TramList.tsx
 !src/conditions.ts
 !src/labels.ts
+!src/animation/tram-path.ts
 !src/moments.ts
 !src/useReducedMotion.ts
 
