@@ -59,78 +59,66 @@ def ordered_shapes(rows):
     return shapes
 
 
-def clip_shapes(connection, shapes, boundary):
-    """Clip each original projected edge, preserving source order and full-shape distance."""
+def select_full_shapes(connection, shapes, boundary):
+    """Select by positive-length area overlap; retain every original source vertex."""
     rows = connection.execute(
         """WITH boundary AS (
           SELECT ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%s),4326),32755) AS geom
         ), shapes AS (
-          SELECT value->>'id' AS id,
+          SELECT value->>'id' AS id, value->'geometry' AS source_geometry,
             ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(value->'geometry'),4326),32755) AS geom
           FROM jsonb_array_elements(%s::jsonb)
+        ), selected AS (
+          SELECT s.* FROM shapes s CROSS JOIN boundary b
+          WHERE s.geom && b.geom
+            AND ST_Length(ST_CollectionExtract(ST_Intersection(s.geom,b.geom),2)) > 0.000001
+        ), vertices AS (
+          SELECT id, (d).path[1] AS ordinal, (d).geom AS point
+          FROM selected CROSS JOIN LATERAL ST_DumpPoints(geom) d
         ), edges AS (
-          SELECT id, (d).path[1] AS ordinal, (d).geom AS geom
-          FROM shapes CROSS JOIN LATERAL ST_DumpSegments(geom) d
+          SELECT *, COALESCE(ST_Distance(LAG(point) OVER
+            (PARTITION BY id ORDER BY ordinal),point),0) AS length FROM vertices
         ), measured AS (
-          SELECT *, ST_Length(geom) AS length,
-            COALESCE(SUM(ST_Length(geom)) OVER (PARTITION BY id ORDER BY ordinal
-              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING),0) AS offset_m
+          SELECT *, SUM(length) OVER (PARTITION BY id ORDER BY ordinal) AS distance_m
           FROM edges
-        ), pieces AS (
-          SELECT id, ordinal, m.geom AS edge, length, offset_m, (d).geom AS piece
-          FROM measured m CROSS JOIN boundary b
-          CROSS JOIN LATERAL ST_Dump(ST_CollectionExtract(ST_Intersection(m.geom,b.geom),2)) d
-          WHERE m.geom && b.geom AND length > 0
-        ), positioned AS (
-          SELECT *, ST_LineLocatePoint(edge,ST_StartPoint(piece)) AS f0,
-                    ST_LineLocatePoint(edge,ST_EndPoint(piece)) AS f1 FROM pieces
         )
-        SELECT id, ordinal, offset_m + LEAST(f0,f1)*length,
-          offset_m + GREATEST(f0,f1)*length,
-          ST_AsGeoJSON(ST_Transform(CASE WHEN f0 > f1 THEN ST_Reverse(piece)
-            ELSE piece END,4326),12)::json
-        FROM positioned WHERE ABS(f1-f0)*length > 0.000001
-        ORDER BY id, ordinal, LEAST(f0,f1)""",
+        SELECT s.id, s.source_geometry, array_agg(m.distance_m ORDER BY m.ordinal)
+        FROM selected s JOIN measured m ON m.id=s.id
+        GROUP BY s.id,s.source_geometry ORDER BY s.id""",
         (json.dumps(boundary), json.dumps(shapes)),
     ).fetchall()
-    return components(rows)
+    features = []
+    for identity, geometry, distances in rows:
+        if len(distances) != len(geometry["coordinates"]) or not all(
+            math.isfinite(d) and d >= 0 for d in distances
+        ):
+            raise ValueError("Invalid full-shape distances")
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "shape_id": identity,
+                    "segment_id": f"{identity}/full",
+                    "distances_m": distances,
+                },
+                "geometry": geometry,
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
 
 
-def components(rows):
-    result = []
-    counts = defaultdict(int)
-    previous = None
-    for identity, ordinal, start, end, geometry in rows:
-        coords = geometry["coordinates"]
-        # Original GTFS edges are straight: each clipped piece has two endpoints.
-        if len(coords) != 2 or not (
-            math.isfinite(start) and math.isfinite(end) and end > start >= 0
-        ):
-            raise ValueError("Invalid clipped edge")
-        if (
-            previous is not None
-            and previous[0] == identity
-            and ordinal <= previous[1] + 1
-            and abs(result[-1]["properties"]["distances_m"][-1] - start) < 1e-7
-            and result[-1]["geometry"]["coordinates"][-1] == coords[0]
-        ):
-            result[-1]["geometry"]["coordinates"].append(coords[1])
-            result[-1]["properties"]["distances_m"].append(end)
-        else:
-            counts[identity] += 1
-            result.append(
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "shape_id": identity,
-                        "segment_id": f"{identity}/part-{counts[identity]}",
-                        "distances_m": [start, end],
-                    },
-                    "geometry": geometry,
-                }
-            )
-        previous = (identity, ordinal)
-    return {"type": "FeatureCollection", "features": result}
+def area_vertices(connection, geometry, boundary):
+    """Source vertices for authored pilot observations; never trim the shape itself."""
+    rows = connection.execute(
+        """WITH boundary AS (
+          SELECT ST_SetSRID(ST_GeomFromGeoJSON(%s),4326) geom
+        ) SELECT f->'properties'->>'shape_id', array_agg((d).path[1]-1 ORDER BY (d).path[1])
+        FROM boundary b CROSS JOIN jsonb_array_elements(%s::jsonb->'features') f
+        CROSS JOIN LATERAL ST_DumpPoints(ST_SetSRID(ST_GeomFromGeoJSON(f->'geometry'),4326)) d
+        WHERE ST_Covers(b.geom,(d).geom) GROUP BY f->'properties'->>'shape_id'""",
+        (json.dumps(boundary), json.dumps(geometry)),
+    ).fetchall()
+    return dict(rows)
 
 
 def active(trip, calendars, exceptions, day):
@@ -146,7 +134,7 @@ def active(trip, calendars, exceptions, day):
     )
 
 
-def synthetic_fixture(geometry, trips, starts):
+def synthetic_fixture(geometry, trips, starts, pilot_vertices):
     started = datetime(2026, 10, 7, tzinfo=UTC)
     frames = []
     links = []
@@ -169,7 +157,8 @@ def synthetic_fixture(geometry, trips, starts):
                 "segment_id": feature["properties"]["segment_id"],
             }
         )
-        for sample, vertex in enumerate((1, len(points) // 2, len(points) - 2)):
+        vertices = pilot_vertices[trip["shape_id"]]
+        for sample, vertex in enumerate((vertices[0], vertices[len(vertices) // 2], vertices[-1])):
             revision = index * 3 + sample + 1
             seconds = (revision - 1) * 30
             observed = started + timedelta(seconds=seconds)
@@ -245,13 +234,14 @@ def build(path, connection):
         raw = outer.read("3/google_transit.zip")
     if hashlib.sha256(raw).hexdigest() != TRAM_SHA256:
         raise ValueError("Tram archive hash differs")
-    boundary_bytes = BOUNDARY.read_bytes()
+    boundary_bytes = BOUNDARY.read_bytes().replace(b"\r\n", b"\n")
     boundary = json.loads(boundary_bytes)["geometry"]
     with ZipFile(io.BytesIO(raw)) as archive:
         if len(archive.namelist()) != len(set(archive.namelist())):
             raise ValueError("Duplicate GTFS member")
         shapes = ordered_shapes(read_rows(archive, "shapes.txt"))
-        geometry = clip_shapes(connection, shapes, boundary)
+        geometry = select_full_shapes(connection, shapes, boundary)
+        pilot_vertices = area_vertices(connection, geometry, boundary)
         trips = list(read_rows(archive, "trips.txt"))
         if len({t["trip_id"] for t in trips}) != len(trips):
             raise ValueError("Ambiguous trip identity")
@@ -283,7 +273,7 @@ def build(path, connection):
         eligible = {
             f["properties"]["shape_id"]
             for f in geometry["features"]
-            if len(f["geometry"]["coordinates"]) >= 6
+            if len(pilot_vertices.get(f["properties"]["shape_id"], [])) >= 6
         }
         selected = []
         for direction in ("0", "1"):
@@ -311,7 +301,7 @@ def build(path, connection):
             ):
                 first_stops[identity] = row
         starts = {k: v["departure_time"] for k, v in first_stops.items()}
-        observations = synthetic_fixture(geometry, selected, starts)
+        observations = synthetic_fixture(geometry, selected, starts, pilot_vertices)
     included = sorted({f["properties"]["shape_id"] for f in geometry["features"]})
     manifest = {
         "schema_version": "southbank-tram-shapes-v1",
@@ -325,17 +315,18 @@ def build(path, connection):
         "licence": "CC BY 4.0",
         "licence_url": "https://creativecommons.org/licenses/by/4.0/",
         "attribution": (
-            "Department of Transport and Planning, Victoria — GTFS Schedule. Clipped and "
-            "transformed by UrbanPulse; no endorsement implied."
+            "Department of Transport and Planning, Victoria — GTFS Schedule. Selected and "
+            "distance-annotated by UrbanPulse; no endorsement implied."
         ),
         "geometry_policy": (
-            "Per-original-edge intersection with Southbank in EPSG:32755, no buffer; "
-            "positive-length parts only; WGS84 output to 12 decimal places; no "
-            "simplification; separated components never joined across excluded spans."
+            "Select complete shapes with positive-length Southbank intersection in EPSG:32755, "
+            "no buffer; retain all original WGS84 vertices in source order, including "
+            "outside-area spans; no clipping, simplification or joining distinct shapes."
         ),
         "distance_policy": (
             "Cumulative projected metres from the complete original shape origin in "
-            "source vertex order; clipping retains offsets. GTFS shape_dist_traveled is "
+            "source vertex order, starting at zero. Coincident consecutive vertices retain equal "
+            "distances. GTFS shape_dist_traveled is "
             "not interpreted as metres."
         ),
         "matching_algorithm": None,

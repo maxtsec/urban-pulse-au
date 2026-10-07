@@ -100,6 +100,10 @@ The tram row uses the single amended [display-delay rule](#tram-display-delay), 
 | Weather | Particle rain over the map; flat pulsing outline for active warnings | Modelled reading for rain; warning projection for outlines | Gated separately ([weather gating](#weather-gating)); rain is area-wide from the modelled point value, never street-specific; warnings stay flat because height would read as severity |
 | Construction | Small crane or scaffold models at located DAM points | DAM status | Animate only `Under construction`; other statuses use static markers; unlocated developments are not drawn |
 
+#### Tram geometry scope
+
+Architect amendment accepted on 2026-10-07: retain the **complete original GTFS shape** whenever it has positive-length overlap with Southbank, including a shared boundary segment, with no area buffer. Point-only contact does not select a route. Preserve source order, outside-area spans and cumulative path distance; do not split a route merely because it exits/reenters the pilot or crosses a polygon hole. Distinct shapes and genuine trip/continuity breaks remain separate. This replaces boundary-clipped MAP-02 geometry; it does not change Southbank membership, analysis scope, capture cadence or the city assessment. Shared immutable shape assets stay separate from bounded animation responses. Record the larger artifact size and measure loading/rendering costs before enabling animation.
+
 #### Tram display delay
 
 Let *t* be the scenario clock. The 3D tram layer may use only position observations whose receipt time is at or before *t*. It draws each vehicle as of the display time *d = t − D*, where *D* is a versioned presentation delay, `tram-display-delay-v1` = 30 seconds for the retained fixture policy. Sampling cadence is independent: the architect selected live positions/updates/alerts at 60/120/60 seconds on 2026-10-07. This does not approve a new live delay or freshness threshold.
