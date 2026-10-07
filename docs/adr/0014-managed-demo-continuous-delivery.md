@@ -26,6 +26,26 @@ The deployer can update the existing named Cloud Run service and act as only its
 
 Published image metadata is read in a bounded offline container with no network, credentials, host mounts or privileged capabilities. Only JSON publication artifacts from the successful main image workflow are consumed; artifact code is never checked out or executed. Private Terraform output and failure diagnostics are not uploaded to public Actions artifacts.
 
+## Proposed MAP-02 serving and compatibility amendment
+
+Date: 2026-10-07. **Proposed in PR #48; not part of the accepted 6 October CD behavior.** Requires the project architect's explicit approval alongside the MAP-02 contract and ADR 0011 amendment. No apply, IAM expansion, Job execution or traffic promotion is authorized by this proposal.
+
+A clock-generation rollout needs old and new imports/algorithms to coexist. Updating images while selecting the shared active import cannot isolate a zero-traffic candidate from the serving revision. The proposed decisions are:
+
+| Decision | Proposed rule | Control retained |
+| --- | --- | --- |
+| Revision-local input | `CITY_IMPORT_ID` pins the exact retained import for each revision; its release descriptor pins the normalizer, fixture clock, policy and run versions | Missing/incompatible pin fails readiness; no silent active-import fallback; same selector for area/animation/evidence |
+| Staged import | The reviewed initialization Job gains an explicit persist-and-verify-without-activation mode | Shared active pointer remains on the v1 import; migration/import roles and approval remain separate from the deployer |
+| Reader/writer compatibility | New writer uses `city-normalizer-v3`; a version-dispatched reader supports stored v2 seconds and v3 milliseconds, verifying legacy hashes before in-memory conversion | Unknown format fails; old rows/IDs stay unchanged; pinned v1 image recovery remains available after a compatible additive migration |
+| Release compatibility | Extend records/guards with `normalizer_version`, `clock_version`, `policy_version`, `run_version` and readable observation-codec versions, alongside existing schema/migration/import identity and digests | Version changes stop automatic CD for separately reviewed migration/import/worker steps; no implicit upgrade |
+| Selector changes | Initial pin installation or an import/version change uses a separately reviewed serving plan and deployment-record update | Routine candidate/promotion allowlists remain image/revision and traffic only; normal CD keeps the accepted pin/version tuple fixed |
+
+Prefer revision-local pins over changing the shared pointer, which would also change the old revision, or introducing a second database solely for a fixture clock migration. Pins require version-aware readers, a non-activating import path and compatibility rehearsal; they do not grant the deployer database mutation or Job-execution authority. `CITY_IMPORT_ID` is an import identity, not a secret, but its exact selected value belongs in the reviewed deployment record/plan.
+
+Implementation must atomically retain the complete descriptor for serving/candidate/previous revisions and fail if image metadata, selected import or configured pin disagrees. An old record lacking these new fields is not silently assumed compatible: inspect and backfill its verified legacy descriptor through the approved baseline-update procedure. Admission of a new baseline is operator-reviewed; subsequent same-version image updates can resume normal CD. Candidate verification must show the v1 revision still serves its old import and the v2 revision serves only its pinned import. Rollback selects the retained compatible revision/descriptor, never rewrites the shared pointer or reinterprets old normalized rows.
+
+The [rollout/recovery proposal](../runbooks/map-02-clock-migration.md) defines the concrete sequence and v1 recovery path. Before approval integration, update this amendment, ADR 0011, the contract, rollout procedure and delivery plan together with the approval date. Preserve the original CD decision as the historical baseline and label any superseded compatibility wording; do not leave two current compatibility rules.
+
 ## Consequences
 
 Activation requires creating the bucket/identity grants, migrating the existing serving state, seeding the accepted serving record, configuring both environments and enabling an explicit repository flag. Repository merge alone does none of these. Subsequent applications use immutable image pairs; no source rebuild is part of deployment. Manual local operations must respect the shared operation lock and backend rather than using an abandoned local state.
