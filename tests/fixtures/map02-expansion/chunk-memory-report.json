@@ -1,0 +1,2050 @@
+{
+  "schema_version": "tram-transport-experiment-v1",
+  "mode": "memory",
+  "node": "v24.19.0",
+  "zlib": "1.3.2.1-motley-3246f1b",
+  "chromium": "153.0.8010.12",
+  "source_commit": "5fb2f505aa98f24b5663dbab3f43369aed101c11",
+  "dirty": false,
+  "source_files_sha256": {
+    "scripts/benchmark_tram_transport.mjs": "91bc4b68c9b7e760c20003cd6b79db685c4ffef7a8eb49cd6417e84ac86c34a1",
+    "scripts/tram_chunk_http.mjs": "16b617d792521d65456d63c6c7827f73147ba71e16686cb308c8dde225a34322",
+    "scripts/tram_chunk_loader.mjs": "c9f1971da7e2e685c913b20d6cf057f2cb3c32b2fcbf13be8f101842607c4897",
+    "scripts/build_tram_chunk_comparison.py": "cf60a8c059abb07002d202752554667d48b5ebce3b11b1c8f3692dc5a1d1b231",
+    "scripts/build_tram_fixture.py": "41a9b4b509d8e99ace253d3031d012bc9ac9459cd1b0cec0512bababea6a33ea",
+    "scripts/build_tram_shape_pool.py": "0ba7df9a1bfeec123341920e845af6cbf904789ca248c83d9b1a50deedeba77f",
+    "apps/web/package-lock.json": "76bf89008bd1ff5bbeb0d01ecde45d348863b0357ece81b5ea468ee835c2d93f"
+  },
+  "source_revision": "df140ec0fd415d9ce3bd45ff3a47dbb8a65668168fe20a5fd442dc5fa0a62536",
+  "comparison_sha256": "0e09908aead3c9f487448f44593c3b94f3fb1f0960bed2a512ea29e470d18736",
+  "protocol": "loopback HTTP/1.1; gzip level 6; CDP aggregate download throttle",
+  "memory_scope": "Separate run: sampled V8 usedSize at >=20 ms intervals; post-GC retained selected geometry. Not renderer RSS, GPU memory or an exact peak. Memory-run elapsed times are instrumented.",
+  "profiles": [
+    {
+      "name": "gzip-heap",
+      "latency": 0,
+      "downloadThroughput": -1
+    }
+  ],
+  "repeats": 3,
+  "concurrency": 6,
+  "gzip_level": 6,
+  "measurements": [
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 228.2999999821186,
+      "hash_ms": 9.200000017881393,
+      "parse_ms": 14.100000023841858,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 293304,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5274968,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600632,
+          "totalSize": 1835008,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 293304,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1296104,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 964576,
+            "backingStorageSize": 847007
+          },
+          {
+            "usedSize": 1811252,
+            "totalSize": 4980736,
+            "embedderHeapUsedSize": 1531584,
+            "backingStorageSize": 1714593
+          },
+          {
+            "usedSize": 2546472,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 1914816,
+            "backingStorageSize": 2645341
+          },
+          {
+            "usedSize": 2660832,
+            "totalSize": 6291456,
+            "embedderHeapUsedSize": 2411616,
+            "backingStorageSize": 3298721
+          },
+          {
+            "usedSize": 3186676,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 2804528,
+            "backingStorageSize": 4087287
+          },
+          {
+            "usedSize": 3956820,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 3344816,
+            "backingStorageSize": 5054117
+          },
+          {
+            "usedSize": 4659628,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3812440,
+            "backingStorageSize": 5911419
+          },
+          {
+            "usedSize": 5300792,
+            "totalSize": 8912896,
+            "embedderHeapUsedSize": 4289712,
+            "backingStorageSize": 6671159
+          },
+          {
+            "usedSize": 5422844,
+            "totalSize": 11272192,
+            "embedderHeapUsedSize": 4660936,
+            "backingStorageSize": 7803861
+          },
+          {
+            "usedSize": 10098208,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 4922904,
+            "backingStorageSize": 12587223
+          },
+          {
+            "usedSize": 10098208,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 4922904,
+            "backingStorageSize": 12587223
+          }
+        ],
+        "sampled_max_used_bytes": 10098208,
+        "retained_delta_bytes": 4719604
+      },
+      "network_requests": 367,
+      "network_wire_bytes": 1674194,
+      "network_decoded_bytes": 4227364
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 90.7000000178814,
+      "hash_ms": 4.800000071525574,
+      "parse_ms": 8.500000149011612,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 600632,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3497408,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 1051792,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 602292,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 1051792,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600632,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 827480,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1463404,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1500368,
+            "backingStorageSize": 1234043
+          },
+          {
+            "usedSize": 2339392,
+            "totalSize": 6029312,
+            "embedderHeapUsedSize": 2258800,
+            "backingStorageSize": 2716135
+          },
+          {
+            "usedSize": 3309064,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3040640,
+            "backingStorageSize": 4296023
+          },
+          {
+            "usedSize": 6606936,
+            "totalSize": 10686464,
+            "embedderHeapUsedSize": 3431960,
+            "backingStorageSize": 7797107
+          },
+          {
+            "usedSize": 6606936,
+            "totalSize": 10686464,
+            "embedderHeapUsedSize": 3431960,
+            "backingStorageSize": 7797107
+          }
+        ],
+        "sampled_max_used_bytes": 6606936,
+        "retained_delta_bytes": 2896776
+      },
+      "network_requests": 6,
+      "network_wire_bytes": 30637,
+      "network_decoded_bytes": 90991
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 121.2999999821186,
+      "hash_ms": 3.4999999701976776,
+      "parse_ms": 9.40000006556511,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3500828,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600904,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1281244,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 1043920,
+            "backingStorageSize": 837779
+          },
+          {
+            "usedSize": 1832744,
+            "totalSize": 4718592,
+            "embedderHeapUsedSize": 1553976,
+            "backingStorageSize": 1829027
+          },
+          {
+            "usedSize": 2703484,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 2138416,
+            "backingStorageSize": 2942899
+          },
+          {
+            "usedSize": 3199988,
+            "totalSize": 6815744,
+            "embedderHeapUsedSize": 2588296,
+            "backingStorageSize": 4033441
+          },
+          {
+            "usedSize": 3881412,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3025216,
+            "backingStorageSize": 5051651
+          },
+          {
+            "usedSize": 6609048,
+            "totalSize": 10686464,
+            "embedderHeapUsedSize": 3101672,
+            "backingStorageSize": 7797107
+          }
+        ],
+        "sampled_max_used_bytes": 6609048,
+        "retained_delta_bytes": 2945464
+      },
+      "network_requests": 209,
+      "network_wire_bytes": 1033089,
+      "network_decoded_bytes": 2617143
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 180.30000001192093,
+      "hash_ms": 7.699999988079071,
+      "parse_ms": 12.399999856948853,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 600904,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5272172,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 1066560,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 602644,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 1066560,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600904,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 602072,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1448808,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1502816,
+            "backingStorageSize": 1254351
+          },
+          {
+            "usedSize": 2304712,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 2051408,
+            "backingStorageSize": 2618733
+          },
+          {
+            "usedSize": 2991000,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 2580920,
+            "backingStorageSize": 3388085
+          },
+          {
+            "usedSize": 3507716,
+            "totalSize": 7602176,
+            "embedderHeapUsedSize": 3284904,
+            "backingStorageSize": 4367907
+          },
+          {
+            "usedSize": 4372224,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3750112,
+            "backingStorageSize": 5445191
+          },
+          {
+            "usedSize": 5194076,
+            "totalSize": 8912896,
+            "embedderHeapUsedSize": 4328688,
+            "backingStorageSize": 6406811
+          },
+          {
+            "usedSize": 5419552,
+            "totalSize": 11010048,
+            "embedderHeapUsedSize": 5008816,
+            "backingStorageSize": 7669575
+          },
+          {
+            "usedSize": 10164872,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 5039312,
+            "backingStorageSize": 12587223
+          },
+          {
+            "usedSize": 10164872,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 5039312,
+            "backingStorageSize": 12587223
+          }
+        ],
+        "sampled_max_used_bytes": 10164872,
+        "retained_delta_bytes": 4671268
+      },
+      "network_requests": 164,
+      "network_wire_bytes": 671742,
+      "network_decoded_bytes": 1701212
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 70.90000000596046,
+      "hash_ms": 5.0999999940395355,
+      "parse_ms": 14.799999922513962,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5275064,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600280,
+          "totalSize": 1835008,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1992184,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 1120200,
+            "backingStorageSize": 2288785
+          },
+          {
+            "usedSize": 5328704,
+            "totalSize": 9175040,
+            "embedderHeapUsedSize": 1272024,
+            "backingStorageSize": 8103645
+          },
+          {
+            "usedSize": 10574948,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 1254344,
+            "backingStorageSize": 14104711
+          },
+          {
+            "usedSize": 10574948,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 1254344,
+            "backingStorageSize": 14104711
+          }
+        ],
+        "sampled_max_used_bytes": 10574948,
+        "retained_delta_bytes": 4719700
+      },
+      "network_requests": 23,
+      "network_wire_bytes": 1220989,
+      "network_decoded_bytes": 4991612
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 41.69999998807907,
+      "hash_ms": 2.9999998807907104,
+      "parse_ms": 9.300000071525574,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 600280,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3496444,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 349016,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 601328,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 349016,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600280,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 333392,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 3007232,
+            "totalSize": 7077888,
+            "embedderHeapUsedSize": 1046280,
+            "backingStorageSize": 4018969
+          },
+          {
+            "usedSize": 6943996,
+            "totalSize": 11210752,
+            "embedderHeapUsedSize": 829400,
+            "backingStorageSize": 8981569
+          }
+        ],
+        "sampled_max_used_bytes": 6943996,
+        "retained_delta_bytes": 2896164
+      },
+      "network_requests": 1,
+      "network_wire_bytes": 1976,
+      "network_decoded_bytes": 7018
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 50,
+      "hash_ms": 3.4999999403953552,
+      "parse_ms": 10.799999952316284,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3500320,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600188,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2809764,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 783912,
+            "backingStorageSize": 3792921
+          },
+          {
+            "usedSize": 6923076,
+            "totalSize": 11997184,
+            "embedderHeapUsedSize": 1108080,
+            "backingStorageSize": 8981569
+          },
+          {
+            "usedSize": 6923076,
+            "totalSize": 11997184,
+            "embedderHeapUsedSize": 1108080,
+            "backingStorageSize": 8981569
+          }
+        ],
+        "sampled_max_used_bytes": 6923076,
+        "retained_delta_bytes": 2944956
+      },
+      "network_requests": 13,
+      "network_wire_bytes": 781979,
+      "network_decoded_bytes": 3212510
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 64.30000001192093,
+      "hash_ms": 4.699999958276749,
+      "parse_ms": 14.5,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 600188,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5270792,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 354184,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 601264,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 354184,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600188,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 320104,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2999956,
+            "totalSize": 6815744,
+            "embedderHeapUsedSize": 877624,
+            "backingStorageSize": 3949733
+          },
+          {
+            "usedSize": 10602368,
+            "totalSize": 14348288,
+            "embedderHeapUsedSize": 1253168,
+            "backingStorageSize": 14104711
+          },
+          {
+            "usedSize": 6459100,
+            "totalSize": 12320768,
+            "embedderHeapUsedSize": 1253168,
+            "backingStorageSize": 14104711
+          }
+        ],
+        "sampled_max_used_bytes": 10602368,
+        "retained_delta_bytes": 4670604
+      },
+      "network_requests": 11,
+      "network_wire_bytes": 440986,
+      "network_decoded_bytes": 1786120
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 74.90000000596046,
+      "hash_ms": 4.800000011920929,
+      "parse_ms": 15.400000035762787,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5274920,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600280,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1930840,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 1120192,
+            "backingStorageSize": 2186009
+          },
+          {
+            "usedSize": 4642352,
+            "totalSize": 9175040,
+            "embedderHeapUsedSize": 1303008,
+            "backingStorageSize": 6903793
+          },
+          {
+            "usedSize": 11085656,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 925336,
+            "backingStorageSize": 14104711
+          },
+          {
+            "usedSize": 10578272,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 925336,
+            "backingStorageSize": 14104711
+          }
+        ],
+        "sampled_max_used_bytes": 11085656,
+        "retained_delta_bytes": 4719556
+      },
+      "network_requests": 23,
+      "network_wire_bytes": 1220989,
+      "network_decoded_bytes": 4991612
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 41.599999994039536,
+      "hash_ms": 2.5,
+      "parse_ms": 9.499999970197678,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 600280,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3496444,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 349016,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 601328,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 349016,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600280,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 333392,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 3001624,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 1047784,
+            "backingStorageSize": 4018969
+          },
+          {
+            "usedSize": 6959424,
+            "totalSize": 10948608,
+            "embedderHeapUsedSize": 830896,
+            "backingStorageSize": 8981569
+          }
+        ],
+        "sampled_max_used_bytes": 6959424,
+        "retained_delta_bytes": 2896164
+      },
+      "network_requests": 1,
+      "network_wire_bytes": 1976,
+      "network_decoded_bytes": 7018
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 48.80000001192093,
+      "hash_ms": 2.799999952316284,
+      "parse_ms": 10.899999976158142,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3500224,
+          "totalSize": 4718592,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600188,
+          "totalSize": 1835008,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2268260,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 888968,
+            "backingStorageSize": 2845819
+          },
+          {
+            "usedSize": 6922112,
+            "totalSize": 11735040,
+            "embedderHeapUsedSize": 1102688,
+            "backingStorageSize": 8981569
+          },
+          {
+            "usedSize": 6922112,
+            "totalSize": 11735040,
+            "embedderHeapUsedSize": 1102688,
+            "backingStorageSize": 8981569
+          }
+        ],
+        "sampled_max_used_bytes": 6922112,
+        "retained_delta_bytes": 2944860
+      },
+      "network_requests": 13,
+      "network_wire_bytes": 781979,
+      "network_decoded_bytes": 3212510
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 64.59999999403954,
+      "hash_ms": 4.799999922513962,
+      "parse_ms": 13.800000071525574,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 600188,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5270792,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 354184,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 601264,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 354184,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600188,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 320104,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 3007920,
+            "totalSize": 7077888,
+            "embedderHeapUsedSize": 878872,
+            "backingStorageSize": 3949733
+          },
+          {
+            "usedSize": 10593624,
+            "totalSize": 14348288,
+            "embedderHeapUsedSize": 927312,
+            "backingStorageSize": 14104711
+          },
+          {
+            "usedSize": 6418820,
+            "totalSize": 12058624,
+            "embedderHeapUsedSize": 927312,
+            "backingStorageSize": 14104711
+          }
+        ],
+        "sampled_max_used_bytes": 10593624,
+        "retained_delta_bytes": 4670604
+      },
+      "network_requests": 11,
+      "network_wire_bytes": 440986,
+      "network_decoded_bytes": 1786120
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 225.80000001192093,
+      "hash_ms": 9.300000101327896,
+      "parse_ms": 12.000000089406967,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5275000,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600664,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1235116,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 880296,
+            "backingStorageSize": 767911
+          },
+          {
+            "usedSize": 1696684,
+            "totalSize": 4718592,
+            "embedderHeapUsedSize": 1543760,
+            "backingStorageSize": 1574671
+          },
+          {
+            "usedSize": 2434340,
+            "totalSize": 4980736,
+            "embedderHeapUsedSize": 1939104,
+            "backingStorageSize": 2517637
+          },
+          {
+            "usedSize": 3020320,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 2323720,
+            "backingStorageSize": 3170219
+          },
+          {
+            "usedSize": 3017296,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 2614512,
+            "backingStorageSize": 3900265
+          },
+          {
+            "usedSize": 3847720,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 3314792,
+            "backingStorageSize": 4943899
+          },
+          {
+            "usedSize": 4539952,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3749688,
+            "backingStorageSize": 5781345
+          },
+          {
+            "usedSize": 5173264,
+            "totalSize": 8650752,
+            "embedderHeapUsedSize": 4150216,
+            "backingStorageSize": 6535195
+          },
+          {
+            "usedSize": 5290492,
+            "totalSize": 11010048,
+            "embedderHeapUsedSize": 4537520,
+            "backingStorageSize": 7625885
+          },
+          {
+            "usedSize": 10767108,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 4816720,
+            "backingStorageSize": 12587223
+          },
+          {
+            "usedSize": 10095552,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 4816720,
+            "backingStorageSize": 12587223
+          }
+        ],
+        "sampled_max_used_bytes": 10767108,
+        "retained_delta_bytes": 4719636
+      },
+      "network_requests": 367,
+      "network_wire_bytes": 1674194,
+      "network_decoded_bytes": 4227364
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 90.80000001192093,
+      "hash_ms": 3.199999898672104,
+      "parse_ms": 8.400000184774399,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 600664,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3497440,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 1051792,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 602324,
+          "totalSize": 1835008,
+          "embedderHeapUsedSize": 1051792,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600664,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 827480,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1488828,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1642576,
+            "backingStorageSize": 1271099
+          },
+          {
+            "usedSize": 2292452,
+            "totalSize": 6029312,
+            "embedderHeapUsedSize": 2314408,
+            "backingStorageSize": 2650051
+          },
+          {
+            "usedSize": 3217200,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3052704,
+            "backingStorageSize": 4182153
+          },
+          {
+            "usedSize": 6606316,
+            "totalSize": 10686464,
+            "embedderHeapUsedSize": 3446008,
+            "backingStorageSize": 7797107
+          },
+          {
+            "usedSize": 6606316,
+            "totalSize": 10686464,
+            "embedderHeapUsedSize": 3446008,
+            "backingStorageSize": 7797107
+          }
+        ],
+        "sampled_max_used_bytes": 6606316,
+        "retained_delta_bytes": 2896776
+      },
+      "network_requests": 6,
+      "network_wire_bytes": 30637,
+      "network_decoded_bytes": 90991
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 132.90000000596046,
+      "hash_ms": 4.200000196695328,
+      "parse_ms": 7.299999952316284,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3500860,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600936,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1344168,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 1040288,
+            "backingStorageSize": 914027
+          },
+          {
+            "usedSize": 1535988,
+            "totalSize": 4980736,
+            "embedderHeapUsedSize": 1404872,
+            "backingStorageSize": 1403771
+          },
+          {
+            "usedSize": 2398420,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 1863040,
+            "backingStorageSize": 2528463
+          },
+          {
+            "usedSize": 2761688,
+            "totalSize": 6029312,
+            "embedderHeapUsedSize": 2214880,
+            "backingStorageSize": 3477919
+          },
+          {
+            "usedSize": 3488848,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 2721728,
+            "backingStorageSize": 4517451
+          },
+          {
+            "usedSize": 6635256,
+            "totalSize": 10424320,
+            "embedderHeapUsedSize": 3007312,
+            "backingStorageSize": 7797107
+          },
+          {
+            "usedSize": 6635256,
+            "totalSize": 10424320,
+            "embedderHeapUsedSize": 3007312,
+            "backingStorageSize": 7797107
+          }
+        ],
+        "sampled_max_used_bytes": 6635256,
+        "retained_delta_bytes": 2945496
+      },
+      "network_requests": 209,
+      "network_wire_bytes": 1033089,
+      "network_decoded_bytes": 2617143
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 182.19999998807907,
+      "hash_ms": 7.900000125169754,
+      "parse_ms": 12.000000029802322,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 600936,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5272204,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 1066560,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 602676,
+          "totalSize": 1835008,
+          "embedderHeapUsedSize": 1066560,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600936,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 602072,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1504460,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1457688,
+            "backingStorageSize": 1272073
+          },
+          {
+            "usedSize": 2276468,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 2082728,
+            "backingStorageSize": 2575965
+          },
+          {
+            "usedSize": 2975304,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 2496936,
+            "backingStorageSize": 3351515
+          },
+          {
+            "usedSize": 3647152,
+            "totalSize": 7340032,
+            "embedderHeapUsedSize": 3358888,
+            "backingStorageSize": 4525023
+          },
+          {
+            "usedSize": 4519848,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 4045488,
+            "backingStorageSize": 5599461
+          },
+          {
+            "usedSize": 5318516,
+            "totalSize": 8912896,
+            "embedderHeapUsedSize": 4542008,
+            "backingStorageSize": 6535195
+          },
+          {
+            "usedSize": 5572616,
+            "totalSize": 11272192,
+            "embedderHeapUsedSize": 5008896,
+            "backingStorageSize": 7779995
+          },
+          {
+            "usedSize": 10241064,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 5028200,
+            "backingStorageSize": 12587223
+          },
+          {
+            "usedSize": 10241064,
+            "totalSize": 15921152,
+            "embedderHeapUsedSize": 5028200,
+            "backingStorageSize": 12587223
+          }
+        ],
+        "sampled_max_used_bytes": 10241064,
+        "retained_delta_bytes": 4671268
+      },
+      "network_requests": 164,
+      "network_wire_bytes": 671742,
+      "network_decoded_bytes": 1701212
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 225.5,
+      "hash_ms": 9.100000113248825,
+      "parse_ms": 12.199999898672104,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5274856,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600520,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1387548,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 1064024,
+            "backingStorageSize": 961665
+          },
+          {
+            "usedSize": 1439996,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1429064,
+            "backingStorageSize": 1254351
+          },
+          {
+            "usedSize": 2107772,
+            "totalSize": 4980736,
+            "embedderHeapUsedSize": 1805024,
+            "backingStorageSize": 2130739
+          },
+          {
+            "usedSize": 2870580,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 2244040,
+            "backingStorageSize": 3031219
+          },
+          {
+            "usedSize": 3058344,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 2600240,
+            "backingStorageSize": 3750827
+          },
+          {
+            "usedSize": 3603452,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 3231616,
+            "backingStorageSize": 4681771
+          },
+          {
+            "usedSize": 4332340,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 3623600,
+            "backingStorageSize": 5579179
+          },
+          {
+            "usedSize": 5068432,
+            "totalSize": 8650752,
+            "embedderHeapUsedSize": 4140144,
+            "backingStorageSize": 6437511
+          },
+          {
+            "usedSize": 5980384,
+            "totalSize": 9437184,
+            "embedderHeapUsedSize": 4534240,
+            "backingStorageSize": 7669575
+          },
+          {
+            "usedSize": 10742876,
+            "totalSize": 15396864,
+            "embedderHeapUsedSize": 4811600,
+            "backingStorageSize": 12587223
+          },
+          {
+            "usedSize": 10082920,
+            "totalSize": 15396864,
+            "embedderHeapUsedSize": 4811600,
+            "backingStorageSize": 12587223
+          }
+        ],
+        "sampled_max_used_bytes": 10742876,
+        "retained_delta_bytes": 4719492
+      },
+      "network_requests": 367,
+      "network_wire_bytes": 1674194,
+      "network_decoded_bytes": 4227364
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 93.80000001192093,
+      "hash_ms": 4.3999998569488525,
+      "parse_ms": 8.200000047683716,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 600520,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 827480,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3497472,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 1051792,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 602356,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 1051792,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600520,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 827480,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1451532,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1508888,
+            "backingStorageSize": 1250213
+          },
+          {
+            "usedSize": 2331988,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 2233008,
+            "backingStorageSize": 2668851
+          },
+          {
+            "usedSize": 3162756,
+            "totalSize": 7602176,
+            "embedderHeapUsedSize": 3045328,
+            "backingStorageSize": 4077101
+          },
+          {
+            "usedSize": 6639432,
+            "totalSize": 10424320,
+            "embedderHeapUsedSize": 3431648,
+            "backingStorageSize": 7797107
+          },
+          {
+            "usedSize": 6639432,
+            "totalSize": 10424320,
+            "embedderHeapUsedSize": 3431648,
+            "backingStorageSize": 7797107
+          }
+        ],
+        "sampled_max_used_bytes": 6639432,
+        "retained_delta_bytes": 2896952
+      },
+      "network_requests": 6,
+      "network_wire_bytes": 30637,
+      "network_decoded_bytes": 90991
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 137.5,
+      "hash_ms": 5.999999940395355,
+      "parse_ms": 7.800000071525574,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3500860,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600936,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1344232,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 1054136,
+            "backingStorageSize": 914027
+          },
+          {
+            "usedSize": 1775640,
+            "totalSize": 4980736,
+            "embedderHeapUsedSize": 1422416,
+            "backingStorageSize": 1708565
+          },
+          {
+            "usedSize": 2561544,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 1993784,
+            "backingStorageSize": 2716135
+          },
+          {
+            "usedSize": 2951260,
+            "totalSize": 6291456,
+            "embedderHeapUsedSize": 2449888,
+            "backingStorageSize": 3685553
+          },
+          {
+            "usedSize": 3340632,
+            "totalSize": 7864320,
+            "embedderHeapUsedSize": 2713632,
+            "backingStorageSize": 4360293
+          },
+          {
+            "usedSize": 7232808,
+            "totalSize": 10424320,
+            "embedderHeapUsedSize": 2996592,
+            "backingStorageSize": 7797107
+          },
+          {
+            "usedSize": 6613160,
+            "totalSize": 10424320,
+            "embedderHeapUsedSize": 2996592,
+            "backingStorageSize": 7797107
+          }
+        ],
+        "sampled_max_used_bytes": 7232808,
+        "retained_delta_bytes": 2945496
+      },
+      "network_requests": 209,
+      "network_wire_bytes": 1033089,
+      "network_decoded_bytes": 2617143
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 207.10000002384186,
+      "hash_ms": 6.79999977350235,
+      "parse_ms": 14.700000047683716,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 600936,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 602072,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5272188,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 1066560,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 602660,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 1066560,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600936,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 602072,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 1278692,
+            "totalSize": 2621440,
+            "embedderHeapUsedSize": 1243984,
+            "backingStorageSize": 798731
+          },
+          {
+            "usedSize": 1646432,
+            "totalSize": 3932160,
+            "embedderHeapUsedSize": 1408688,
+            "backingStorageSize": 1467651
+          },
+          {
+            "usedSize": 2257984,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 2026752,
+            "backingStorageSize": 2575965
+          },
+          {
+            "usedSize": 2985620,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 2694920,
+            "backingStorageSize": 3388085
+          },
+          {
+            "usedSize": 3503984,
+            "totalSize": 7602176,
+            "embedderHeapUsedSize": 3299480,
+            "backingStorageSize": 4367907
+          },
+          {
+            "usedSize": 4349024,
+            "totalSize": 8126464,
+            "embedderHeapUsedSize": 3736456,
+            "backingStorageSize": 5421021
+          },
+          {
+            "usedSize": 5094752,
+            "totalSize": 8650752,
+            "embedderHeapUsedSize": 4228736,
+            "backingStorageSize": 6285733
+          },
+          {
+            "usedSize": 5370280,
+            "totalSize": 10747904,
+            "embedderHeapUsedSize": 4855408,
+            "backingStorageSize": 7539303
+          },
+          {
+            "usedSize": 10206508,
+            "totalSize": 15659008,
+            "embedderHeapUsedSize": 5120648,
+            "backingStorageSize": 12587223
+          },
+          {
+            "usedSize": 10206508,
+            "totalSize": 15659008,
+            "embedderHeapUsedSize": 5120648,
+            "backingStorageSize": 12587223
+          }
+        ],
+        "sampled_max_used_bytes": 10206508,
+        "retained_delta_bytes": 4671252
+      },
+      "network_requests": 164,
+      "network_wire_bytes": 671742,
+      "network_decoded_bytes": 1701212
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 67.19999998807907,
+      "hash_ms": 5.200000107288361,
+      "parse_ms": 14.199999958276749,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5274920,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600280,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2308492,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 1120408,
+            "backingStorageSize": 2827789
+          },
+          {
+            "usedSize": 5748880,
+            "totalSize": 9437184,
+            "embedderHeapUsedSize": 1254824,
+            "backingStorageSize": 8792221
+          },
+          {
+            "usedSize": 10602936,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 1254824,
+            "backingStorageSize": 14104711
+          },
+          {
+            "usedSize": 10602936,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 1254824,
+            "backingStorageSize": 14104711
+          }
+        ],
+        "sampled_max_used_bytes": 10602936,
+        "retained_delta_bytes": 4719556
+      },
+      "network_requests": 23,
+      "network_wire_bytes": 1220989,
+      "network_decoded_bytes": 4991612
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 41.80000001192093,
+      "hash_ms": 2.9999999403953552,
+      "parse_ms": 9.600000023841858,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 600280,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 333392,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3496444,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 349016,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 601328,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 349016,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600280,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 333392,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2992116,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 1045544,
+            "backingStorageSize": 4018969
+          },
+          {
+            "usedSize": 6931328,
+            "totalSize": 10686464,
+            "embedderHeapUsedSize": 828160,
+            "backingStorageSize": 8981569
+          }
+        ],
+        "sampled_max_used_bytes": 6931328,
+        "retained_delta_bytes": 2896164
+      },
+      "network_requests": 1,
+      "network_wire_bytes": 1976,
+      "network_decoded_bytes": 7018
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 50.400000005960464,
+      "hash_ms": 2.899999976158142,
+      "parse_ms": 10.60000005364418,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "heap": {
+        "before": {
+          "usedSize": 555364,
+          "totalSize": 1048576,
+          "embedderHeapUsedSize": 298728,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 3500240,
+          "totalSize": 4456448,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 600188,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 555364,
+            "totalSize": 1048576,
+            "embedderHeapUsedSize": 298728,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2837720,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 783200,
+            "backingStorageSize": 3792921
+          },
+          {
+            "usedSize": 6940676,
+            "totalSize": 11735040,
+            "embedderHeapUsedSize": 1106992,
+            "backingStorageSize": 8981569
+          },
+          {
+            "usedSize": 6940676,
+            "totalSize": 11735040,
+            "embedderHeapUsedSize": 1106992,
+            "backingStorageSize": 8981569
+          }
+        ],
+        "sampled_max_used_bytes": 6940676,
+        "retained_delta_bytes": 2944876
+      },
+      "network_requests": 13,
+      "network_wire_bytes": 781979,
+      "network_decoded_bytes": 3212510
+    },
+    {
+      "profile": "gzip-heap",
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 64.19999998807907,
+      "hash_ms": 5.400000125169754,
+      "parse_ms": 13.299999862909317,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "heap": {
+        "before": {
+          "usedSize": 600188,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 320104,
+          "backingStorageSize": 32
+        },
+        "retained": {
+          "usedSize": 5270792,
+          "totalSize": 6291456,
+          "embedderHeapUsedSize": 354184,
+          "backingStorageSize": 32
+        },
+        "released": {
+          "usedSize": 601264,
+          "totalSize": 1572864,
+          "embedderHeapUsedSize": 354184,
+          "backingStorageSize": 32
+        },
+        "samples": [
+          {
+            "usedSize": 600188,
+            "totalSize": 1572864,
+            "embedderHeapUsedSize": 320104,
+            "backingStorageSize": 32
+          },
+          {
+            "usedSize": 2849088,
+            "totalSize": 6553600,
+            "embedderHeapUsedSize": 974568,
+            "backingStorageSize": 3729943
+          },
+          {
+            "usedSize": 10577624,
+            "totalSize": 14086144,
+            "embedderHeapUsedSize": 1256184,
+            "backingStorageSize": 14104711
+          },
+          {
+            "usedSize": 6475744,
+            "totalSize": 11796480,
+            "embedderHeapUsedSize": 1256184,
+            "backingStorageSize": 14104711
+          }
+        ],
+        "sampled_max_used_bytes": 10577624,
+        "retained_delta_bytes": 4670604
+      },
+      "network_requests": 11,
+      "network_wire_bytes": 440986,
+      "network_decoded_bytes": 1786120
+    }
+  ]
+}
