@@ -360,7 +360,7 @@ def test_non_object_warning_rejects_whole_capture_in_area_and_evidence(
         assert response.status_code == 200
         area = response.json()
         weather = area["weather"]
-        assert weather["last_feed_update_received_at"].endswith("00:02:00+00:00")
+        assert weather["last_feed_update_received_at"].endswith("00:02:00Z")
         assert weather["warnings"][0]["cancelled_at"] is None
         assert weather["warnings"][0]["level"] == "Watch and Act"
         assert weather["coverage"] == "unknown"
