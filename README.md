@@ -40,7 +40,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 | 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
 | 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                                               |
 
-MAP-01: [Southbank 3D building context](docs/demos/map-01.md) submitted for review; [source and rendering evidence](docs/evidence/map-01-building-massing.md).
+MAP-01: [Southbank 3D building context](docs/demos/map-01.md) complete in [PR #47](https://github.com/maxtsec/urban-pulse-au/pull/47); [source and rendering evidence](docs/evidence/map-01-building-massing.md).
 
 An early capture track targets phases 1-2 in parallel, subject to source permission and cloud readiness. It does not gate phase 1 completion; capture gaps and their historical-analysis impact are tracked separately.
 
