@@ -84,7 +84,7 @@ export class TramPath {
 export type MatchedObservation = Readonly<{
   shapeId: string;
   continuityId: string;
-  observedAtMs: number;
+  observedAtUs: number;
   distanceMetres: number;
 }>;
 
@@ -92,7 +92,7 @@ export type InterpolatedPosition = {
   coordinate: Coordinate;
   distanceMetres: number;
   displayAtMs: number;
-  observationTimesMs: [number, number];
+  observationTimesUs: [number, number];
   label: 'Interpolated';
 };
 
@@ -103,14 +103,19 @@ export function interpolateTramBracket(
   to: MatchedObservation,
   displayAtMs: number,
 ): InterpolatedPosition | null {
-  const duration = to.observedAtMs - from.observedAtMs;
+  const displayAtUs = displayAtMs * 1000;
+  const duration = to.observedAtUs - from.observedAtUs;
   if (
-    ![displayAtMs, from.observedAtMs, to.observedAtMs, duration].every(
-      Number.isSafeInteger,
-    ) ||
+    ![
+      displayAtMs,
+      displayAtUs,
+      from.observedAtUs,
+      to.observedAtUs,
+      duration,
+    ].every(Number.isSafeInteger) ||
     duration <= 0 ||
-    displayAtMs < from.observedAtMs ||
-    displayAtMs > to.observedAtMs ||
+    displayAtUs < from.observedAtUs ||
+    displayAtUs > to.observedAtUs ||
     !from.continuityId ||
     from.continuityId !== to.continuityId ||
     from.shapeId !== path.shapeId ||
@@ -121,9 +126,9 @@ export function interpolateTramBracket(
   ) {
     return null;
   }
-  const fraction = (displayAtMs - from.observedAtMs) / duration;
+  const fraction = (displayAtUs - from.observedAtUs) / duration;
   const distanceMetres =
-    displayAtMs === to.observedAtMs
+    displayAtUs === to.observedAtUs
       ? to.distanceMetres
       : Math.min(
           to.distanceMetres,
@@ -136,7 +141,7 @@ export function interpolateTramBracket(
     coordinate,
     distanceMetres,
     displayAtMs,
-    observationTimesMs: [from.observedAtMs, to.observedAtMs],
+    observationTimesUs: [from.observedAtUs, to.observedAtUs],
     label: 'Interpolated',
   };
 }
