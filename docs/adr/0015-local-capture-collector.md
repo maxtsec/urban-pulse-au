@@ -25,6 +25,15 @@ Provider feeds cannot be requested per area: GTFS-Realtime returns the whole tra
 - Rotate on a fixed schedule: create a replacement, deploy it, verify an upload, then delete the old key. Revoke immediately on suspected exposure or host compromise. Record key IDs and rotation dates privately.
 - Uploads use unique, create-only object names derived from capture identity, so a write-only identity cannot replace earlier records.
 
+## Upload confirmation
+
+A write-only identity cannot read back what it stored. The collector therefore owns a local pending-upload record for every object until the cloud side confirms it.
+
+- Send each object with a checksum the service validates on receipt and record its SHA-256 in object metadata and the local manifest.
+- A successful response confirms that upload. A lost response or a retry that returns HTTP 412 (object already exists) is **unconfirmed**, not success: the collector cannot verify whether the existing object matches.
+- A cloud-side verifier, or operator reconciliation until one exists, compares stored objects with the uploaded manifests by name and hash and reports matches, mismatches and missing objects. A mismatch is quarantined and investigated; it is never overwritten.
+- Pending records, and the raw bytes they derive from, are kept beyond the normal raw window until confirmed. Disk alerts account for this backlog.
+
 ## Host requirements
 
 - An operating system with current security updates, automatic security patching, full-disk encryption and no inbound service ports.
@@ -48,6 +57,6 @@ The collector sends a periodic heartbeat. A cloud-side check alerts when no hear
 ## Open items
 
 - Raw retention per feed, long-term areas and grain, and polling cadence: decide from SRC-02 measurements of payload size, compression, update interval and unchanged-snapshot ratio.
-- Landing bucket, upload identity and heartbeat alert: provisioned in CLOUD-01 through reviewed infrastructure code.
+- Landing bucket, upload identity, heartbeat alert and upload verifier: provisioned in CLOUD-01 through reviewed infrastructure code. CLOUD-01 acceptance includes a lost-acknowledgement retry that is reconciled rather than assumed successful.
 - How uploaded records load into the serving database or warehouse: decided with A-07/HIST-01.
 - Source terms: confirm each source permits the planned local and cloud retention before enabling it.
