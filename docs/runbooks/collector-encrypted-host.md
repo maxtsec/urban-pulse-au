@@ -111,3 +111,10 @@ Use fixture data only. Keep exact commands/results privately; public evidence de
 6. **Failure handling:** a failed verification, partial expiry, missing image, wrong mount or nonzero run is a failure, not permission to reinitialize. Follow [local capture recovery](local-capture.md#incomplete-expiry-recovery-order), keep evidence and investigate.
 
 The automated tests exercise guard decisions with synthetic kernel responses. They do not certify LUKS provisioning, boot ordering, real mount loss or this host's swap/reboot configuration. Complete the above drill after separate host-plan approval. Provider/upload keys, continuous operation, external alerts and raw expiry remain subsequent gates.
+
+
+## Development validation
+
+On 2026-10-08, all 18 guard tests passed on Windows and in the isolated Linux capture test image. Run `uv run pytest -q tests/test_collector_host.py` from the checkout. Cases include wrong/plain/temporary/shadow mounts, wrong crypto identity, swap, mutable image tags and a failed mount lookup proving Docker is never invoked. The Linux run used a read-only checkout, no network and disposable temporary storage.
+
+Both units passed `systemd-analyze verify --man=no` in a disposable container with the files at their documented install paths/modes. Docker was a stub for this syntax check; it did not exercise service lifetime or mounting. Ruff lint/format and mypy passed. Real encrypted-volume, reboot and mount-loss acceptance remains the operator drill above; no host settings or secrets were changed during development.
