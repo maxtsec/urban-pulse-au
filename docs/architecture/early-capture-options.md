@@ -1,6 +1,6 @@
 # Early capture: hosting options
 
-A-06 decision proposal, researched 4 October 2026. Evaluate continuous capture as part of the complete city application, reserving capacity for serving, storage, recovery and analytics. Melbourne was the initial regional preference; alternative regions and hosts remain options for architect review. Progress belongs in the [delivery plan](../delivery-plan.md).
+A-06 decision proposal, researched 4 October 2026. **Outcome:** [ADR 0015](../adr/0015-local-capture-collector.md) selects an operator-hosted collector with local raw retention; the comparison below is retained as the decision record's input. Evaluate continuous capture as part of the complete city application, reserving capacity for serving, storage, recovery and analytics. Melbourne was the initial regional preference; alternative regions and hosts remain options for architect review. Progress belongs in the [delivery plan](../delivery-plan.md).
 
 ## Hosting choices
 
