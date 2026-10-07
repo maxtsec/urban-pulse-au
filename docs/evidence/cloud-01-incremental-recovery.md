@@ -44,4 +44,4 @@ docker run --rm --network none --read-only --cap-drop ALL \
 docker volume rm "$CAPTURE_BENCH_VOLUME"
 ```
 
-Actual Ubuntu fixture/reboot acceptance, source cadence/retention, uploader confirmations and external heartbeat remain separate. Normal startup cannot detect an old but internally valid checkpoint restored alone. A historical finding cannot silently permit restart when its diagnostic cannot be written: the pre-scan hold is already durable. Full verify compares retained history; backup/rollback must use a consistent stopped store.
+[Ubuntu fixture/reboot rehearsal](cloud-01-ubuntu-acceptance.md) now records representative-host checks for the merged implementation; dedicated-host acceptance remains open. Source cadence/retention, uploader confirmations and external heartbeat remain separate. Normal startup cannot detect an old but internally valid checkpoint restored alone. A historical finding cannot silently permit restart when its diagnostic cannot be written: the pre-scan hold is already durable. Full verify compares retained history; backup/rollback must use a consistent stopped store.
