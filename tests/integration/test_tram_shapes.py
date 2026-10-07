@@ -22,6 +22,22 @@ def polygon(ring, holes=()):
     return {"type": "Polygon", "coordinates": [ring, *holes]}
 
 
+def test_tooling_can_measure_all_source_shapes_without_an_area_filter(connection):
+    shapes = [
+        {
+            "id": "outside",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[144.90, -37.82], [144.90, -37.82], [144.91, -37.82]],
+            },
+        }
+    ]
+    result = select_full_shapes(connection, shapes, None)["features"]
+    assert len(result) == 1 and result[0]["geometry"] == shapes[0]["geometry"]
+    assert result[0]["properties"]["distances_m"][:2] == [0, 0]
+    assert result[0]["properties"]["distances_m"][-1] > 800
+
+
 def test_full_shapes_keep_direction_and_path_through_excluded_hole(connection):
     boundary = polygon(
         [[144.95, -37.83], [144.97, -37.83], [144.97, -37.81], [144.95, -37.81], [144.95, -37.83]],
