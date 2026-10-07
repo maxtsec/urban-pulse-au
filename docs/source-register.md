@@ -92,7 +92,8 @@ Retained fixtures record the export query, retrieval date, source response SHA-2
 | Product | DTP [GTFS Schedule](https://opendata.transport.vic.gov.au/dataset/gtfs-schedule), tram feed `shapes.txt`, linked through `trips.txt` to route IDs. Already the static companion selected in [ADR 0002](adr/0002-southbank-tram-pilot.md) |
 | Access and licence | Public download, no credentials; CC BY 4.0. Catalogue checked 6 October 2026: one ZIP of about 250 MB covering trains, buses and trams, last modified 4 October 2026 |
 | Use | Track lines for tram heading and interpolation between consecutive observed positions; replaces the illustrative fixture tracks. Never used to infer positions beyond the latest observation |
-| To verify before MAP-02 | Tram shapes present for the routes crossing Southbank; shape-to-route/trip linkage and direction; shape identity stability across releases; coordinate precision; matching tolerance between observed points and shapes; size after clipping to Southbank; trip metadata retained by the prerequisite public transport-contract/fixture change, plus identifiers and manifest required by the [accepted animation input contract](architecture/tram-animation-input-contract.md) |
+| Verified extraction | [Foundation evidence](evidence/map-02-trip-foundation.md): 208 shapes in 317 components, pinned release/fixture hashes and two synthetic trip instances. Geometry extraction does not establish live matching. |
+| To verify before animation | Live observation-to-trip-instance matching and accepted spatial tolerance; identity stability across release refreshes; animation/model acceptance under the [input contract](architecture/tram-animation-input-contract.md). Pinned extraction and selected synthetic linkage are recorded above. |
 | Retention | Clipped Southbank shapes retained with the release date, source ZIP SHA-256 and route/shape IDs. The full ZIP is not committed |
 
 ### Road centrelines (MAP-05)
