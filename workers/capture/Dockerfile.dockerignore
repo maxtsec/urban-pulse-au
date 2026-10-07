@@ -15,3 +15,7 @@
 !tests/test_local_collector.py
 !tests/helpers/
 !tests/helpers/capture_process.py
+
+!tests/test_capture_checkpoint.py
+!tests/helpers/checkpoint_process.py
+!tests/helpers/benchmark_capture.py

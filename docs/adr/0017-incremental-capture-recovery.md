@@ -27,7 +27,7 @@ The architect selected option 1 with a store-local capture sequence: keep captur
 
 ### Store and control record
 
-Use `capture-store-v2` in `store.json`, including a new store UUID. Keep receipt/payload/session formats and capture identity semantics. Extend the v2-store intent with `capture_sequence` and the manifest reason vocabulary with `not_started`; legacy v1 intents without sequence remain readable by the explicit v1 verification path and `captures/<capture-id>/` paths. Add `control.json`, whose versioned body contains:
+Use `capture-store-v2` in `store.json`, including a new store UUID. Keep receipt/payload/session formats and capture identity semantics. Extend the v2-store intent with `capture_sequence` and the manifest reason vocabulary with `not_started`; legacy v1 intents without sequence remain readable by the explicit v1 verification path. Keep `captures/<capture-id>/` paths. Add `control.json`, whose versioned body contains:
 
 - Store UUID, nonnegative generation, positive `next_capture_sequence` and at most one pending **complete Intent** (or null). The pending intent includes its positive `capture_sequence`.
 - Outcome totals; latest successful raw capture per fixture/live tram product; greatest retained live Retry-After deadline. These maps have fixed supported keys, not one entry per capture or session.
@@ -68,7 +68,7 @@ Session start/end records remain an audit trail. New starts take previous captur
 
 ### Fast status versus full verify
 
-`run` and `status` acquire the existing exclusive lock, validate control and reconcile the pending slot. `status` reports `integrity_scope: checkpoint-and-pending`, summary counts and recovery result. It must not call this a fully verified store. A held lock remains ownership information, not proof of provider health. Corruption in a completed historical capture can remain undetected until full verify; this is an explicit trade-off requiring architect acceptance.
+`run` and `status` acquire the existing exclusive lock, validate control and reconcile the pending slot. `status` reports `integrity_scope: checkpoint-and-pending`, summary counts and recovery result. It must not call this a fully verified store. A held lock remains ownership information, not proof of provider health. Corruption in a completed historical capture can remain undetected until full verify; this is the accepted bounded-startup trade-off.
 
 `verify` is a separate offline command holding the same lock, with no network. It streams through the archive, validates every published intent/receipt/manifest, hashes all published payloads and compares derived totals/last receipts/Retry-After with control. Exclude the active pending capture from finalized totals, even if its terminal manifest exists; validate its retained state against the pending Intent instead. A reserved pending Intent with no directory is a recognized interruption, not fabricated capture evidence. Unexpected directories or evidence outside this accounting model are findings. Inspection must not invent source timestamps, refetch or change any capture outcome.
 

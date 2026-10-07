@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError
@@ -101,7 +101,7 @@ class CaptureJournal:
         self._locked = False
 
     @contextmanager
-    def locked(self, *, initialize: bool = False) -> Iterator["CaptureJournal"]:
+    def locked(self, *, initialize: bool = False) -> Iterator[Self]:
         if sys.platform != "linux":
             raise CaptureError("linux_local_filesystem_required")
         import fcntl
@@ -119,24 +119,27 @@ class CaptureJournal:
                 raise CaptureError("collector_already_running") from None
             self._locked = True
             try:
-                marker = self.root / "store.json"
-                if initialize and not marker.exists():
-                    # Never initialize over an unknown store or lost marker.
-                    if any(p.name != ".collector.lock" for p in self.root.iterdir()):
-                        raise CaptureError("store_not_empty")
-                    publish_json(marker, MARKER)
-                if not marker.exists() or read_json(marker) != MARKER:
-                    raise CaptureError("store_marker_invalid")
-                for name in ("captures", "sessions"):
-                    path = self.root / name
-                    if path.is_symlink():
-                        raise CaptureError("integrity_failure")
-                    path.mkdir(exist_ok=True)
-                sync_directory(self.root)
+                self._open_store(initialize)
                 yield self
             finally:
                 self._locked = False
                 fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+    def _open_store(self, initialize: bool) -> None:
+        marker = self.root / "store.json"
+        if initialize and not marker.exists():
+            # Never initialize over an unknown store or lost marker.
+            if any(p.name != ".collector.lock" for p in self.root.iterdir()):
+                raise CaptureError("store_not_empty")
+            publish_json(marker, MARKER)
+        if not marker.exists() or read_json(marker) != MARKER:
+            raise CaptureError("store_marker_invalid")
+        for name in ("captures", "sessions"):
+            path = self.root / name
+            if path.is_symlink():
+                raise CaptureError("integrity_failure")
+            path.mkdir(exist_ok=True)
+        sync_directory(self.root)
 
     def _require_lock(self) -> None:
         if not self._locked:
