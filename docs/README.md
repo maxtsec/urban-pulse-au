@@ -137,8 +137,8 @@ For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [man
 | [ADR 0017](adr/0017-incremental-capture-recovery.md) | Capture checkpoint, direct sequence index, downstream trade-offs, verification hold and fresh-store transition | Accepted incremental recovery contract; implementation and verification requirements |
 | [Local capture runbook](runbooks/local-capture.md) | Ubuntu fixture setup, recovery and bounded live gates | Collector operation or deployment changes |
 | [Local capture evidence](evidence/cloud-01-local-capture.md) | Synthetic HTTP, filesystem and process-crash acceptance | Capture/recovery implementation changes |
-
 | [Incremental capture evidence](evidence/cloud-01-incremental-recovery.md) | V2 checkpoint crash tests, read bounds and reproducible startup measurements | Recovery implementation or measurement changes |
+| [Ubuntu capture rehearsal](evidence/cloud-01-ubuntu-acceptance.md) | Representative-host fixture recovery, reboot persistence and reproducible fault checks | Collector host or persistence acceptance changes |
 
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
