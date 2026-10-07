@@ -1,0 +1,982 @@
+{
+  "schema_version": "tram-browser-chunks-v1",
+  "node": "v24.19.0",
+  "chromium": "153.0.8010.12",
+  "source_revision": "df140ec0fd415d9ce3bd45ff3a47dbb8a65668168fe20a5fd442dc5fa0a62536",
+  "comparison_sha256": "0e09908aead3c9f487448f44593c3b94f3fb1f0960bed2a512ea29e470d18736",
+  "source_files_sha256": {
+    "scripts/benchmark_tram_chunks.mjs": "06957d8396dcdbc7f78fbb86ffd614c92df0712d7001af0b5c5350786a1d7d5e",
+    "scripts/build_tram_chunk_comparison.py": "cf60a8c059abb07002d202752554667d48b5ebce3b11b1c8f3692dc5a1d1b231",
+    "scripts/build_tram_fixture.py": "41a9b4b509d8e99ace253d3031d012bc9ac9459cd1b0cec0512bababea6a33ea",
+    "scripts/build_tram_shape_pool.py": "0ba7df9a1bfeec123341920e845af6cbf904789ca248c83d9b1a50deedeba77f",
+    "apps/web/package-lock.json": "76bf89008bd1ff5bbeb0d01ecde45d348863b0357ece81b5ea468ee835c2d93f"
+  },
+  "source_commit": "059a42e53a076e23ed6bb8dd9628db5ceac4c6eb",
+  "dirty": false,
+  "concurrency": 6,
+  "repeats": 3,
+  "protocol": "loopback HTTP/1.1; uncompressed; no bandwidth throttle",
+  "timing": "wall load includes fetch, integrity, parsing, deduplication and selected-geometry hash; hash_ms is summed async duration, not CPU time",
+  "measurements": [
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 250.30000001192093,
+      "hash_ms": 8.899999886751175,
+      "parse_ms": 13.299999952316284,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 367,
+      "network_body_bytes": 4227364
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 94.40000000596046,
+      "hash_ms": 3.999999910593033,
+      "parse_ms": 7.199999928474426,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 6,
+      "network_body_bytes": 90991
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 231.09999999403954,
+      "hash_ms": 9.600000232458115,
+      "parse_ms": 12.499999821186066,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 367,
+      "network_body_bytes": 4227364
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 82.40000000596046,
+      "hash_ms": 5.599999934434891,
+      "parse_ms": 7.5,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 6,
+      "network_body_bytes": 90991
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 223.2000000178814,
+      "hash_ms": 9.799999862909317,
+      "parse_ms": 14.599999874830246,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 367,
+      "network_body_bytes": 4227364
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 91.30000001192093,
+      "hash_ms": 4.399999916553497,
+      "parse_ms": 9.299999952316284,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 6,
+      "network_body_bytes": 90991
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 157.30000001192093,
+      "hash_ms": 5.899999976158142,
+      "parse_ms": 8.200000137090683,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 209,
+      "network_body_bytes": 2617143
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 186.09999999403954,
+      "hash_ms": 7.800000011920929,
+      "parse_ms": 12.700000017881393,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 164,
+      "network_body_bytes": 1701212
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 154.90000000596046,
+      "hash_ms": 5.899999976158142,
+      "parse_ms": 8.800000011920929,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 209,
+      "network_body_bytes": 2617143
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 179.59999999403954,
+      "hash_ms": 7.999999970197678,
+      "parse_ms": 11.999999940395355,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 164,
+      "network_body_bytes": 1701212
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 133.5,
+      "hash_ms": 4.899999976158142,
+      "parse_ms": 9.900000125169754,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 209,
+      "network_body_bytes": 2617143
+    },
+    {
+      "delay_ms": 0,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 190.40000000596046,
+      "hash_ms": 9.500000029802322,
+      "parse_ms": 12.199999868869781,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 164,
+      "network_body_bytes": 1701212
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 81.09999999403954,
+      "hash_ms": 4.799999952316284,
+      "parse_ms": 14.999999910593033,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 23,
+      "network_body_bytes": 4991612
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 45.900000005960464,
+      "hash_ms": 3,
+      "parse_ms": 9.700000017881393,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 1,
+      "network_body_bytes": 7018
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 81.09999999403954,
+      "hash_ms": 5.699999928474426,
+      "parse_ms": 16.19999998807907,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 23,
+      "network_body_bytes": 4991612
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 51.19999998807907,
+      "hash_ms": 3.099999964237213,
+      "parse_ms": 8.700000017881393,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 1,
+      "network_body_bytes": 7018
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 71.09999999403954,
+      "hash_ms": 5.5000001192092896,
+      "parse_ms": 16.999999970197678,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 23,
+      "network_body_bytes": 4991612
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 47.599999994039536,
+      "hash_ms": 3.099999964237213,
+      "parse_ms": 9.699999988079071,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 1,
+      "network_body_bytes": 7018
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 53.400000005960464,
+      "hash_ms": 3.0000000298023224,
+      "parse_ms": 11.099999994039536,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 13,
+      "network_body_bytes": 3212510
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 75.2000000178814,
+      "hash_ms": 5.099999964237213,
+      "parse_ms": 15.599999994039536,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 11,
+      "network_body_bytes": 1786120
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 56.10000002384186,
+      "hash_ms": 3.1000000536441803,
+      "parse_ms": 10.599999994039536,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 13,
+      "network_body_bytes": 3212510
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 61.39999997615814,
+      "hash_ms": 4.599999904632568,
+      "parse_ms": 13.89999994635582,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 11,
+      "network_body_bytes": 1786120
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 58.69999998807907,
+      "hash_ms": 3.0000000596046448,
+      "parse_ms": 12.300000011920929,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 13,
+      "network_body_bytes": 3212510
+    },
+    {
+      "delay_ms": 0,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 63.099999994039536,
+      "hash_ms": 5,
+      "parse_ms": 13.300000071525574,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 11,
+      "network_body_bytes": 1786120
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 3987.699999988079,
+      "hash_ms": 12.300000011920929,
+      "parse_ms": 18.499999821186066,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 367,
+      "network_body_bytes": 4227364
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 197.59999999403954,
+      "hash_ms": 5.4000000059604645,
+      "parse_ms": 7.9999998807907104,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 6,
+      "network_body_bytes": 90991
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 3967.5,
+      "hash_ms": 12.700000077486038,
+      "parse_ms": 20.19999983906746,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 367,
+      "network_body_bytes": 4227364
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 187.80000001192093,
+      "hash_ms": 4.299999952316284,
+      "parse_ms": 7.500000149011612,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 6,
+      "network_body_bytes": 90991
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 3893.0999999940395,
+      "hash_ms": 12.800000071525574,
+      "parse_ms": 19.899999767541885,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 367,
+      "network_body_bytes": 4227364
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 191.40000000596046,
+      "hash_ms": 5.400000035762787,
+      "parse_ms": 7.599999845027924,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 6,
+      "network_body_bytes": 90991
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 2317.9000000059605,
+      "hash_ms": 7.4999998807907104,
+      "parse_ms": 13.399999916553497,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 209,
+      "network_body_bytes": 2617143
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 1899.199999988079,
+      "hash_ms": 10.60000005364418,
+      "parse_ms": 16.39999994635582,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 164,
+      "network_body_bytes": 1701212
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 2286.5,
+      "hash_ms": 8.199999988079071,
+      "parse_ms": 11.700000137090683,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 209,
+      "network_body_bytes": 2617143
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 1846.5,
+      "hash_ms": 10.199999988079071,
+      "parse_ms": 15.200000017881393,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 164,
+      "network_body_bytes": 1701212
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 2332.0999999940395,
+      "hash_ms": 6.699999988079071,
+      "parse_ms": 11.400000035762787,
+      "body_bytes_read": 2617143,
+      "required_shapes": 208,
+      "extra_shapes": 0,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 209,
+      "network_body_bytes": 2617143
+    },
+    {
+      "delay_ms": 50,
+      "policy": "shape",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 1856,
+      "hash_ms": 11.200000137090683,
+      "parse_ms": 17.5,
+      "body_bytes_read": 4227364,
+      "required_shapes": 366,
+      "extra_shapes": 0,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 164,
+      "network_body_bytes": 1701212
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 351.59999999403954,
+      "hash_ms": 5.100000023841858,
+      "parse_ms": 12.89999994635582,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 23,
+      "network_body_bytes": 4991612
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 104.7000000178814,
+      "hash_ms": 3.2999999821186066,
+      "parse_ms": 10.300000071525574,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 1,
+      "network_body_bytes": 7018
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 342.80000001192093,
+      "hash_ms": 4.699999958276749,
+      "parse_ms": 12.20000010728836,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 23,
+      "network_body_bytes": 4991612
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 96.59999999403954,
+      "hash_ms": 2.8999999463558197,
+      "parse_ms": 11.89999994635582,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 1,
+      "network_body_bytes": 7018
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "cold",
+      "elapsed_ms": 355.5,
+      "hash_ms": 5.200000077486038,
+      "parse_ms": 12.599999964237213,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 23,
+      "network_body_bytes": 4991612
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "melbourne-cbd",
+        "southbank"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "after-other-area",
+      "elapsed_ms": 95.30000001192093,
+      "hash_ms": 2.9999999403953552,
+      "parse_ms": 9.000000059604645,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 1,
+      "network_body_bytes": 7018
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 232.40000000596046,
+      "hash_ms": 3.099999964237213,
+      "parse_ms": 13.700000047683716,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 13,
+      "network_body_bytes": 3212510
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 0,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 230.69999998807907,
+      "hash_ms": 4.399999976158142,
+      "parse_ms": 13.900000035762787,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 11,
+      "network_body_bytes": 1786120
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 226.2000000178814,
+      "hash_ms": 2.9000000059604645,
+      "parse_ms": 10.699999988079071,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 13,
+      "network_body_bytes": 3212510
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 1,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 210.40000000596046,
+      "hash_ms": 4.799999952316284,
+      "parse_ms": 15.400000035762787,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 11,
+      "network_body_bytes": 1786120
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "southbank",
+      "cache": "cold",
+      "elapsed_ms": 217,
+      "hash_ms": 5.10000005364418,
+      "parse_ms": 12.099999964237213,
+      "body_bytes_read": 3212510,
+      "required_shapes": 208,
+      "extra_shapes": 126,
+      "geometry_sha256": "f9ddb17de147d0d3f81cc53f88d07ad8cec39b15266ac86e1cd903291723cfb9",
+      "network_requests": 13,
+      "network_body_bytes": 3212510
+    },
+    {
+      "delay_ms": 50,
+      "policy": "route",
+      "order": [
+        "southbank",
+        "melbourne-cbd"
+      ],
+      "repeat": 2,
+      "area": "melbourne-cbd",
+      "cache": "after-other-area",
+      "elapsed_ms": 226.30000001192093,
+      "hash_ms": 4.999999940395355,
+      "parse_ms": 14.5,
+      "body_bytes_read": 4991612,
+      "required_shapes": 366,
+      "extra_shapes": 153,
+      "geometry_sha256": "77a997a3112b9bed20b562ca69cb5f2510d5b46e90b026c3cf0d475745ccc1bf",
+      "network_requests": 11,
+      "network_body_bytes": 1786120
+    }
+  ]
+}
