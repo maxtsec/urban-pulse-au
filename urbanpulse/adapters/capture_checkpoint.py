@@ -49,7 +49,7 @@ def replace_json(
 
 
 def inspect_capture(
-    journal: CaptureJournal, directory: Path
+    journal: CaptureJournal, directory: Path, *, payload_optional: bool = False
 ) -> tuple[Intent, Receipt | None, Manifest | None]:
     """Inspect published bytes without reconciling or changing outcomes."""
     if directory.is_symlink() or not directory.is_dir():
@@ -62,10 +62,12 @@ def inspect_capture(
         } and not entry.name.startswith((".pending-", ".response-")):
             raise CaptureError("integrity_failure")
     response = directory / "response"
-    if response.exists() and {p.name for p in response.iterdir()} != {
-        "payload.bin",
-        "receipt.json",
-    }:
+    if response.is_symlink():
+        raise CaptureError("integrity_failure")
+    valid_files = [{"payload.bin", "receipt.json"}]
+    if payload_optional:
+        valid_files.append({"receipt.json"})
+    if response.exists() and {p.name for p in response.iterdir()} not in valid_files:
         raise CaptureError("integrity_failure")
     intent = Intent.model_validate(read_json(directory / "intent.json"))
     if str(intent.capture_id) != directory.name:
@@ -86,6 +88,11 @@ def inspect_capture(
 
 class CheckpointJournal(CaptureJournal):
     control: Control
+    store_version = "capture-store-v2"
+    store_directories: tuple[str, ...] = ("captures", "sessions", "staging", "by-sequence")
+
+    def _inspect_capture(self, directory: Path) -> tuple[Intent, Receipt | None, Manifest | None]:
+        return inspect_capture(self, directory)
 
     def _open_store(self, initialize: bool) -> None:
         marker = self.root / "store.json"
@@ -93,21 +100,23 @@ class CheckpointJournal(CaptureJournal):
             if any(p.name != ".collector.lock" for p in self.root.iterdir()):
                 raise CaptureError("store_not_empty")
             identity = uuid4()
-            for name in ("captures", "sessions", "staging", "by-sequence"):
+            for name in self.store_directories:
                 (self.root / name).mkdir()
             sync_directory(self.root)
             self.control = Control(store_id=identity)
             self._save_control(self.control, "initialize")
-            publish_json(marker, {"schema_version": "capture-store-v2", "store_id": str(identity)})
+            publish_json(marker, {"schema_version": self.store_version, "store_id": str(identity)})
             self.checkpoint("store_marker")
         if not marker.exists():
             raise CaptureError("store_marker_invalid")
         value = read_json(marker)
         if value.get("schema_version") == "capture-store-v1":
-            raise CaptureError("store_version_requires_fresh_v2")
+            raise CaptureError(
+                "store_version_requires_fresh_" + self.store_version.removeprefix("capture-store-")
+            )
         if (
             set(value) != {"schema_version", "store_id"}
-            or value["schema_version"] != "capture-store-v2"
+            or value["schema_version"] != self.store_version
         ):
             raise CaptureError("store_marker_invalid")
         try:
@@ -115,7 +124,7 @@ class CheckpointJournal(CaptureJournal):
         except ValueError:
             raise CaptureError("store_marker_invalid") from None
         self.control = self._load_control()
-        for name in ("captures", "sessions", "staging", "by-sequence"):
+        for name in self.store_directories:
             path = self.root / name
             if path.is_symlink() or not path.is_dir():
                 raise CaptureError("integrity_failure")
@@ -294,7 +303,7 @@ class CheckpointJournal(CaptureJournal):
             ):
                 raise CaptureError("pending_identity_conflict")
             # A retry of a completed write validates those exact retained bytes.
-            _, _, previous = inspect_capture(self, self._capture(intent.capture_id))
+            _, _, previous = self._inspect_capture(self._capture(intent.capture_id))
             if previous is None:
                 raise CaptureError("integrity_failure")
         self._check_index(intent)
@@ -323,7 +332,7 @@ class CheckpointJournal(CaptureJournal):
             try:
                 if not directory.exists():
                     self._publish_intent(intent, not_started=True)
-                stored, receipt, manifest = inspect_capture(self, directory)
+                stored, receipt, manifest = self._inspect_capture(directory)
                 if stored != intent:
                     raise CaptureError("pending_identity_conflict")
                 index = self._sequence_entry(intent.capture_sequence or 0)

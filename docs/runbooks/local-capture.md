@@ -111,3 +111,11 @@ Live finite runs automatically use positions every 60 seconds, updates every 120
 For an offline rehearsal, append `--tram-schedule --max-attempts 5 --max-seconds 115` to the existing fixture `run` command. This takes real elapsed time and reaches slots 0, 15, 30, 60 and 90; it does not contact the provider. Live retains the 60-second startup cooldown, so its first five healthy slots need a duration exceeding 150 seconds. `--interval` can slow the minimum spacing but cannot accelerate live cadence. Ordinary fixture tests retain their fast default loop.
 
 This schedule does not start unattended operation or change the v2 store. [ADR 0018](../adr/0018-capture-delivery-and-expiry.md) records the accepted fresh-v3 expiry mechanism, separate raw-duration decision and accepted B metadata confirmation and manual unlock.
+
+## Explicit v3 fixture rehearsal
+
+The [v3 format](../architecture/capture-store-v3.md) requires a new empty directory on a supported persistent Linux filesystem. Preserve the existing v2 store and its image. Use the same hardened Docker invocation and mount from the earlier examples, appending `--store-version v3` to **each** `init`, `run`, `status` and `verify` command. Omitting it still selects v2 and refuses a v3 marker. Fixture mode remains the default.
+
+Start with finite fixture capture; `verify` reports retained/expired bytes separately. No command in this release writes expiry records or deletes raw. Never hand-author expiry/confirmation evidence to unblock a failed scan. If synthetic future-expiry evidence is incomplete, verify retains a hold and reports `recovery_required`; preserve the store for inspection. The future reviewed expiry writer is required to finish such an operation.
+
+Do not point the v3 initializer at a v2 archive, manually change a marker, or reuse a partial initialization directory after a crash. Inspect and retain the old directory, then initialize a fresh empty one. Real normalized output, cloud acknowledgement and raw expiry remain later acceptance steps.
