@@ -36,7 +36,7 @@ The first implementation stores uncompressed per-attempt bytes. Deduplication, c
 
 ## Live activation gate
 
-The architect's review on 2026-10-07 keeps the current full-history scan for fixture acceptance and defers incremental recovery as mandatory work **before live activation**. That follow-up must select a durable pending index, reconcile only incomplete attempts on ordinary startup, and expose full payload verification separately. Preserve immutable capture evidence and test every index/publication interruption. No pending-index format or migration is accepted by this record; record that refinement before implementation.
+The architect's review on 2026-10-07 keeps the current full-history scan for fixture acceptance and defers incremental recovery as mandatory work **before live activation**. That follow-up must select a durable pending index, reconcile only incomplete attempts on ordinary startup, and expose full payload verification separately. Preserve immutable capture evidence and test every index/publication interruption. No pending-index format or migration is accepted by this record; [ADR 0017](0017-incremental-capture-recovery.md) proposes that refinement for architect review before implementation.
 
 ## First implementation acceptance
 
