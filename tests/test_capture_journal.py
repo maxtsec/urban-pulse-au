@@ -18,6 +18,13 @@ from urbanpulse.contracts.local_capture import CaptureError, FetchResult
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux fsync/flock contract")
 ROOT = Path(__file__).resolve().parents[1]
+REAL_FILESYSTEM_CHECK = storage.local_filesystem
+
+
+@pytest.fixture(autouse=True)
+def inject_test_storage(monkeypatch):
+    # Ephemeral storage is allowed only by test injection, never a runtime flag.
+    monkeypatch.setattr(storage, "local_filesystem", lambda _: "test-filesystem")
 
 
 @pytest.fixture
@@ -214,7 +221,7 @@ def test_unknown_and_symlink_capture_paths_fail(store: Path) -> None:
 
 
 def test_cli_fixture_roundtrip_and_signal_shutdown(store: Path) -> None:
-    command = [sys.executable, "-m", "workers.capture.main"]
+    command = [sys.executable, str(ROOT / "tests/helpers/capture_process.py"), str(store), "cli"]
     result = subprocess.run(
         [*command, "run", "--store", str(store), "--max-attempts", "3", "--interval", "0.01"],
         capture_output=True,
@@ -269,8 +276,9 @@ def test_abandoned_capture_cannot_later_publish_payload(store: Path) -> None:
         assert not (store / "captures" / str(intent.capture_id) / "response").exists()
 
 
-@pytest.mark.parametrize("filesystem", ["nfs4", "cifs", "fuseblk"])
+@pytest.mark.parametrize("filesystem", ["nfs4", "cifs", "fuseblk", "tmpfs", "overlay"])
 def test_network_or_foreign_mount_is_refused(tmp_path: Path, monkeypatch, filesystem: str) -> None:
+    monkeypatch.setattr(storage, "local_filesystem", REAL_FILESYSTEM_CHECK)
     original = Path.read_text
 
     def read_mounts(path, *args, **kwargs):
@@ -301,3 +309,23 @@ def test_session_close_failure_preserves_primary_failure(store: Path, monkeypatc
     assert main() == 2
     output = json.loads(capsys.readouterr().out)
     assert output == {"status": "failed", "reason": "disk_reserve_reached"}
+
+
+@pytest.mark.parametrize("command", ["init", "run", "status"])
+def test_real_cli_rejects_ephemeral_mount(store: Path, command: str) -> None:
+    try:
+        REAL_FILESYSTEM_CHECK(store)
+    except CaptureError:
+        pass
+    else:
+        pytest.skip("Real ephemeral mount exercised in the isolated container suite")
+    result = subprocess.run(
+        [sys.executable, "-m", "workers.capture.main", command, "--store", str(store)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {"status": "failed", "reason": "unsupported_filesystem"}
+    assert list((store / "captures").iterdir()) == []

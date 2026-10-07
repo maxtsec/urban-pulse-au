@@ -5,8 +5,11 @@ from threading import Event
 from types import SimpleNamespace
 from uuid import uuid4
 
+import httpx
 import pytest
+from pydantic import SecretStr
 
+from urbanpulse.adapters import transport_capture as transport
 from urbanpulse.application.local_collector import collect
 from urbanpulse.contracts.local_capture import FetchResult, Intent
 
@@ -138,3 +141,62 @@ def test_initial_cooldown_cannot_fetch_after_deadline():
         wait=clock.wait,
     )
     assert result.reason == "duration_limit" and not source.calls
+
+
+@pytest.mark.parametrize("failure", ["network_error", "time_limit", "size_limit", "encoding"])
+def test_failure_after_200_retries_with_backoff_and_new_identity(failure, monkeypatch):
+    clock, journal = Clock(), Journal()
+    requested = []
+    fetch_times = []
+    monotonic_values = iter([0.0, 16.0, 30.0, 30.0, 30.0, 30.0])
+    monkeypatch.setattr(transport.time, "monotonic", lambda: next(monotonic_values))
+    if failure == "size_limit":
+        monkeypatch.setattr(transport, "MAX_BYTES", 4)
+
+    class BrokenBody(httpx.SyncByteStream):
+        def __iter__(self):
+            yield b"part"
+            raise httpx.ReadError("redacted connection failure")
+
+    def handler(request):
+        requested.append(request.url.path)
+        fetch_times.append(clock.now)
+        if len(requested) == 1:
+            if failure == "network_error":
+                return httpx.Response(200, stream=BrokenBody())
+            if failure == "encoding":
+                return httpx.Response(
+                    200, headers={"content-encoding": "gzip"}, stream=httpx.ByteStream(b"payload")
+                )
+            return httpx.Response(200, stream=httpx.ByteStream(b"oversized"))
+        return httpx.Response(200, stream=httpx.ByteStream(b"ok"))
+
+    # Network/size/encoding cases should not hit the elapsed-time guard first.
+    if failure != "time_limit":
+        monkeypatch.setattr(transport.time, "monotonic", lambda: 0.0)
+    outcomes = []
+    complete = journal.complete
+
+    def record(intent, result):
+        outcomes.append(result)
+        return complete(intent, result)
+
+    journal.complete = record
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = collect(
+            journal,
+            transport.TransportCapture(client, SecretStr("synthetic-secret")),
+            mode="live",
+            version="test",
+            stop=Event(),
+            max_attempts=2,
+            max_seconds=120,
+            interval=15,
+            monotonic=clock.monotonic,
+            wait=clock.wait,
+        )
+    assert result.reason == "attempt_limit" and result.captured == 1
+    assert outcomes[0].http_status == 200 and outcomes[0].reason == failure
+    assert outcomes[0].payload is None
+    assert fetch_times == [0.0, 15.0] and requested[0] == requested[1]
+    assert journal.intents[0].capture_id != journal.intents[1].capture_id

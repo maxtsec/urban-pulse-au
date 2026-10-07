@@ -11,6 +11,8 @@ dependencies = [
 ]
 
 [dependency-groups]
+capture = ["httpx", "pydantic"]
+capture-test = [{include-group = "capture"}, "pytest"]
 dev = [
     "pytest",
     "ruff",

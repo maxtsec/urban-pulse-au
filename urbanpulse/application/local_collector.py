@@ -58,8 +58,11 @@ def collect(
             failures = 0
             feed_index = (feed_index + 1) % len(FEEDS)
         else:
-            if result.http_status in (401, 403) or (
-                result.http_status is not None
+            # A 200 response can still fail during body transfer. Only classify
+            # an actual HTTP rejection by status; retry bounded body failures.
+            if (
+                result.reason == "http_error"
+                and result.http_status is not None
                 and result.http_status < 500
                 and result.http_status != 429
             ):
