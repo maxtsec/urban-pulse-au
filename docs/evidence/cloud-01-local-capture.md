@@ -27,8 +27,10 @@ Local Windows unit suite: 670 passed, 31 Linux-only tests skipped, 182 integrati
 
 This does not establish live cadence/retention permission, physical power-loss safety, actual Ubuntu host installation, sustained disk growth, cloud upload confirmation or external heartbeat delivery. Those checks remain in CLOUD-01/SRC-02. The source probe's independent provider evidence remains in [SRC-02](src-02-transport-probe.md).
 
-## Image reduction and remaining startup limit
+## V1 image reduction and startup limit
 
 The same local Docker Engine reports `docker image inspect urbanpulse-capture:local --format '{{.Size}}'` decreasing from 677,051,690 to 201,789,670 bytes (approximately 646 to 192 MiB). This is the local image size, not compressed registry transfer bytes. The runtime contains only the eleven distributions required by httpx/pydantic. Inspection confirmed no uv executable, pytest, FastAPI, polars, Google Cloud packages or test helper in the runtime image; the existing pinned Python base is unchanged.
 
-Run/status still enumerate every capture and hash every successful payload. The architect deferred this finding to a mandatory live-activation gate: a durable pending index, incomplete-only restart reconciliation, a separate full verify command and measured restart cost. Fixture crash acceptance does not close that scalability gate.
+In this v1 acceptance, run/status enumerate every capture and hash every successful payload. The architect deferred this finding to a mandatory live-activation gate: a durable pending index, incomplete-only restart reconciliation, a separate full verify command and measured restart cost. Fixture crash acceptance does not close that scalability gate.
+
+The subsequent [v2 checkpoint evidence](cloud-01-incremental-recovery.md) records the implementation of ADR 0017 and separate offline verification.

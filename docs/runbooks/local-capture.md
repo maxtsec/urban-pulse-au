@@ -1,15 +1,15 @@
 # Local capture on Ubuntu
 
-[ADR 0016](../adr/0016-local-capture-recovery.md) selects the immutable file journal. This runbook covers finite local acceptance; [delivery status](../delivery-plan.md) tracks the later uploader, monitoring and continuous operation gates.
+[ADR 0016](../adr/0016-local-capture-recovery.md) selects the immutable file journal; [ADR 0017](../adr/0017-incremental-capture-recovery.md) adds v2 checkpoints, store-local capture sequences and offline verification. This runbook covers finite local acceptance; [delivery status](../delivery-plan.md) tracks the later uploader, monitoring and continuous operation gates.
 
 ## Host preparation
 
-Use a supported Ubuntu release with Docker Engine, security updates, synchronized UTC time and local persistent storage. Keep host addresses, keys and hardware details in private operator notes. Disable sleep before any later unattended run. Do not use network shares, synchronized folders or a removable mount that can disappear under a running collector. The runtime accepts only ext4, XFS and Btrfs. It rejects tmpfs, overlay and other mount types for every command, including fixture init/run/status. There is no CLI or environment switch to bypass the check. Stop the old collector before moving its store to another host.
+Use a supported Ubuntu release with Docker Engine, security updates, synchronized UTC time and local persistent storage. Keep host addresses, keys and hardware details in private operator notes. Disable sleep before any later unattended run. Do not use network shares, synchronized folders or a removable mount that can disappear under a running collector. The runtime accepts only ext4, XFS and Btrfs. It rejects tmpfs, overlay and other mount types for every command, including fixture init/run/status/verify. There is no CLI or environment switch to bypass the check. Stop the old collector before moving its store to another host.
 
 Run the following Bash commands from a clean, reviewed repository checkout. Docker access and sudo are needed for image building and initial directory ownership; the collector itself uses UID/GID 10001. Choose a new, dedicated store on the intended filesystem, and verify the mount before initializing. `--mount` deliberately fails if the source directory is missing.
 
 ```bash
-export CAPTURE_STORE=/srv/urbanpulse-capture/store
+export CAPTURE_STORE=/srv/urbanpulse-capture/store-v2
 findmnt -T /srv
 sudo install -d -m 0700 -o 10001 -g 10001 "$CAPTURE_STORE"
 docker build --target runtime -f workers/capture/Dockerfile   --build-arg COLLECTOR_VERSION="$(git rev-parse HEAD)"   -t urbanpulse-capture:local .
@@ -31,15 +31,32 @@ docker run --rm --network none --read-only --cap-drop ALL   --security-opt no-ne
 
 On a new store, expect six captured attempts (two per tram feed), no failures, and separate capture IDs for identical bytes. Fixture bytes are deliberately labelled synthetic and are not claimed to be parseable GTFS-Realtime. No key, cloud identity, database, inbound port or network is required. Repeat the run: the earlier manifests remain unchanged and another six captures are retained.
 
-`status` takes the exclusive lock, reconciles unfinished attempts and verifies every stored payload hash. It returns outcome counts, the last successful raw capture per mode/feed, unresolved pre-intent directories and any retained live retry deadline. While a collector runs it reports `collector_already_running`; that proves ownership, not source health. Stop the finite collector before a full status scan. Scanning is proportional to retained files/bytes and is intentionally not a frequent health probe. Both run and status still re-hash all retained payloads; incremental recovery is a mandatory live-activation gate, not completed by this PR.
+`status` takes the exclusive lock, validates the bounded control checksum/identity and reconciles at most one unfinished capture. It reports `integrity_scope: checkpoint-and-pending`, outcome counts, last successful receipt per mode/feed, the retained live retry deadline, the next sequence and any interrupted/failed verification. `orphan_directories: null` means **not checked**, not zero. It does not enumerate historical captures or sessions and does not certify historical integrity. A previous full-verification report includes the generation/time it actually covered. While a collector runs, status reports `collector_already_running`; that proves ownership, not source health.
+
+Full historical verification is explicit and offline. Stop the collector first:
+
+```bash
+docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --mount "type=bind,src=$CAPTURE_STORE,dst=/data" \
+  urbanpulse-capture:local verify --store /data
+```
+
+`verify` holds the same lock and reads all published capture metadata/payloads, checking hashes, accounting and sequences. It does not reconcile pending attempts or repair evidence. A missing reserved capture is reported incomplete without fabricating bytes. Unpublished staging bytes are retained for diagnosis and excluded from published-payload verification. The command is proportional to retained history and pauses collection while it owns the lock.
+
+A cancelled/killed/reboot-interrupted verification with no durably recorded finding leaves `verification-in-progress.json`; the next collector can resume after bounded checks, with verification reported as interrupted. A finding or inspection error publishes `verification-block.json`; run refuses it and status exits 2 with `verification_required`. An interrupted later verify never clears an existing failure block. Restore/investigate from a consistent backup, then rerun full verify successfully to clear the block. Do not manually delete it. Failure to persist the block is a failed verification, never success; a crash before a finding is durably recorded cannot be discovered by bounded startup alone.
 
 `sessions/*.start.json` records each restart and the previous capture instants. A matching `.end.json` records controlled shutdown/result; its attempt count is null if execution failed before a final count was returned. Capture manifests remain the per-attempt evidence. An unmatched start means an unclean exit; capture timestamps bound the observable gap without claiming its exact cause or duration. No external heartbeat or alert is provided by this slice.
 
 ## Storage and recovery
 
 ```text
-store.json
+store.json                       # capture-store-v2 and store UUID
+control.json                     # checksummed pending + summary + next sequence
 .collector.lock
+staging/                         # unpublished intent/reconstruction metadata
+verification-in-progress.json     # only during/interrupted inspection
+verification-block.json           # only after a recorded finding/error
+last-verification.json            # most recent completed full inspection
 captures/<capture-uuid>/
   intent.json
   response/payload.bin
@@ -49,15 +66,23 @@ sessions/<session-uuid>.start.json
 sessions/<session-uuid>.end.json
 ```
 
-Mode, product, request/receipt times and version are in the immutable records, rather than encoded in the directory name. Raw bytes, SHA-256 and length are verified together. Source observation time remains null with `not-yet-decoded`; a captured response does not establish valid/current transport data.
+Store-local `capture_sequence`, mode, product, request/receipt times and version are in the immutable records, rather than encoded in the directory name. Raw bytes, SHA-256 and length are verified together. Source observation time remains null with `not-yet-decoded`; a captured response does not establish valid/current transport data.
 
-The response directory is published atomically before the terminal manifest. An intent without a published response becomes abandoned; a complete retained response can finish its missing manifest. Temporary files and pre-intent directories are preserved for diagnosis. A published terminal outcome cannot change, including after a late storage retry.
+A sequence and complete pending intent are reserved in control before publishing intent or issuing a request. Failed and abandoned captures consume their sequence; recovery never reuses it. Each new store starts at 1 with a different store UUID. Sequence is ordering, not successful processing/upload acknowledgement.
+
+The response directory is published atomically before the terminal manifest. A reserved capture without a published intent becomes `abandoned/not_started`; its reconstructed intent and manifest are published together. A published intent without a response becomes `abandoned/interrupted`, because a request might have started. A complete retained response can finish its missing manifest. Finally, one atomic control replacement updates totals and clears pending. Repeating recovery does not count a capture twice. Temporary files are preserved for diagnosis; published outcomes never change.
 
 On corruption, stop and preserve the store. Work from a backup when investigating; do not edit manifests to make verification pass. Collection stops before a request when free space falls below the 256 MiB reserve plus the maximum 8 MiB response and metadata headroom. This is not retention: nothing is automatically deleted, compressed or deduplicated. Pending-upload bytes must later be pinned under ADR 0015. Copy a stopped store for a consistent backup; a single disk remains a single failure boundary.
 
+## V1 stores and rollback
+
+Keep v1 evidence and its pinned known-working image. Stop/fence that collector, back up its stopped store, initialize a **new empty v2 path**, record the gap and run fixtures before any approved live rollout. There is no in-place migration or automatic aggregation. V2 `run`/`status` reject v1 with `store_version_requires_fresh_v2`; old images reject v2. New `verify` can inspect v1 read-only and reports unfinished captures rather than completing them. It does not add v2 control or verification records to v1.
+
+Rollback means stop v2 and restore the matching v1 image/store pair. Preserve all newer v2 evidence; do not copy a v1 marker/control into v2 or restore an old control checkpoint over newer captures. Normal startup cannot detect an otherwise valid old checkpoint; full verify detects discrepancies with retained capture sequences and totals. Downstream cursors must include store UUID and processing version; per-object upload confirmation remains separate.
+
 ## Bounded live operation gate
 
-The runtime has an explicit `--live --key-file /run/secrets/transport-key` mode, but this PR neither authorizes nor executes it. Before any live activation, implement and accept incremental recovery over a durable pending index with a separate full-integrity verify operation, including interruption/reconciliation tests and measured startup cost. The pending-index format has not been selected or implemented. Also accept source-use/local retention, a measurement plan and operating cadence. Use a separate live store, stop any other probe using the same provider quota, and mount a plain-text key file read-only, outside the repository/image. Set its host ownership to 10001 and permissions to 0400. Do not supply the key as a CLI value, image build argument or environment variable. Only live mode needs outbound provider HTTPS/DNS; it still needs no inbound ports or Google identity.
+The runtime has an explicit `--live --key-file /run/secrets/transport-key` mode, but this PR neither authorizes nor executes it. Before any live activation, review the v2 recovery/verification implementation and its evidence, complete Ubuntu fixture/reboot acceptance, and accept source-use/local retention, a measurement plan and operating cadence. Use a separate live store, stop any other probe using the same provider quota, and mount a plain-text key file read-only, outside the repository/image. Set its host ownership to 10001 and permissions to 0400. Do not supply the key as a CLI value, image build argument or environment variable. Only live mode needs outbound provider HTTPS/DNS; it still needs no inbound ports or Google identity.
 
 Both modes require finite bounds (defaults: six attempts, 120 seconds; maxima: 120 attempts, 3600 seconds). Live mode first waits at least 60 seconds after taking ownership, then spaces all requests/retries by at least 15 seconds. Feeds rotate after success; errors retry that feed with bounded exponential delay, honoring longer Retry-After values. Persisted Retry-After deadlines survive restarts. This conservative shared budget is a safety ceiling, **not the approved production cadence** or proof of provider quota scope. Recovery never refetches an old attempt. Every new upstream request gets a new capture ID.
 

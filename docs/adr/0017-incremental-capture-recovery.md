@@ -53,14 +53,14 @@ If publication fails, stop collection. The manifest may already be complete, but
 | Interruption / observed state | Recovery before the next request |
 | --- | --- |
 | Valid control with null pending | Read no capture history; use the stored summary and cooldown |
-| Pending published, directory or intent absent | Re-create the reserved Intent from control, publish abandoned/not_started, then finalize accounting; never fetch |
+| Pending published, capture directory absent | Re-create the reserved Intent from control, publish abandoned/not_started, then finalize accounting; never fetch |
 | Pending intent plus partial response staging only | Preserve staging, publish abandoned/interrupted and finalize accounting |
 | Pending plus complete response, no manifest | Verify that response, reconstruct captured manifest and finalize accounting |
 | Pending plus terminal manifest | Verify that one attempt and atomically apply its contribution while clearing pending |
 | Crash during final control replace | Load either the old pending checkpoint or new idle checkpoint; old means finish once, new means it is already counted |
 | Control, pending identity or published evidence conflicts/corrupts | Stop; preserve evidence; require operator investigation |
 
-`not_started` preserves the evidence that no request was issued: under the ordered writer, an absent durable intent means the request could not have started. Once an original intent exists, recovery uses `interrupted`, because a request may have started. The reconstructed intent and terminal `not_started` manifest must be published together as one staged capture directory, then synchronized before accounting. A crash must not leave a reconstructed intent alone and later relabel it `interrupted`. Old v1 stores are not modified by this new reason vocabulary.
+`not_started` preserves the evidence that no request was issued: under the ordered writer, an absent durable intent means the request could not have started. Once an original intent exists, recovery uses `interrupted`, because a request may have started. The reconstructed intent and terminal `not_started` manifest must be published together as one staged capture directory, then synchronized before accounting. V2 also publishes original intents as complete directories; an existing published directory missing its intent is therefore corruption, not a normal interruption. Unpublished staging metadata is retained outside the published capture tree and excluded from payload verification. A crash must not leave a reconstructed intent alone and later relabel it `interrupted`. Old v1 stores are not modified by this new reason vocabulary.
 
 The synchronous writer admits no second pending capture. Thus normal startup reads a bounded checkpoint and at most one capture, including at most one 8 MiB payload. This describes the read set, not a promised wall-clock latency. Disk checks, mount checks and whole-run locking still apply. Existing 60-second live startup cooldown and greater persisted Retry-After survive without scanning historical manifests.
 

@@ -38,7 +38,12 @@ class CaptureVerifier(CheckpointJournal):
                 "generation": self.control.generation,
                 "started_at": datetime.now(UTC).isoformat(),
             }
-            replace_json(self.root / "verification-in-progress.json", record)
+            replace_json(
+                self.root / "verification-in-progress.json",
+                record,
+                checkpoint=self.checkpoint,
+                stage="verify_progress",
+            )
             self.checkpoint("verify_started")
         try:
             report = self._scan(stopped)
@@ -47,6 +52,8 @@ class CaptureVerifier(CheckpointJournal):
                 replace_json(
                     self.root / "verification-block.json",
                     {**record, "reason": "integrity_failure"},
+                    checkpoint=self.checkpoint,
+                    stage="verify_failure",
                 )
                 self.checkpoint("verify_failed")
             if isinstance(error, CaptureError):
@@ -54,7 +61,12 @@ class CaptureVerifier(CheckpointJournal):
             raise CaptureError("integrity_failure") from None
         if not self.legacy:
             report = {**record, **report, "completed_at": datetime.now(UTC).isoformat()}
-            replace_json(self.root / "last-verification.json", report)
+            replace_json(
+                self.root / "last-verification.json",
+                report,
+                checkpoint=self.checkpoint,
+                stage="verify_result",
+            )
             self.checkpoint("verify_report")
             for name in ("verification-in-progress.json", "verification-block.json"):
                 (self.root / name).unlink(missing_ok=True)

@@ -321,10 +321,10 @@ def test_failure_marker_write_failure_never_claims_success(store, monkeypatch):
     next(store.glob("captures/*/response/payload.bin")).write_bytes(b"bad")
     original = capture_verify.replace_json
 
-    def fail(path, value):
+    def fail(path, value, **kwargs):
         if path.name == "verification-block.json":
             raise OSError("disk failure")
-        original(path, value)
+        original(path, value, **kwargs)
 
     monkeypatch.setattr(capture_verify, "replace_json", fail)
     with pytest.raises(OSError):
@@ -388,3 +388,47 @@ def test_v2_cli_verify_is_offline_and_has_full_integrity_scope(store):
     assert report["integrity_scope"] == "full-published-capture-history"
     with CheckpointJournal(store).locked() as journal:
         assert journal.recover()["last_verification"]["generation"] == 2
+
+
+@pytest.mark.parametrize(
+    "point", ["verify_progress_written", "verify_progress_replaced", "verify_progress_synced"]
+)
+def test_verify_start_publication_interruption_allows_bounded_recovery(store, point):
+    crash(store, "verify", point)
+    with CheckpointJournal(store).locked() as journal:
+        assert journal.recover()["collection_allowed"]
+
+
+@pytest.mark.parametrize(
+    "point", ["verify_failure_written", "verify_failure_replaced", "verify_failure_synced"]
+)
+def test_finding_block_publication_boundaries(store, point):
+    with CheckpointJournal(store).locked() as journal:
+        capture(journal)
+    next(store.glob("captures/*/response/payload.bin")).write_bytes(b"bad")
+    crash(store, "verify", point)
+    with CheckpointJournal(store).locked() as journal:
+        status = journal.recover()
+        # A not-yet-published finding is intentionally outside fast-startup proof.
+        assert status["collection_allowed"] == (point == "verify_failure_written")
+    with pytest.raises(CaptureError, match="integrity_failure"):
+        with CaptureVerifier(store).locked() as verifier:
+            verifier.verify()
+
+
+@pytest.mark.parametrize(
+    "point", ["verify_result_written", "verify_result_replaced", "verify_result_synced"]
+)
+def test_success_report_publication_never_erases_existing_failure_early(store, point):
+    with CheckpointJournal(store).locked() as journal:
+        capture(journal)
+    payload = next(store.glob("captures/*/response/payload.bin"))
+    original = payload.read_bytes()
+    payload.write_bytes(b"bad")
+    with pytest.raises(CaptureError):
+        with CaptureVerifier(store).locked() as verifier:
+            verifier.verify()
+    payload.write_bytes(original)
+    crash(store, "verify", point)
+    with CheckpointJournal(store).locked() as journal:
+        assert not journal.recover()["collection_allowed"]
