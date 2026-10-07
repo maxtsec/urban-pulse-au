@@ -2,6 +2,14 @@
 
 Measured 7 October 2026, 03:44:15–03:46:36 UTC (14:44–14:46 Melbourne daylight time). This is a short network-wide sample, not a Southbank coverage or production freshness guarantee. Progress remains in the [delivery plan](../delivery-plan.md).
 
+## Code provenance and offline reproduction
+
+The acquisition ran from uncommitted work based on `2c592f79e456997f4d03d5137ccb46f42090f136`, not from a clean published probe commit. Exact acquisition-script hashes were not recorded then and cannot be reconstructed reliably. Commit `0162e638c147f776d1f0c6c4a5616e1dea1f7483` published the first reviewed tool **after** capture; it is not claimed as the acquisition version. The two preliminary header checks were separate operator requests, also without a retained script revision.
+
+The original `report.json` and raw payloads remain unchanged. The committed `--replay` implementation now reproduces all 11 captures against their original receipt times and pinned static archive, including both the entity-transition and coordinate-change tables and the same-timestamp anomaly. It matches the previously retained `analysis.json` exactly for every capture, without relying on that file as an input. See the [executable replay command](../runbooks/transport-source-probe.md#offline-replay).
+
+New live reports record `capture_code`: commit SHA, dirty flag and hashes of the probe, analyzer, shared settings and dependency lock. Replay records its own `analysis_code` separately; legacy reports without acquisition provenance retain `capture_code: null`. A dirty flag never represents a clean commit as the exact executed source.
+
 ## Access and sample bounds
 
 Two preliminary positions requests used the same locally configured credential with different headers: `Ocp-Apim-Subscription-Key` returned **401**, then `KeyID` returned **200**. The key was sent only to the fixed official HTTPS endpoint, never in a URL. No error body or credential is published. This establishes the working header for this subscription on this date, not the provider's account-wide quota.
@@ -55,7 +63,7 @@ All sampled trip updates omitted their per-trip update timestamp and vehicle ID.
 
 ## Validation and next decisions
 
-Local validation: Ruff lint/format and mypy passed; 630 non-integration tests passed, including 30 new probe tests. All 11 retained sample summaries were reproduced offline against their original receipt timestamps and checked payload hashes. Existing database integration, browser and Compose suites are left to PR CI because application runtime is unchanged.
+Local validation: Ruff lint/format and mypy passed; 640 non-integration tests passed, including 40 probe tests. All 11 retained sample summaries were reproduced offline against their original receipt timestamps and checked payload hashes. Existing database integration, browser and Compose suites are left to PR CI because application runtime is unchanged.
 
 Synthetic tests cover exact/ambiguous linkage, service-date exceptions, frequency trips, missing timestamps, duplicate vehicle IDs, raw versus entity changes, malformed protobuf, bounded request scheduling, HTTP/network failures, redirects, size limits, offline execution and the probe lock. [Runbook](../runbooks/transport-source-probe.md) describes reproduction and private retained evidence. No source payloads, API keys, cloud resources or application API changes are included in this PR.
 

@@ -83,6 +83,8 @@ class Schedule:
         }
 
     def linkage(self, trip: Any) -> str:
+        if trip.schedule_relationship != pb.TripDescriptor.SCHEDULED:
+            return "non_scheduled"
         # Exact IDs only: suffix/fuzzy matches can connect a different service instance.
         candidates = self.trips.get(trip.trip_id, [])
         if not trip.trip_id:
@@ -100,8 +102,6 @@ class Schedule:
             return "direction_mismatch"
         if row.get("shape_id") not in self.shapes:
             return "shape_missing"
-        if trip.schedule_relationship != pb.TripDescriptor.SCHEDULED:
-            return "non_scheduled"
         if trip.trip_id in self.frequency_trips:
             return "frequency_instance_unverified"
         if not trip.start_date:

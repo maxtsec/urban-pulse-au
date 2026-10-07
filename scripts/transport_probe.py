@@ -1,10 +1,12 @@
 """Bounded operator-run Transport Victoria research; no application writes or cloud upload."""
 
 import argparse
+import copy
 import gzip
 import hashlib
 import json
 import os
+import subprocess
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -13,16 +15,140 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
-from dotenv import dotenv_values
 from google.protobuf.message import DecodeError  # type: ignore[import-untyped]
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings
 
 from scripts.gtfs_probe import Schedule, decode, entity_fingerprint, positions, summarize
+from urbanpulse.config import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
 PRIVATE = ROOT / ".local" / "src-02-transport"
 BASE = "https://api.opendata.transport.vic.gov.au/opendata/public-transport/gtfs/realtime/v1/tram"
 HEADERS = ("KeyID", "Ocp-Apim-Subscription-Key")
 MAX_BYTES = 8 * 1024 * 1024
+
+
+class ProbeSettings(BaseSettings):
+    model_config = Settings.model_config
+    dtp_opendata_api_key: SecretStr | None = None
+
+
+def code_provenance() -> dict[str, Any]:
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", "-C", str(ROOT), *args], text=True).strip()
+
+    files = [
+        "scripts/transport_probe.py",
+        "scripts/gtfs_probe.py",
+        "urbanpulse/config.py",
+        "uv.lock",
+    ]
+    return {
+        "commit": git("rev-parse", "HEAD"),
+        "dirty": bool(git("status", "--porcelain")),
+        "sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in files},
+    }
+
+
+class CaptureAnalysis:
+    """One shared implementation for live samples and offline replay, in capture order."""
+
+    def __init__(self, schedule: Schedule) -> None:
+        self.schedule = schedule
+        self.previous: dict[str, str] = {}
+        self.previous_entities: dict[str, str] = {}
+        self.previous_positions: dict[str, tuple[Any, ...]] = {}
+
+    def analyze(self, record: dict[str, Any], body: bytes) -> None:
+        feed = record["feed"]
+        digest = hashlib.sha256(body).hexdigest()
+        record.update(
+            bytes=len(body),
+            sha256=digest,
+            gzip_bytes=len(gzip.compress(body, compresslevel=6, mtime=0)),
+            unchanged=self.previous.get(feed) == digest if feed in self.previous else None,
+        )
+        self.previous[feed] = digest
+        parsed = decode(body)
+        entity_hash = entity_fingerprint(parsed)
+        record["entity_payload_sha256"] = entity_hash
+        record["unchanged_entities"] = (
+            self.previous_entities[feed] == entity_hash if feed in self.previous_entities else None
+        )
+        self.previous_entities[feed] = entity_hash
+        received = datetime.fromisoformat(record["received_at"])
+        if received.tzinfo is None:
+            raise ValueError("Receipt timestamp requires a timezone")
+        record["summary"] = summarize(parsed, self.schedule, received.timestamp())
+        if feed == "vehicle-positions":
+            current = positions(parsed)
+            shared = current.keys() & self.previous_positions.keys()
+            record["position_comparison"] = {
+                "shared_vehicles": len(shared),
+                "coordinates_changed": sum(
+                    current[k][:2] != self.previous_positions[k][:2] for k in shared
+                ),
+                "coordinates_changed_same_observed_at": sum(
+                    current[k][:2] != self.previous_positions[k][:2]
+                    and current[k][2] is not None
+                    and current[k][2] == self.previous_positions[k][2]
+                    for k in shared
+                ),
+                "observation_time_changed": sum(
+                    current[k][2] != self.previous_positions[k][2] for k in shared
+                ),
+            }
+            self.previous_positions = current
+
+
+def replay_report(directory: Path, schedule: Schedule) -> dict[str, Any]:
+    """Recompute from original bytes and receipt times without rewriting acquisition evidence."""
+    directory = directory.resolve()
+    report_path = directory / "report.json"
+    if report_path.stat().st_size > MAX_BYTES:
+        raise ValueError("Report exceeds probe limit")
+    report: dict[str, Any] = json.loads(report_path.read_text(encoding="utf-8"))
+    if report.get("schema") != "transport-source-probe-v1":
+        raise ValueError("Unsupported probe report")
+    if report["static"]["sha256"] != schedule.sha256:
+        raise ValueError("Static archive hash mismatch")
+    captures = report["captures"]
+    if not isinstance(captures, list) or len(captures) > 11:
+        raise ValueError("Invalid capture count")
+    analysis = CaptureAnalysis(schedule)
+    result = copy.deepcopy(report)
+    result["capture_code"] = report.get("capture_code")  # Legacy capture version is unknown.
+    for index, record in enumerate(result["captures"], 1):
+        if "payload" not in record:
+            if not record.get("error"):
+                raise ValueError("Missing capture payload")
+            continue
+        feed = record["feed"]
+        if feed not in {"vehicle-positions", "trip-updates", "service-alerts"}:
+            raise ValueError("Unknown capture feed")
+        if record["payload"] != f"{index:02d}-{feed}.pb":
+            raise ValueError("Invalid capture path")
+        payload = (directory / record["payload"]).resolve()
+        if not payload.is_relative_to(directory) or payload.stat().st_size > MAX_BYTES:
+            raise ValueError("Payload outside directory or exceeds limit")
+        body = payload.read_bytes()
+        if len(body) != record["bytes"] or hashlib.sha256(body).hexdigest() != record["sha256"]:
+            raise ValueError("Capture integrity mismatch")
+        for field in (
+            "summary",
+            "entity_payload_sha256",
+            "unchanged_entities",
+            "position_comparison",
+        ):
+            record.pop(field, None)
+        try:
+            analysis.analyze(record, body)
+        except (ValueError, DecodeError):
+            if record.get("error") != "invalid_protobuf":
+                raise
+    result["analysis_code"] = code_provenance()
+    return result
 
 
 def request_plan(duration: int) -> list[tuple[int, str]]:
@@ -89,13 +215,12 @@ def run_probe(
         "static": schedule.inventory(),
         "planned_requests": len(plan),
         "captures": [],
+        "capture_code": code_provenance(),
         "scope": "tram network; linkage is not spatial shape matching or live enablement",
     }
     start = monotonic()
     previous_start: float | None = None
-    previous: dict[str, str] = {}
-    previous_entities: dict[str, str] = {}
-    previous_positions: dict[str, tuple[Any, ...]] = {}
+    analysis = CaptureAnalysis(schedule)
     for offset, feed in plan:
         # A slow request cannot produce a catch-up burst. One request at a time, >=10s apart.
         target = max(start + offset, previous_start + 10 if previous_start is not None else start)
@@ -112,45 +237,9 @@ def run_probe(
         index = len(report["captures"])
         name = f"{index:02d}-{feed}.pb"
         (output / name).write_bytes(body)
-        digest = hashlib.sha256(body).hexdigest()
-        record.update(
-            payload=name,
-            bytes=len(body),
-            sha256=digest,
-            gzip_bytes=len(gzip.compress(body, compresslevel=6, mtime=0)),
-            unchanged=previous.get(feed) == digest if feed in previous else None,
-        )
-        previous[feed] = digest
+        record["payload"] = name
         try:
-            parsed = decode(body)
-            entity_hash = entity_fingerprint(parsed)
-            record["entity_payload_sha256"] = entity_hash
-            record["unchanged_entities"] = (
-                previous_entities[feed] == entity_hash if feed in previous_entities else None
-            )
-            previous_entities[feed] = entity_hash
-            record["summary"] = summarize(
-                parsed, schedule, datetime.fromisoformat(record["received_at"]).timestamp()
-            )
-            if feed == "vehicle-positions":
-                current = positions(parsed)
-                shared = current.keys() & previous_positions.keys()
-                record["position_comparison"] = {
-                    "shared_vehicles": len(shared),
-                    "coordinates_changed": sum(
-                        current[k][:2] != previous_positions[k][:2] for k in shared
-                    ),
-                    "coordinates_changed_same_observed_at": sum(
-                        current[k][:2] != previous_positions[k][:2]
-                        and current[k][2] is not None
-                        and current[k][2] == previous_positions[k][2]
-                        for k in shared
-                    ),
-                    "observation_time_changed": sum(
-                        current[k][2] != previous_positions[k][2] for k in shared
-                    ),
-                }
-                previous_positions = current
+            analysis.analyze(record, body)
         except (ValueError, DecodeError):
             record["error"] = "invalid_protobuf"
             report["stopped"] = "invalid_protobuf"
@@ -171,7 +260,9 @@ def main() -> int:
         required=True,
         help="Extracted mode-3 GTFS ZIP (not statewide outer ZIP)",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--replay", type=Path, help="Reanalyze retained report and payloads offline")
+    mode.add_argument(
         "--live", action="store_true", help="Opt into bounded authenticated provider requests"
     )
     parser.add_argument("--header", choices=HEADERS, default="KeyID")
@@ -179,14 +270,20 @@ def main() -> int:
     args = parser.parse_args()
     path = args.static_zip if args.static_zip.is_absolute() else ROOT / args.static_zip
     schedule = Schedule.read(path)
+    if args.replay is not None:
+        directory = args.replay if args.replay.is_absolute() else ROOT / args.replay
+        report = replay_report(directory, schedule)
+        output = directory / "replay.json"
+        output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"report": str(output), "captures": len(report["captures"])}))
+        return 1 if "stopped" in report else 0
     if not args.live:
         print(json.dumps(schedule.inventory(), indent=2))
         return 0
-    key = os.environ.get("DTP_OPENDATA_API_KEY") or dotenv_values(ROOT / ".env").get(
-        "DTP_OPENDATA_API_KEY"
-    )
-    if not key:
+    secret = ProbeSettings().dtp_opendata_api_key
+    if secret is None or not secret.get_secret_value():
         parser.error("DTP_OPENDATA_API_KEY is missing; configure it locally without printing it")
+    key = secret.get_secret_value()
     PRIVATE.mkdir(parents=True, exist_ok=True)
     lock = PRIVATE / "probe.lock"
     try:

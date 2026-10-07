@@ -339,3 +339,116 @@ def test_entity_fingerprint_ignores_header_and_order_but_not_content() -> None:
     feed.entity.reverse()
     feed.entity[0].vehicle.position.longitude += 0.1
     assert entity_fingerprint(feed) != original
+
+
+@pytest.mark.parametrize("relationship", [pb.TripDescriptor.ADDED, pb.TripDescriptor.CANCELED])
+def test_non_scheduled_trip_classified_before_static_lookup(
+    schedule: Schedule, relationship: int
+) -> None:
+    trip = sample().entity[0].vehicle.trip
+    trip.trip_id = "not-in-static"
+    trip.schedule_relationship = relationship
+    assert schedule.linkage(trip) == "non_scheduled"
+    trip.ClearField("trip_id")
+    assert schedule.linkage(trip) == "non_scheduled"
+
+
+def retained_run(tmp_path: Path, schedule: Schedule) -> dict:
+    clock = Clock()
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, stream=httpx.ByteStream(sample().SerializeToString()))
+        )
+    ) as client:
+        return probe.run_probe(
+            client,
+            schedule,
+            "secret",
+            "KeyID",
+            tmp_path,
+            60,
+            sleep=clock.sleep,
+            monotonic=clock.read,
+        )
+
+
+def test_replay_matches_live_analysis_without_network_or_env(
+    tmp_path: Path, schedule: Schedule, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    expected = retained_run(tmp_path, schedule)
+    original = (tmp_path / "report.json").read_bytes()
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Replay must not access network or credentials")
+
+    monkeypatch.setattr(httpx, "Client", forbidden)
+    monkeypatch.setattr(probe, "ProbeSettings", forbidden)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["probe", "--static-zip", str(tmp_path / "tram.zip"), "--replay", str(tmp_path)],
+    )
+    assert probe.main() == 0
+    actual = json.loads((tmp_path / "replay.json").read_text())
+    assert actual["captures"] == expected["captures"]
+    assert actual["capture_code"] == expected["capture_code"]
+    assert (tmp_path / "report.json").read_bytes() == original
+
+
+def test_replay_legacy_recomputes_entity_and_motion(tmp_path: Path, schedule: Schedule) -> None:
+    expected = retained_run(tmp_path, schedule)
+    legacy = json.loads(json.dumps(expected))
+    legacy.pop("capture_code")
+    for row in legacy["captures"]:
+        for name in (
+            "summary",
+            "entity_payload_sha256",
+            "unchanged_entities",
+            "position_comparison",
+        ):
+            row.pop(name, None)
+    (tmp_path / "report.json").write_text(json.dumps(legacy))
+    actual = probe.replay_report(tmp_path, schedule)
+    assert actual["captures"] == expected["captures"]
+    assert actual["capture_code"] is None
+    assert actual["captures"][3]["unchanged_entities"] is True
+    assert actual["captures"][3]["position_comparison"]["coordinates_changed"] == 0
+
+
+@pytest.mark.parametrize("tamper", ["payload", "static", "path", "missing", "naive_time"])
+def test_replay_rejects_tampered_or_incomplete_evidence(
+    tmp_path: Path, schedule: Schedule, tamper: str
+) -> None:
+    report = retained_run(tmp_path, schedule)
+    first = tmp_path / report["captures"][0]["payload"]
+    if tamper == "payload":
+        first.write_bytes(b"changed")
+    elif tamper == "static":
+        report["static"]["sha256"] = "wrong"
+    elif tamper == "path":
+        report["captures"][0]["payload"] = "../outside.pb"
+    elif tamper == "missing":
+        first.unlink()
+    else:
+        report["captures"][0]["received_at"] = "2026-10-07T03:44:15"
+    (tmp_path / "report.json").write_text(json.dumps(report))
+    with pytest.raises((ValueError, FileNotFoundError)):
+        probe.replay_report(tmp_path, schedule)
+
+
+def test_settings_use_shared_file_configuration_and_environment_precedence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env = tmp_path / ".env"
+    env.write_text("DTP_OPENDATA_API_KEY=from-file\nOTHER_SETTING=ignored\n")
+    monkeypatch.delenv("DTP_OPENDATA_API_KEY", raising=False)
+    settings = probe.ProbeSettings(_env_file=env)
+    assert settings.dtp_opendata_api_key.get_secret_value() == "from-file"
+    assert "from-file" not in repr(settings)
+    monkeypatch.setenv("DTP_OPENDATA_API_KEY", "from-environment")
+    assert (
+        probe.ProbeSettings(_env_file=env).dtp_opendata_api_key.get_secret_value()
+        == "from-environment"
+    )
