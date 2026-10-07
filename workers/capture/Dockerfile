@@ -14,7 +14,7 @@ COPY --from=dependencies /app/.venv /app/.venv
 COPY urbanpulse/__init__.py ./urbanpulse/__init__.py
 COPY urbanpulse/contracts/__init__.py urbanpulse/contracts/local_capture.py urbanpulse/contracts/capture_control.py ./urbanpulse/contracts/
 COPY urbanpulse/adapters/__init__.py urbanpulse/adapters/capture_journal.py urbanpulse/adapters/capture_checkpoint.py urbanpulse/adapters/capture_verify.py urbanpulse/adapters/synthetic_capture.py urbanpulse/adapters/transport_capture.py ./urbanpulse/adapters/
-COPY urbanpulse/application/__init__.py urbanpulse/application/local_collector.py ./urbanpulse/application/
+COPY urbanpulse/application/__init__.py urbanpulse/application/local_collector.py urbanpulse/application/tram_schedule.py ./urbanpulse/application/
 COPY workers/__init__.py ./workers/__init__.py
 COPY workers/capture/*.py ./workers/capture/
 RUN useradd --uid 10001 --no-create-home collector

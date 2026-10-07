@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event
 
+from urbanpulse.application.tram_schedule import TramSchedule
 from urbanpulse.contracts.local_capture import FEEDS, Journal, Mode, Source
 
 
@@ -28,6 +29,7 @@ def collect(
     max_seconds: float,
     interval: float,
     initial_delay: float = 0,
+    tram_schedule: bool = False,
     monotonic: Callable[[], float] = time.monotonic,
     wait: Callable[[float], bool] | None = None,
 ) -> CollectionResult:
@@ -40,7 +42,13 @@ def collect(
     deadline = monotonic() + max_seconds
     attempts = captured = feed_index = failures = 0
     delay = max(initial_delay, 0)
+    schedule = TramSchedule(monotonic() + delay, max(15, interval)) if tram_schedule else None
     while attempts < max_attempts:
+        if schedule is not None:
+            feed, due = schedule.next(monotonic())
+            delay = max(0, due - monotonic())
+        else:
+            feed = FEEDS[feed_index]
         remaining = deadline - monotonic()
         if remaining <= 0:
             return CollectionResult(attempts, captured, "duration_limit")
@@ -48,8 +56,9 @@ def collect(
             return CollectionResult(attempts, captured, "stopped")
         if monotonic() >= deadline:
             return CollectionResult(attempts, captured, "duration_limit")
-        intent = journal.begin(mode, FEEDS[feed_index], version)
-        result = source.fetch(FEEDS[feed_index])
+        intent = journal.begin(mode, feed, version)
+        started = monotonic()
+        result = source.fetch(feed)
         manifest = journal.complete(intent, result)
         attempts += 1
         delay = interval
@@ -73,4 +82,11 @@ def collect(
             delay = max(delay, result.retry_after_seconds)
         if manifest.retry_not_before is not None:
             delay = max(delay, (manifest.retry_not_before - datetime.now(UTC)).total_seconds())
+        if schedule is not None:
+            cooldown = max(0, result.retry_after_seconds or 0)
+            if manifest.retry_not_before is not None:
+                cooldown = max(
+                    cooldown, (manifest.retry_not_before - datetime.now(UTC)).total_seconds()
+                )
+            schedule.completed(feed, started, monotonic(), manifest.outcome == "captured", cooldown)
     return CollectionResult(attempts, captured, "attempt_limit")
