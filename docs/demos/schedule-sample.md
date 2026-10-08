@@ -17,23 +17,31 @@ Open **Day overview** beside the player for a 24-hour timetable. Separate CBD/So
 
 The compact Area health panel shows **Demo affected trips**, with numerator/denominator at the selected instant. This is an authored-zone share of simulated trips, not a true delay rate. N/A means missing transport data or no trips. Expand **Method & area profile** for the definition, source completeness and dated DAM context.
 
-## Mock trends and engineering walkthrough
-
-**Data & pipeline → Trend preview** opens a frontend-only prototype with eight authored 15-minute intervals for 7 October, 08:00–10:00. Compare CBD/Southbank vehicle counts, select a bar for median position age and positions-capture coverage, and inspect partial/missing intervals. This fixed mock partition is independent of map time and area-health inputs. It does not fetch an API, run SQL or claim real collector statistics. Definitions inside the panel describe the mock; production metric semantics still need review with the actual mart.
-
-**How it works** shows the intended raw → normalization → GCS → BigQuery/dbt → PostGIS/API path and three illustrative outcomes: a duplicate-free partition rerun, confirmation after a lost upload response, and a retained collection gap. Links lead to existing contracts and recovery documentation; they are not evidence that this end-to-end pipeline has executed. Replace the fixtures with a versioned serving response only after the real vertical slice is tested.
-
 ## Two-minute demonstration
 
 | Time | Action | Explain |
 | --- | --- | --- |
 | 0:00–0:20 | Select 7 October; Area health → Rain + evening delays | Government map context with timetable-simulated movement and labelled demo impacts |
-| 0:20–0:40 | Compare CBD and Southbank; select a delay reason | State, cause and affected-trip share are separate; click through to location |
-| 0:40–1:00 | Select Missing data | N/A preserves uncertainty instead of inventing zero delays |
-| 1:00–1:30 | Open Data & pipeline; compare the bars; select 08:45 and 09:00 | This mock previews future real trends, including partial and missing collection |
-| 1:30–2:00 | Open How it works; select rerun and recovery examples | Explain the target pipeline and open the repo for actual implementation evidence |
+| 0:20–0:45 | Compare CBD and Southbank; select a delay reason | State, cause and affected-trip share are separate; click through to location |
+| 0:45–1:10 | Open Day overview and select another interval | Compare authored conditions through the day using the same map and clock |
+| 1:10–1:35 | Select Missing data, then Recovered | N/A preserves uncertainty instead of inventing zero delays |
+| 1:35–2:00 | Open Sources & attribution | Distinguish actual government source records, schedule simulation and authored weather/impacts |
 
-Say explicitly that the trend values and engineering outcomes are mock examples. A future real-data presentation should identify its partition, source/capture times, quality results and reproducible run evidence before making analytical claims.
+Keep the product walkthrough focused on area conditions. Use the repository material below for a separate engineering discussion.
+
+## Engineering discussion in the repository
+
+The intended historical-data path is:
+
+```text
+Local Tram raw → normalization → GCS → BigQuery/dbt → PostGIS/API → area view
+```
+
+This is the target pipeline, not a claim that the static sample executes it. Start with the [normalized Tram contract](../architecture/normalized-tram-contract.md), then use [worker recovery evidence](../evidence/event-01-worker-recovery.md) and the [retry/recovery runbook](../runbooks/event-recovery.md) to discuss implemented reliability work. Event-worker evidence establishes that component's behaviour, not end-to-end warehouse delivery.
+
+For an engineering interview, explain stable record keys and safe reruns, recovery after an ambiguous upload response, and why missing captures must remain gaps. Link each implemented guarantee to its own tests or recorded execution; keep planned guarantees explicit.
+
+The public UI has no separate mock analytics dashboard or pipeline workflow. Future real trends should use the selected area/date/time, expose their collection coverage and provenance, and follow review of the actual mart and metric definitions.
 
 ## Rebuild offline
 
