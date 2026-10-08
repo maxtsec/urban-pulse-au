@@ -11,10 +11,14 @@ import type {
 import type { Development, Vehicle, Warning } from './city';
 import tramIcon from './assets/tram.svg';
 import buildingIcon from './assets/building.svg';
+import constructionIcon from './assets/construction.svg';
+import planIcon from './assets/development-plan.svg';
+import { inArea } from './explorer/schedule';
 import { fixtureTracks } from './fixture-tracks';
 import { placeLabels } from './labels';
 import type { Box } from './labels';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import type { DemoReason } from './explorer/health-demo';
 import type { VisualScene } from './explorer/scene';
 
 // Emit the worker and its imports as local build assets.
@@ -63,7 +67,12 @@ type Props = {
   threeDimensional: boolean;
   showBuildings: boolean;
   visualScene?: VisualScene;
+  showStreetNames?: boolean;
+  tramDelays?: Readonly<Record<string, DemoReason>>;
+  areaHealth?: FeatureCollection<Polygon | MultiPolygon>;
+  focusRequest?: { center: [number, number]; zoom: number; id: number };
   localContext?: {
+    focusMask?: Feature<Polygon | MultiPolygon>;
     tracks: FeatureCollection<LineString>;
     roads: FeatureCollection<LineString>;
     water: FeatureCollection<Polygon | MultiPolygon>;
@@ -96,6 +105,10 @@ export function CityMap({
   showBuildings,
   visualScene,
   localContext,
+  showStreetNames = true,
+  tramDelays,
+  areaHealth,
+  focusRequest,
 }: Props) {
   const [modelState, setModelState] = useState('loading');
   const [modelView, setModelView] = useState(threeDimensional);
@@ -129,6 +142,7 @@ export function CityMap({
   >('hidden');
   const buildingAbort = useRef<AbortController | null>(null);
   const initialInsets = useRef(insets);
+  const streetLabels = useRef<HTMLElement[]>([]);
 
   const labelOrder = useRef<string[]>([]);
   const frame = useRef(0);
@@ -239,9 +253,9 @@ export function CityMap({
           type: 'line',
           source: 'southbank',
           paint: {
-            'line-color': '#7d8a85',
-            'line-width': 1.5,
-            'line-dasharray': [3, 2],
+            'line-color': localContext ? '#436b73' : '#7d8a85',
+            'line-width': localContext ? 2.5 : 1.5,
+            'line-dasharray': localContext ? [1, 0] : [3, 2],
           },
         });
         instance.addSource('warnings', {
@@ -303,9 +317,60 @@ export function CityMap({
             'warning-fill',
           );
         }
+        if (localContext?.focusMask) {
+          instance.addSource('focus-mask', {
+            type: 'geojson',
+            data: localContext.focusMask,
+          });
+          instance.addLayer({
+            id: 'focus-mask',
+            type: 'fill',
+            source: 'focus-mask',
+            paint: { 'fill-color': '#edf0f1', 'fill-opacity': 0.78 },
+          });
+        }
+        instance.addSource('area-health', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        const healthColor: maplibregl.ExpressionSpecification = [
+          'match',
+          ['get', 'status'],
+          'clear',
+          '#278474',
+          'affected',
+          '#d69b29',
+          'severe',
+          '#cf505b',
+          '#83909a',
+        ];
+        instance.addLayer({
+          id: 'health-fill',
+          type: 'fill',
+          source: 'area-health',
+          paint: { 'fill-color': healthColor, 'fill-opacity': 0.12 },
+        });
+        instance.addLayer({
+          id: 'health-line',
+          type: 'line',
+          source: 'area-health',
+          paint: { 'line-color': healthColor, 'line-width': 3 },
+        });
         if (localContext) {
           const labels = new Set<string>();
-          for (const feature of localContext.roads.features) {
+          // Prefer the longest segment for each name, keeping labels bounded.
+          const span = (f: Feature<LineString>) => {
+            const c = f.geometry.coordinates;
+            return c
+              .slice(1)
+              .reduce(
+                (sum, p, i) => sum + Math.hypot(p[0] - c[i][0], p[1] - c[i][1]),
+                0,
+              );
+          };
+          for (const feature of [...localContext.roads.features].sort(
+            (a, b) => span(b) - span(a),
+          )) {
             const name = feature.properties?.name as string | undefined;
             if (
               !name ||
@@ -316,6 +381,17 @@ export function CityMap({
                 'St Kilda Road',
                 'City Road',
                 'Queens Bridge Street',
+                'Flinders Street',
+                'Elizabeth Street',
+                'William Street',
+                'Queen Street',
+                'La Trobe Street',
+                'Spencer Street',
+                'Clarendon Street',
+                'Southbank Boulevard',
+                'Lonsdale Street',
+                'Exhibition Street',
+                'Russell Street',
               ].includes(name) ||
               labels.has(name) ||
               feature.geometry.type !== 'LineString'
@@ -323,9 +399,11 @@ export function CityMap({
               continue;
             const coordinates = feature.geometry.coordinates;
             const point = coordinates[Math.floor(coordinates.length / 2)];
+            if (!inArea(point, boundary.feature.geometry)) continue;
             const label = document.createElement('span');
             label.className = 'sample-map-label';
             label.textContent = name;
+            streetLabels.current.push(label);
             new maplibregl.Marker({ element: label })
               .setLngLat([point[0], point[1]])
               .addTo(instance);
@@ -366,6 +444,7 @@ export function CityMap({
           layout: { 'line-join': 'round' },
           paint: { 'line-color': '#ffffff', 'line-width': 2 },
         });
+        instance.moveLayer('area-line');
         const bounds = new maplibregl.LngLatBounds();
         const polygons =
           boundary.feature.geometry.type === 'Polygon'
@@ -438,9 +517,29 @@ export function CityMap({
       developmentMarkers.current.clear();
       buildingAbort.current?.abort();
       map.current = null;
+      streetLabels.current = [];
       instance.remove();
     };
   }, [boundary, layoutLabels, contextGeneration, localContext]);
+
+  useEffect(() => {
+    if (!ready || ready !== map.current || contextLost.current) return;
+    (ready.getSource('area-health') as maplibregl.GeoJSONSource).setData(
+      areaHealth ?? { type: 'FeatureCollection', features: [] },
+    );
+  }, [ready, areaHealth]);
+  useEffect(() => {
+    if (!ready || ready !== map.current || contextLost.current || !focusRequest)
+      return;
+    ready.easeTo({
+      center: focusRequest.center,
+      zoom: focusRequest.zoom,
+      duration: reducedMotion() ? 0 : 500,
+    });
+  }, [ready, focusRequest]);
+  useEffect(() => {
+    for (const label of streetLabels.current) label.hidden = !showStreetNames;
+  }, [ready, showStreetNames]);
 
   useEffect(() => {
     const instance = map.current;
@@ -497,6 +596,15 @@ export function CityMap({
       }
       const button = marker.getElement();
       button.className = `tram-marker ${vehicle.freshness} ${vehicle.id === selected ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
+      const delay = tramDelays?.[vehicle.id];
+      if (delay) button.classList.add(`demo-delay-${delay.severity}`);
+      button.title = delay
+        ? `${vehicle.label} · Demo delay: ${delay.title}`
+        : vehicle.label;
+      button.setAttribute(
+        'aria-label',
+        `Select ${vehicle.label} on map${delay ? ` · Demo delay: ${delay.title}` : ''}`,
+      );
       button.setAttribute('aria-pressed', String(vehicle.id === selected));
       const target: [number, number] = [vehicle.longitude, vehicle.latitude];
       const previous = observed.current.get(vehicle.id);
@@ -560,6 +668,7 @@ export function CityMap({
     onSelect,
     showVehicles,
     hideFlatMarkers,
+    tramDelays,
     showBoundary,
     showTracks,
     layoutLabels,
@@ -600,7 +709,11 @@ export function CityMap({
         const button = document.createElement('button');
         button.type = 'button';
         const icon = document.createElement('img');
-        icon.src = buildingIcon;
+        icon.src = localContext
+          ? record.status.toUpperCase() === 'UNDER CONSTRUCTION'
+            ? constructionIcon
+            : planIcon
+          : buildingIcon;
         icon.alt = '';
         icon.draggable = false;
         button.append(icon);
@@ -619,7 +732,7 @@ export function CityMap({
         String(record.development_key === selectedDevelopment),
       );
       button.title = `${record.name} · ${record.status}`;
-      button.className = `development-marker ${record.development_key === selectedDevelopment ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
+      button.className = `development-marker ${localContext ? `sample-project ${record.status.toUpperCase() === 'UNDER CONSTRUCTION' ? 'construction' : 'planned'}` : ''} ${record.development_key === selectedDevelopment ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
       marker.setLngLat([record.position!.longitude, record.position!.latitude]);
     }
     layoutLabels();

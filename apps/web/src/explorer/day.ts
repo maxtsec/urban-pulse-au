@@ -4,7 +4,11 @@ export const DAY_MS = 86_400_000;
 export const WINDOW_MS = 7_200_000;
 export const INITIAL_MS = 8 * 3_600_000;
 export type WeatherKind = 'sunny' | 'cloudy' | 'rainy';
-export type DemoTram = Vehicle & { heading: number; pair: [number, number] };
+export type DemoTram = Vehicle & {
+  heading: number;
+  pair: [number, number];
+  demoDelay?: 'affected' | 'severe';
+};
 export const WEATHER: { at: number; kind: WeatherKind; temperature: number }[] =
   [
     { at: 0, kind: 'cloudy', temperature: 13 },

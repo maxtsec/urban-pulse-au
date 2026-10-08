@@ -89,3 +89,28 @@ def test_dam_metadata_change_rejects_the_whole_snapshot():
     }
     with pytest.raises(ValueError, match="Inconsistent DAM snapshot"):
         developments(inputs, box(0, 0, 1, 1))
+
+
+def test_drawn_rails_are_clipped_but_motion_paths_stay_whole():
+    from shapely.geometry import box, shape
+
+    from scripts.build_sample_dataset import display_tracks
+
+    geometry = box(0, 0, 1, 1)
+    schedule = {"shapes": {"through": {"coordinates": [[-1, 0.5], [2, 0.5]], "distances": [0, 3]}}}
+    result = display_tracks(schedule, geometry)
+    assert len(result["features"]) == 1
+    assert geometry.covers(shape(result["features"][0]["geometry"]))
+    assert schedule["shapes"]["through"]["coordinates"] == [[-1, 0.5], [2, 0.5]]
+    assert schedule["shapes"]["through"]["distances"] == [0, 3]
+
+
+def test_real_display_rails_do_not_escape_the_focus_area():
+    from shapely.geometry import shape
+
+    city = json.loads((ROOT / "apps/web/src/assets/sample/city.json").read_bytes())
+    boundary = shape(city["boundary"]["geometry"])
+    assert len(city["display_tracks"]["features"]) > 0
+    for feature in city["display_tracks"]["features"]:
+        assert boundary.buffer(1e-12).covers(shape(feature["geometry"]))
+    assert {f["properties"]["area_id"] for f in city["areas"]["features"]} == {"cbd", "southbank"}

@@ -5,9 +5,9 @@ Measured 2026-10-08. Scope and interpretation: [ADR 0022](../adr/0022-public-sch
 | Retained output | Measurement |
 | --- | --- |
 | Licensed source archive, excluded from website | 16,759,478 bytes |
-| City/schedule JSON | 8,928,382 bytes; about 1.31 MB gzip in Vite's report |
+| City/schedule JSON | 9,133,337 bytes; about 1.33 MB gzip in Vite's report |
 | On-demand building geometry | 3,340,553 bytes |
-| Entire static build, before HTTP compression | 16,257,158 bytes |
+| Entire static build, before HTTP compression | 16,477,216 bytes |
 | Fixed-day trips / used full shapes | 4,539 / 84 |
 | DAM records | 463; 108 non-completed, spatially applicable records have map models |
 | Local street features / river polygon | 3,181 / 1 |
@@ -29,3 +29,11 @@ Validation performed:
 - Pages workflow passed actionlint; 378 changed-document local link targets resolved before adding this evidence page.
 
 Limits: the complete schedule has 24 hours, while the retained simulated Live/history UI still gates future windows. Minute-resolution stop times can create instantaneous changes at equal timestamps. The sample is not actual fleet telemetry, historical construction reconstruction, routing, flood coverage or a current health assessment. Pages publication itself remains a post-review action. CSP meta cannot enforce frame-ancestors; managed Caddy retains its header protection. Vite reports large JS chunks; cold 3D loading and device performance remain visible trade-offs rather than claimed performance guarantees.
+
+### Area-health and map-focus review additions
+
+The display-only track builder clips drawn lines to the CLUE union without modifying the full schedule shapes or distance indices. The seven-test builder suite passes, including byte-identical rebuild and display-boundary checks. Frontend checks pass: ESLint, Prettier, TypeScript, production build and 34 unit tests. Added tests cover half-open event validity, separate area states, adverse impacts with missing coverage, deterministic seeking and area-scoped delay highlights.
+
+Four Pages browser cases pass: original offline/integrity checks plus demo-state navigation, reason focus, recovery, missing coverage, street-name toggle, replacement project icons, tram explanation and 2D/3D re-entry. Screenshots were inspected in both views. Yellow/red model tint and halos are authored demo conditions; no congestion measurement is claimed. Real and adversarial Docker contexts pass the exact allowlist check with the new components and SVGs.
+
+The updated compiled Caddy browser suite passes all 19 cases, including the fixed panel, zoom controls, mobile resize, model-loading failure and WebGL recovery. Repository Ruff lint/format and strict mypy scope (85 files) also pass after these additions.

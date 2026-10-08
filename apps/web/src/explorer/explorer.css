@@ -731,3 +731,276 @@
   color: #376b83;
   font-style: italic;
 }
+
+/* Conditions are authored sample impacts, separate from source-backed context. */
+.health-demo {
+  --condition: #278474;
+}
+.affected {
+  --condition: #b57919;
+}
+.severe {
+  --condition: #be454d;
+}
+.unknown {
+  --condition: #74818b;
+}
+.clear {
+  --condition: #278474;
+}
+.health-demo-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+.health-demo-label span {
+  display: block;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 4px;
+}
+.health-area-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.health-area-picker button {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  text-align: left;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dce2e4;
+  background: #ffffff80;
+  padding: 12px 9px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.health-area-picker button[aria-pressed='true'] {
+  border-color: #667e88;
+  background: #fff;
+}
+.health-area-picker small {
+  grid-column: 2;
+  font-size: 10px;
+  color: #596b74;
+}
+.condition-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--condition);
+}
+.condition-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 13px;
+  margin: 14px 0;
+  border: 1px solid #dde4e5;
+  border-left: 4px solid var(--condition);
+  border-radius: 12px;
+  background: #ffffffaa;
+}
+.condition-symbol {
+  color: var(--condition);
+  font-size: 22px;
+  font-weight: 700;
+}
+.condition-card div > span {
+  font-size: 11px;
+  color: #65777c;
+}
+.condition-card h3 {
+  margin: 4px 0;
+  font-size: 19px;
+  color: var(--condition);
+}
+.condition-card p {
+  margin: 0;
+  flex-basis: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.health-journey h4,
+.health-story h4 {
+  font-size: 12px;
+  margin: 12px 0 6px;
+}
+.health-journey p {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.health-journey small {
+  display: block;
+  color: #677b83;
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+.condition-reason {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 9px;
+  margin: 7px 0;
+  border: 1px solid #dfe3e5;
+  border-radius: 10px;
+  text-align: left;
+  background: #fff9;
+  cursor: pointer;
+  color: var(--condition);
+}
+.condition-reason div {
+  flex: 1;
+}
+.condition-reason strong {
+  font-size: 12px;
+}
+.condition-reason small {
+  display: block;
+  font-size: 10px;
+  margin-top: 5px;
+  color: #61737c;
+}
+.condition-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  padding: 10px 0;
+  border-bottom: 1px solid #dce3e5;
+}
+.condition-coverage span {
+  color: #65777c;
+}
+.health-method {
+  font-size: 11px;
+  margin: 12px 0;
+  line-height: 1.5;
+}
+.health-method summary {
+  cursor: pointer;
+}
+.health-story > div {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.health-story button,
+.health-changes button {
+  border: 1px solid #dce2e4;
+  border-radius: 8px;
+  background: #fff9;
+  padding: 9px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 11px;
+}
+.health-story button small {
+  display: block;
+  margin-top: 4px;
+  color: #697d85;
+}
+.health-profile {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #647780;
+}
+.health-profile small {
+  font-size: 10px;
+}
+.health-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+}
+.health-changes strong {
+  float: right;
+}
+.health-map-callout {
+  position: absolute;
+  z-index: 4;
+  top: 145px;
+  left: 24px;
+  max-width: 290px;
+  padding: 15px;
+  font-size: 12px;
+}
+.health-map-callout button {
+  float: right;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+}
+.health-map-callout p {
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+.tram-marker.demo-delay-affected {
+  background: #fff0b3;
+  border-color: #c5890b;
+  box-shadow: 0 0 0 4px #dda52450;
+}
+.tram-marker.demo-delay-severe {
+  background: #ffdadb;
+  border-color: #c92f41;
+  box-shadow: 0 0 0 4px #e23c4e50;
+}
+.tram-delay-detail {
+  border-left: 3px solid var(--condition);
+  padding: 12px;
+  background: #fff9;
+  font-size: 12px;
+}
+.glance-dot.affected {
+  background: #d69b29;
+}
+.glance-dot.severe,
+.explorer-legend i.red {
+  background: #cf505b;
+}
+.sample-map-label {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #ffffffab;
+}
+.sample-map-label[hidden] {
+  display: none;
+}
+
+.explorer-shell .tram-marker.demo-delay-affected,
+.explorer-shell .tram-marker.demo-delay-severe {
+  opacity: 1;
+}
+.explorer-shell .development-marker.sample-project {
+  width: 25px;
+  height: 25px;
+  padding: 2px;
+  border-radius: 7px;
+  border: 1px solid #aabcc780;
+  background: #eef3f5db;
+  box-shadow: 0 1px 4px #27343b18;
+}
+.explorer-shell .development-marker.sample-project img {
+  width: 21px;
+  height: 21px;
+}
+.explorer-shell .development-marker.sample-project.construction {
+  background: #fff1d4ed;
+  border-color: #c99d46a8;
+}
+.explorer-shell .development-marker.sample-project.selected {
+  outline: 3px solid #32899a;
+}

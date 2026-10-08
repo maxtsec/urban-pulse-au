@@ -5,7 +5,9 @@ Open the root web page for **CBD + Southbank**. Trams use real schedules and rou
 - Use 3D for surveyed building massing and illustrative tram/project models; 2D remains the accessible fallback.
 - Select Trams to inspect scheduled trips; they are not observed vehicles. DAM status and source date are in Works; projects marked completed are retained in the list but excluded from map models.
 - Simulated Live starts at 10:00. History selects a two-hour window up to the advancing simulated edge. All 24 hours exist in the dataset; the existing Live/history control policy still gates future windows.
-- Area health stays Not assessed: the mixed sample is not current-condition coverage.
+- Area health explains authored demo conditions, separately for CBD and Southbank. Open `?demo=health` to jump to 09:15: CBD amber, Southbank red. Use **Explore the story** for calm, local impacts, major impacts, recovery and missing data. Click a reason to focus the map; the route list explains which simulated trips are highlighted.
+- Yellow/red tram tint and halos mean **Demo delay**, not measured road congestion. Schedule motion remains unchanged. Green requires complete demo inputs; grey means insufficient inputs. Weather warnings may affect the demo state; project counts never do.
+- **Layers → Main street names** toggles local labels in either view. Rails outside the two areas are hidden visually, while full paths remain available to the schedule simulation. The 2D helmet/plan markers describe DAM statuses; click for details.
 
 ## Rebuild offline
 
