@@ -48,6 +48,8 @@ Capture infrastructure is managed in code and adopted by phase 4 deployment rath
 | CLOUD-02    | 4                    | Full application deployment                        | CLOUD-01; EVENT-01; approved deployment design                      | Adopt capture resources; scoped API/UI/runtime delivery, migrations, telemetry, recovery and cost evidence                                                   |
 | HIST-01     | 5                    | Historical models and publication                  | Retained CLOUD-01 history; warehouse access; A-07                   | Coverage/gaps stated; BigQuery/dbt integration, bounded backfill and failed-publication protection                                                           |
 
+Weather/DAM next slice: [ADR 0021](adr/0021-independent-weather-planning-capture.md) records accepted 15-minute/daily cadence and independent bounded systemd timer jobs. File format, DAM consistency and reserve rules are proposed for review before implementation. No Tram journal generalization or service change; alert enrollment requires a separate Terraform plan.
+
 SRC-01 is a feasibility review; SRC-02 tracks the remaining live-source proof and policy gates. AREA-01 and CONTRACT-01 can progress with the accepted pilot and synthetic fixtures while SRC-02 and the early capture decisions run in parallel. Source research does not mean a live source is enabled.
 
 The in-process adapter does not promise durable delivery. Phase 2 must reconcile area projections from persisted domain state after a restart or handler failure. Phase 3 adds durable publication/acknowledgement and consumer state through adapters and application wiring, without coupling domain rules to a broker.
