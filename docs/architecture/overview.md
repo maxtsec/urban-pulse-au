@@ -64,10 +64,12 @@ flowchart TB
         Worker["Domain / Location workers<br/>Outbox · consumer ledger<br/>Idempotency · retry · replay"]
         DB["Cloud SQL / PostGIS<br/>Domain history · area summaries"]
         API["FastAPI + web on Cloud Run"]
+        Cache["Redis<br/>Query cache"]
         IAP["IAP<br/>Authenticated access"]
         City["Protected city map and area panels"]
         Worker <-->|Events and projections| DB
-        DB <-->|Spatial and time queries| API
+        DB <-->|Cache miss: spatial and time queries| API
+        API <-->|Lookup and fill query results| Cache
         API <--> IAP <--> City
     end
     Tram --> Poller --> Worker
@@ -97,7 +99,7 @@ flowchart TB
     classDef storage fill:#eef2f6,stroke:#64748b,color:#172b3a
     classDef application fill:#e9f5f2,stroke:#45877a,color:#163d34
     classDef operations fill:#fff5e5,stroke:#aa7e34,color:#58421d
-    class Raw,Landing,Warehouse,DB,Images storage
+    class Raw,Landing,Warehouse,DB,Images,Cache storage
     class Poller,Worker,API,IAP,City,Pages application
     class Monitoring,Scheduler,CI,Deploy operations
 ```
@@ -105,6 +107,8 @@ flowchart TB
 The home collector retains Tram raw locally; only normalized records enter GCS. The Cloud Run live poller supplies recent observations to Domain / Location workers independently of historical capture and warehouse publication. The host exposes no public endpoint. Both Tram consumers must share the provider quota budget; polling cadence and live display freshness follow their source-policy decisions.
 
 Weather/DAM capture and GTFS Schedule archival use separate bounded cloud Jobs. Their source scopes, keyless permissions and cadences follow [ADR 0021](../adr/0021-independent-weather-planning-capture.md) and the [schedule archive design](gtfs-schedule-archive.md). The public sample shares licensed source datasets, not the protected API or realtime observations.
+
+FastAPI uses Redis as a cache of query results: look up Redis, read PostgreSQL/PostGIS on a miss, then fill the cache. Redis is not a database proxy or durable ledger. Preserve source timestamps and bound database fallback as specified in the [cache policy](../../project_brief.md#8-redis-and-graceful-degradation).
 
 Domain workers use [PostgreSQL outbox and consumer-ledger transactions](outbox-ledger.md) for reliable publication and consumption. Historical publication validates analytical results before updating serving data; current-condition processing does not wait for a warehouse batch.
 
