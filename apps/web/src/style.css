@@ -1212,3 +1212,9 @@ svg {
   background: #303638;
   color: white;
 }
+
+.topbar .scenario-link {
+  font-size: 12px;
+  color: #617079;
+  text-decoration: none;
+}

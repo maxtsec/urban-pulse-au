@@ -11,11 +11,11 @@ export type Building = {
   top_m: number;
   date_captured: string;
 };
-type Mass = Building & { polygon: number[][][] };
+export type Mass = Building & { polygon: number[][][] };
 let retained: Promise<Mass[]> | undefined;
 
 /** Load once on demand; a failed fetch may be retried by switching back to 3D. */
-function loadBuildings(): Promise<Mass[]> {
+export function loadBuildings(): Promise<Mass[]> {
   retained ??= fetch(assetUrl)
     .then(async (response) => {
       if (!response.ok) throw new Error('Building fixture unavailable');
