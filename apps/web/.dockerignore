@@ -68,3 +68,7 @@
 !src/explorer/day-overview.ts
 
 !src/assets/sample/previous-schedule.json
+
+!src/explorer/components/DayPlayer.tsx
+!src/explorer/components/InformationTabs.tsx
+!src/explorer/components/SourceCredits.tsx

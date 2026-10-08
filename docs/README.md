@@ -1,12 +1,12 @@
 # Documentation
 
-UrbanPulse is a Melbourne city intelligence project integrating transport, weather/hazards and planning/infrastructure. Maintain progress only in the [README progress table](../README.md#progress) and [delivery plan](delivery-plan.md).
+UrbanPulse is a Melbourne city intelligence project integrating transport, weather/hazards and planning/infrastructure. Maintain progress in the [delivery plan](delivery-plan.md); keep the README focused on the product and quickstart.
 
 ## Reading paths
 
 For product review: [project brief](../project_brief.md) → [city MVP scenario](demos/city-mvp.md) → [delivery plan](delivery-plan.md).
 
-For development: [development guide](development.md) → [architecture](architecture/overview.md) → [testing strategy](testing-strategy.md) → the relevant decision/source record.
+For development: [repository guide](repository-guide.md) → [development guide](development.md) → [architecture](architecture/overview.md) → [testing strategy](testing-strategy.md) → the relevant decision/source record.
 
 For local setup demonstration: [Phase 0 walkthrough](demos/phase-0.md) and [local evidence](evidence/phase-0-local.md).
 
@@ -58,6 +58,7 @@ For the public mixed-source view: [schedule sample walkthrough](demos/schedule-s
 | [ADR 0021](adr/0021-independent-weather-planning-capture.md) | Cloud Weather/DAM Jobs and Scheduler: immutable GCS captures, prefix-only identities, snapshot consistency and daily-alert limits | Capture format, cloud scope, cadence or monitoring policy changes |
 | [Synthetic day evidence](evidence/synthetic-day.md) | Browser/asset checks, rendering measurements and limitations | A changed preview is measured |
 | [Synthetic day walkthrough](demos/synthetic-day.md) | Full-day visual demonstration and asset reproduction | Preview controls or assets change |
+| [Repository guide](repository-guide.md) | Folder boundaries, explorer components and README screenshot | Code organization or screenshot workflow changes |
 | [Project brief](../project_brief.md)                     | Product scope, selected technology and release requirements        | Product direction or a major constraint changes         |
 | [Delivery plan](delivery-plan.md)                        | Milestones, dependencies and unresolved decisions                  | Scope, priority or completion evidence changes          |
 | [Architecture](architecture/overview.md)                 | Domain ownership, contracts and data flow                          | A boundary, runtime or data path changes                |
