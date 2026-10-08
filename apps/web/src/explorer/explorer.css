@@ -1004,3 +1004,251 @@
 .explorer-shell .development-marker.sample-project.selected {
   outline: 3px solid #32899a;
 }
+
+.overview-open {
+  border: 1px solid #d5dfe3;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.day-overview {
+  width: min(1120px, 94vw);
+  max-height: 88dvh;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 26px;
+  border: 1px solid #d5dfe3;
+  border-radius: 20px;
+  background: #f9fbfcf5;
+  color: #27343b;
+  box-shadow: 0 18px 100px #1b313f38;
+}
+.day-overview::backdrop {
+  background: #233b4955;
+  backdrop-filter: blur(5px);
+}
+.day-overview header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.day-overview header span {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #687e87;
+}
+.day-overview h2 {
+  margin: 7px 0;
+  font-size: 26px;
+  font-weight: 550;
+}
+.day-overview header p {
+  margin: 0;
+  font-size: 13px;
+  color: #647982;
+}
+.day-overview header button {
+  border: 0;
+  background: #e8eef1;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  font-size: 23px;
+}
+.overview-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 22px 0;
+  color: #5e747e;
+  font-size: 11px;
+}
+.overview-key span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.overview-key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--condition);
+}
+.overview-scroll {
+  overflow-x: auto;
+  padding: 5px;
+}
+.overview-table {
+  min-width: 850px;
+}
+.overview-axis,
+.overview-row {
+  display: grid;
+  grid-template-columns: 115px 1fr;
+  gap: 12px;
+  margin-bottom: 13px;
+  align-items: center;
+}
+.overview-axis {
+  height: 24px;
+  font-size: 10px;
+  color: #657c88;
+}
+.overview-axis > div {
+  position: relative;
+  margin-right: 13px;
+}
+.overview-axis time {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.overview-row > strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.overview-track {
+  position: relative;
+  height: 48px;
+  margin-right: 13px;
+  border-radius: 8px;
+  background: #eff3f4;
+}
+.overview-segment {
+  position: absolute;
+  height: 100%;
+  border: 1px solid #ffffffc0;
+  border-radius: 5px;
+  padding: 0;
+  overflow: hidden;
+  text-align: center;
+}
+.overview-segment span {
+  font-size: 10px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.overview-segment.clear {
+  background: #dbede8;
+  color: #2b675e;
+}
+.overview-segment.affected {
+  background: #f7dfa1;
+  color: #724b00;
+}
+.overview-segment.severe {
+  background: #eb9ba4;
+  color: #651527;
+}
+.overview-segment.unknown {
+  background: #d1d9df;
+  color: #394b56;
+}
+.overview-segment.sunny {
+  background: #f4e9bd;
+  color: #746029;
+}
+.overview-segment.cloudy {
+  background: #dce5eb;
+  color: #4e6779;
+}
+.overview-segment.rainy {
+  background: #bad4e9;
+  color: #295d7d;
+}
+.overview-segment.snapshot {
+  background: #e4e4ee;
+  color: #5f607e;
+}
+.overview-segment:hover {
+  filter: brightness(0.94);
+}
+.overview-future {
+  position: absolute;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    135deg,
+    #eef1f3,
+    #eef1f3 7px,
+    #e7ecef 7px,
+    #e7ecef 8px
+  );
+  color: #8a979e;
+  font-size: 11px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.overview-cursor {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  background: #345360;
+  pointer-events: none;
+}
+.overview-now {
+  margin: 10px 13px 0 127px;
+  font-size: 11px;
+  color: #657c88;
+}
+.day-overview footer {
+  border-top: 1px solid #dde5e9;
+  margin-top: 22px;
+  padding-top: 9px;
+}
+.day-overview footer p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #687c86;
+}
+@media (max-width: 600px) {
+  .day-overview {
+    padding: 18px;
+  }
+  .overview-open {
+    font-size: 10px;
+  }
+}
+
+.overview-moments {
+  margin-top: 20px;
+  font-size: 11px;
+}
+.overview-moments > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+.overview-moments button {
+  border: 1px solid #d7e1e6;
+  border-radius: 8px;
+  background: #fff9;
+  padding: 9px 11px;
+  font-size: 11px;
+}
+.overview-moments time {
+  margin-right: 7px;
+  font-weight: 600;
+  color: #496977;
+}
+
+.day-help.overview-open {
+  display: inline-flex;
+  flex: none;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .player-heading {
+    gap: 8px;
+  }
+  .player-context {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+}
