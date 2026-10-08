@@ -11,7 +11,7 @@ uv run --locked python -m scripts.source_probe --capture .local/source-probe/new
 uv run --locked python -m scripts.source_probe --replay .local/source-probe/new-run
 ```
 
-Use a new output directory for each capture. Replay requires the retained manifest and response files and makes no network requests. The probe limits each run to 16 requests, 2 MiB per response, a 180-second elapsed budget checked around reads, a 15-second HTTP timeout and 1,000 DAM rows per area. It never follows redirects or retries failed requests. Partial/failed runs remain diagnostic; replay refuses an unfinished manifest. Stored hashes are checked before analysis. Pagination limits or duplicate identities prevent a complete-page result. Stable dataset metadata across requests does not establish transactional source-snapshot isolation.
+Use a new output directory for each capture. Replay requires the retained manifest and response files and makes no network requests. The probe limits each run to 24 requests (two metadata reads, two weather reads and up to ten DAM pages per area), 2 MiB per response, a 180-second elapsed budget checked around reads, a 15-second HTTP timeout and 1,000 DAM rows per area. It never follows redirects or retries failed requests. Partial/failed runs remain diagnostic; replay refuses an unfinished manifest. Stored hashes are checked before analysis. Pagination limits or duplicate identities prevent a complete-page result. Stable dataset metadata across requests does not establish transactional source-snapshot isolation.
 
 ## Weather
 
@@ -52,3 +52,5 @@ Attribution: modelled weather data by Open-Meteo, CC BY 4.0; development records
 ## Verification
 
 Offline tests cover pagination/replay, missing values and positions, duplicate/incomplete rows, wrong area/units/time, malformed data, payload tampering, unsafe capture references, redirects/errors without retry, response/request/time bounds. Probe code is included in strict mypy and the existing test suite. Validation: Ruff lint/format, strict mypy (85 files), six focused probe tests and the full Windows unit run passed (876 passed, 181 platform skips, 190 integration deselections). Offline replay exactly matched the retained analysis, its script hash matched the capture, and 919 local documentation links resolved. No Weather/DAM scheduled collector or public view was enabled by the probe.
+
+The request ceiling was raised from 16 to 24 after review; this does not change the ten-request retained run above. A regression exercises both areas at 1,000 rows, and an advertised 1,001 rows remains explicitly incomplete after the ten-page bound. The elapsed-time and response-size limits remain independent fail-safe bounds.
