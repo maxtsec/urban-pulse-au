@@ -46,7 +46,7 @@ def payload(*, unknown=False, enum=False):
     return message.SerializeToString()
 
 
-def build_store(tmp_path, bodies=None, times=None, pending=False):
+def build_store(tmp_path, bodies=None, times=None, pending=False, products=None):
     root = tmp_path / "raw"
     root.mkdir()
     for directory in ("expiry", "policies", "captures", "by-sequence"):
@@ -61,6 +61,7 @@ def build_store(tmp_path, bodies=None, times=None, pending=False):
         if times is None
         else times
     )
+    products = products or ["vehicle-positions"] * len(bodies)
     summary = Summary()
     for sequence, (body, at) in enumerate(zip(bodies, times, strict=True), 1):
         identity = uuid4()
@@ -69,7 +70,7 @@ def build_store(tmp_path, bodies=None, times=None, pending=False):
             capture_sequence=sequence,
             mode="fixture",
             provider="synthetic",
-            product="vehicle-positions",
+            product=products[sequence - 1],
             requested_at=at - timedelta(seconds=1),
             collector_version="test",
         )
@@ -373,3 +374,64 @@ def test_requested_subrange_never_reads_old_payloads(tmp_path):
     assert report["scanned_captures"] == 1
     assert report["first_sequence"] == 2
     assert report["mapping_completeness_evaluated"] is False
+
+
+def test_full_day_of_feed_sized_payloads_completes_with_default_limits(tmp_path):
+    # Match the accepted 60/120/60 cadence, with an approximately 87 KB trip feed.
+    updates = gtfs.FeedMessage()
+    updates.header.gtfs_realtime_version = "2.0"
+    positions = gtfs.FeedMessage()
+    positions.header.gtfs_realtime_version = "2.0"
+    alerts = gtfs.FeedMessage()
+    alerts.header.gtfs_realtime_version = "2.0"
+    for number in range(85):
+        entity = updates.entity.add(id=f"trip-{number}")
+        entity.trip_update.trip.trip_id = f"trip-{number}"
+        entity.trip_update.vehicle.id = f"vehicle-{number}"
+        for stop in range(30):
+            update = entity.trip_update.stop_time_update.add(
+                stop_id=f"stop-{stop}", stop_sequence=stop + 1
+            )
+            update.arrival.delay = update.departure.delay = 60
+            update.arrival.time = update.departure.time = 1791417600 + stop * 60
+    for number in range(100):
+        vehicle = positions.entity.add(id=f"position-{number}").vehicle
+        vehicle.vehicle.id = f"vehicle-{number}"
+        vehicle.trip.trip_id = f"trip-{number}"
+        vehicle.position.latitude = -37.82
+        vehicle.position.longitude = 144.96
+        vehicle.timestamp = 1791417600
+    alerts.entity.add(id="alert-1").alert.header_text.translation.add(
+        text="Synthetic service message", language="en"
+    )
+    feeds = {
+        "vehicle-positions": positions.SerializeToString(),
+        "trip-updates": updates.SerializeToString(),
+        "service-alerts": alerts.SerializeToString(),
+    }
+    assert 85_000 < len(feeds["trip-updates"]) < 90_000
+    bodies, times, products = [], [], []
+    for minute in range(1440):
+        for product, body in feeds.items():
+            if product == "trip-updates" and minute % 2:
+                continue
+            bodies.append(body)
+            times.append(START + timedelta(minutes=minute))
+            products.append(product)
+    root = build_store(tmp_path, bodies, times, products=products)
+    # Actual parsing, traversal, hashing and report construction; no mocked limits/clock.
+    report = tool.audit(root, START, END)
+    assert report["selected_captures"] == 3600
+    assert report["feeds"]["trip-updates"]["selected"] == 720
+    assert report["feeds"]["vehicle-positions"]["selected"] == 1440
+    assert report["feeds"]["service-alerts"]["selected"] == 1440
+    assert report["malformed_captures"] == report["unknown_captures"] == []
+    visits = sum(row["present"] + row["absent"] for row in report["fields"].values())
+    assert 30_000_000 < visits < tool.MAX_VISITS
+    stop_ids = next(
+        row
+        for key, row in report["fields"].items()
+        if key.endswith(".stop_id#4") and "stop_time_update" in key
+    )
+    assert stop_ids["present"] == 720 * 85 * 30
+    assert stop_ids["captures_present"] == 720
