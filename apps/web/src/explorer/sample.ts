@@ -36,17 +36,27 @@ export async function loadSample() {
       await verifiedBytes(cityUrl, manifest.files['city.json']),
     ),
   ) as SampleData;
+  // Cache only this manifest's verified schedule; failed attempts can be retried.
+  let previous: Promise<SampleData['schedule']> | undefined;
+  const loadPreviousSchedule = () => {
+    previous ??= verifiedBytes(
+      previousScheduleUrl,
+      manifest.files['previous-schedule.json'],
+    )
+      .then(
+        (bytes) =>
+          JSON.parse(new TextDecoder().decode(bytes)) as SampleData['schedule'],
+      )
+      .catch((error: unknown) => {
+        previous = undefined;
+        throw error;
+      });
+    return previous;
+  };
   return {
     data,
     manifest,
-    previousSchedule: JSON.parse(
-      new TextDecoder().decode(
-        await verifiedBytes(
-          previousScheduleUrl,
-          manifest.files['previous-schedule.json'],
-        ),
-      ),
-    ) as SampleData['schedule'],
+    loadPreviousSchedule,
     buildingsUrl,
     buildingHash: manifest.files['buildings.geojson'].sha256,
   };

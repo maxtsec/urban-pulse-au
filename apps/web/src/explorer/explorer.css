@@ -681,7 +681,7 @@
   position: absolute;
   top: 18px;
   right: 22px;
-  z-index: 5;
+  z-index: 9;
   border: 0;
   background: transparent;
   text-decoration: underline;
@@ -1411,4 +1411,70 @@
 .explorer-shell .tram-marker.label-quiet:hover .marker-label,
 .explorer-shell .tram-marker.label-quiet:focus-visible .marker-label {
   opacity: 1;
+}
+
+.demo-scenario-banner {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  height: 36px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 5px 18px;
+  background: #fff2d5;
+  border-bottom: 1px solid #e8c983;
+  color: #69480b;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
+}
+.explorer-stage {
+  height: calc(100dvh - 100px);
+}
+.scripted-status-notice {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #584b30;
+  font-weight: 600;
+}
+.sample-load-notice {
+  position: absolute;
+  z-index: 9;
+  top: 108px;
+  left: 20px;
+  right: 360px;
+  padding: 12px;
+  border: 1px solid #c7d6df;
+  border-radius: 9px;
+  background: #fff;
+  color: #314d5b;
+  font-size: 12px;
+}
+.sample-load-notice button {
+  margin-left: 10px;
+  padding: 6px;
+}
+@media (max-width: 900px) {
+  .explorer-stage {
+    height: auto;
+  }
+  .demo-scenario-banner {
+    height: 48px;
+    padding-right: 130px;
+    font-size: 11px;
+    text-align: left;
+  }
+  .sample-load-notice {
+    top: 116px;
+    right: 20px;
+  }
+}
+
+.condition-card > div {
+  flex: 1;
+  min-width: 0;
 }

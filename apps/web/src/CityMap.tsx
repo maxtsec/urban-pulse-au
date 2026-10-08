@@ -145,6 +145,7 @@ export function CityMap({
   const buildingAbort = useRef<AbortController | null>(null);
   const initialInsets = useRef(insets);
   const streetLabels = useRef<HTMLElement[]>([]);
+  const streetMarkers = useRef<maplibregl.Marker[]>([]);
 
   const labelOrder = useRef<string[]>([]);
   const frame = useRef(0);
@@ -218,6 +219,64 @@ export function CityMap({
           element.style.removeProperty('--label-x');
           element.style.removeProperty('--label-y');
         }
+      }
+      // Street names use remaining screen space, never partially covered by icons
+      // or tram labels. At overview zoom only the primary streets compete.
+      for (const [id, offset] of placement) {
+        if (!offset) continue;
+        const marker = markers.current.get(id)!;
+        const label = marker
+          .getElement()
+          .querySelector<HTMLElement>('.marker-label')!;
+        const { x, y } = point(marker);
+        obstacles.push({
+          x: x + offset.dx,
+          y: y + offset.dy,
+          w: label.offsetWidth,
+          h: label.offsetHeight,
+        });
+      }
+      const primary = [
+        'Collins Street',
+        'Bourke Street',
+        'Swanston Street',
+        'City Road',
+      ];
+      const streetRequests = streetMarkers.current.flatMap((marker, index) => {
+        const label = marker.getElement();
+        label.style.visibility = 'hidden';
+        if (
+          label.hidden ||
+          (instance.getZoom() < 15.5 &&
+            !primary.includes(label.textContent ?? ''))
+        )
+          return [];
+        const { x, y } = point(marker);
+        return [
+          {
+            id: String(index),
+            x,
+            y,
+            width: label.offsetWidth,
+            height: label.offsetHeight,
+          },
+        ];
+      });
+      const streets = placeLabels(
+        streetRequests,
+        obstacles,
+        { halfWidth: 0, halfHeight: 0 },
+        { width: canvas.clientWidth, height: canvas.clientHeight },
+      );
+      for (const [id, offset] of streets) {
+        if (!offset) continue;
+        const marker = streetMarkers.current[Number(id)];
+        const label = marker.getElement();
+        marker.setOffset([
+          offset.dx + label.offsetWidth / 2,
+          offset.dy + label.offsetHeight / 2,
+        ]);
+        label.style.visibility = 'visible';
       }
     });
   }, []);
@@ -416,12 +475,14 @@ export function CityMap({
             const point = coordinates[Math.floor(coordinates.length / 2)];
             if (!inArea(point, boundary.feature.geometry)) continue;
             const label = document.createElement('span');
-            label.className = 'sample-map-label';
+            label.className = 'sample-map-label sample-street-label';
             label.textContent = name;
             streetLabels.current.push(label);
-            new maplibregl.Marker({ element: label })
-              .setLngLat([point[0], point[1]])
-              .addTo(instance);
+            streetMarkers.current.push(
+              new maplibregl.Marker({ element: label })
+                .setLngLat([point[0], point[1]])
+                .addTo(instance),
+            );
             labels.add(name);
           }
           const label = document.createElement('span');
@@ -533,6 +594,7 @@ export function CityMap({
       buildingAbort.current?.abort();
       map.current = null;
       streetLabels.current = [];
+      streetMarkers.current = [];
       instance.remove();
     };
   }, [boundary, layoutLabels, contextGeneration, localContext]);
@@ -554,7 +616,8 @@ export function CityMap({
   }, [ready, focusRequest]);
   useEffect(() => {
     for (const label of streetLabels.current) label.hidden = !showStreetNames;
-  }, [ready, showStreetNames]);
+    layoutLabels();
+  }, [ready, showStreetNames, layoutLabels]);
 
   useEffect(() => {
     const instance = map.current;

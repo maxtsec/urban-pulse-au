@@ -63,3 +63,12 @@ The default map shows 16 DAM construction-status markers, with other non-complet
 The separate mock analytics dialog and pipeline UI were removed before review. Engineering discussion and links to existing contracts/recovery evidence remain in the demo document. The two-minute walkthrough uses area comparisons, Day overview, missing coverage and source attribution.
 
 After removing the mock UI, ESLint, Prettier, TypeScript, the production subpath build and all nine retained Pages browser tests pass. Label focus/selection/zoom, construction-only defaults, optional projects, 2D/3D, day navigation and missing coverage remain covered. The actual and adversarial Docker build contexts pass the reduced allowlist inventory. The refreshed local preview was inspected. The earlier 19-case Caddy rehearsal above predates this UI removal and was not rerun.
+
+
+### On-demand history, explicit scripted status and label placement
+
+The initial page fetches zero previous-schedule assets. Selecting 7 October fetches and hash-verifies its 8.22 MB file, caches a successful result and allows retry after failure. Tests delay a response across Go live, revisit the cached date and corrupt the first response; none can replace the current map with an unverified or superseded day selection.
+
+Thirteen Pages tests pass, including the new loading/retry/race cases, prominent scripted-status notices, mobile sticky notice with accessible credits, and street-label bounding boxes checked against icons, route labels and each other at two zoom levels. Overview labels are restricted to primary streets; overlapping names disappear whole. Desktop and mobile screenshots were inspected.
+
+Frontend lint/format, TypeScript, the production build and all 40 unit tests pass. A new compiled Caddy rehearsal passes all 19 browser cases plus API/database outage and recovery, and cleans up its resources. That rehearsal preceded the final small CSS adjustments to the mobile credits stacking and status-card flex width; the final Pages suite includes those adjustments. The existing large-JavaScript warning remains. Source ZIP relocation and removal from unmerged branch history remain a separate publishing decision; no archive has been removed or externally released in this revision.

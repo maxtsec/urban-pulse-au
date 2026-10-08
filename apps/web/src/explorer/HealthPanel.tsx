@@ -88,6 +88,9 @@ export function HealthPanel({
             {AREA_NAMES[selected]} · {clockLabel(clock)}
           </span>
           <h3>{presentation.label}</h3>
+          <strong className="scripted-status-notice">
+            Demo scenario — scripted incidents, not real service status
+          </strong>
         </div>
       </section>
       <section
