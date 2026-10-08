@@ -42,12 +42,15 @@ For the animated 3D map: [ADR 0011](adr/0011-southbank-building-massing.md) → 
 
 For continuous deployment: [CD operations](runbooks/managed-demo-cd.md) and [managed delivery evidence](evidence/cd-01-managed-delivery.md).
 
-For the full-day visual preview: [synthetic day walkthrough](demos/synthetic-day.md) and [ADR 0020](adr/0020-synthetic-day-explorer.md).
+For the public mixed-source view: [schedule sample walkthrough](demos/schedule-sample.md) and [ADR 0022](adr/0022-public-schedule-sample.md).
 
 ## Document responsibilities
 
 | Document                                                 | Owns                                                               | Update when                                             |
 | -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
+| [ADR 0022](adr/0022-public-schedule-sample.md) | Mixed-source public sample, local Vicmap context, schedule semantics and Pages CSP | Source, sample or hosting rules change |
+| [Schedule sample evidence](evidence/schedule-sample.md) | Source counts, sizes and static-browser verification | Sample dataset or rendering changes |
+| [Schedule sample](demos/schedule-sample.md) | Offline builder and Pages deployment | Sample build or verification changes |
 | [ADR 0020](adr/0020-synthetic-day-explorer.md) | Sole synthetic day UI, live-bounded history, fixed health/coverage panel and presentation boundaries | Preview time or data ownership changes |
 | [Tram field audit](runbooks/tram-field-audit.md) | Read-only source-field census, bounds and schema-freeze evidence | Audit behavior or source field review changes |
 | [Normalized Tram contract](architecture/normalized-tram-contract.md) | Accepted export isolation, stable keys and field-audit gate; range pins and alerts in 1c | Normalized schema or export semantics change |

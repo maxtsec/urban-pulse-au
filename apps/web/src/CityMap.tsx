@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
-import type { Feature, MultiPolygon, Polygon } from 'geojson';
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiPolygon,
+  Polygon,
+} from 'geojson';
 import type { Development, Vehicle, Warning } from './city';
 import tramIcon from './assets/tram.svg';
 import buildingIcon from './assets/building.svg';
@@ -57,6 +63,11 @@ type Props = {
   threeDimensional: boolean;
   showBuildings: boolean;
   visualScene?: VisualScene;
+  localContext?: {
+    tracks: FeatureCollection<LineString>;
+    roads: FeatureCollection<LineString>;
+    water: FeatureCollection<Polygon | MultiPolygon>;
+  };
 };
 
 type Observed = { lngLat: [number, number]; freshness: Vehicle['freshness'] };
@@ -84,6 +95,7 @@ export function CityMap({
   threeDimensional,
   showBuildings,
   visualScene,
+  localContext,
 }: Props) {
   const [modelState, setModelState] = useState('loading');
   const [modelView, setModelView] = useState(threeDimensional);
@@ -252,9 +264,83 @@ export function CityMap({
             'line-dasharray': [2, 2],
           },
         });
+        if (localContext) {
+          instance.addSource('local-water', {
+            type: 'geojson',
+            data: localContext.water,
+          });
+          instance.addLayer(
+            {
+              id: 'local-water',
+              type: 'fill',
+              source: 'local-water',
+              paint: { 'fill-color': '#b7d7df' },
+            },
+            'warning-fill',
+          );
+          instance.addSource('local-roads', {
+            type: 'geojson',
+            data: localContext.roads,
+          });
+          instance.addLayer(
+            {
+              id: 'local-roads',
+              type: 'line',
+              source: 'local-roads',
+              paint: {
+                'line-color': '#d5dcdf',
+                'line-width': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  12,
+                  1,
+                  17,
+                  8,
+                ],
+              },
+            },
+            'warning-fill',
+          );
+        }
+        if (localContext) {
+          const labels = new Set<string>();
+          for (const feature of localContext.roads.features) {
+            const name = feature.properties?.name as string | undefined;
+            if (
+              !name ||
+              ![
+                'Collins Street',
+                'Bourke Street',
+                'Swanston Street',
+                'St Kilda Road',
+                'City Road',
+                'Queens Bridge Street',
+              ].includes(name) ||
+              labels.has(name) ||
+              feature.geometry.type !== 'LineString'
+            )
+              continue;
+            const coordinates = feature.geometry.coordinates;
+            const point = coordinates[Math.floor(coordinates.length / 2)];
+            const label = document.createElement('span');
+            label.className = 'sample-map-label';
+            label.textContent = name;
+            new maplibregl.Marker({ element: label })
+              .setLngLat([point[0], point[1]])
+              .addTo(instance);
+            labels.add(name);
+          }
+          const label = document.createElement('span');
+          label.className = 'sample-map-label river-label';
+          label.textContent = 'Yarra River';
+          new maplibregl.Marker({ element: label })
+            .setLngLat([144.962, -37.8205])
+            .addTo(instance);
+        }
         instance.addSource('fixture-tracks', {
           type: 'geojson',
-          data: fixtureTracks,
+          data: localContext?.tracks ?? fixtureTracks,
         });
         instance.addLayer({
           id: 'track-ties',
@@ -354,7 +440,7 @@ export function CityMap({
       map.current = null;
       instance.remove();
     };
-  }, [boundary, layoutLabels, contextGeneration]);
+  }, [boundary, layoutLabels, contextGeneration, localContext]);
 
   useEffect(() => {
     const instance = map.current;
@@ -676,7 +762,9 @@ export function CityMap({
       <div
         className="map-canvas"
         ref={container}
-        aria-label="Southbank city map"
+        aria-label={
+          localContext ? 'CBD and Southbank city map' : 'Southbank city map'
+        }
         data-testid="map"
         data-models={hasScene && threeDimensional ? modelState : 'hidden'}
         data-view={threeDimensional ? '3d' : '2d'}
@@ -707,7 +795,9 @@ export function CityMap({
           Boundary:{' '}
           <a href={boundary.feature.properties.source_url}>City of Melbourne</a>{' '}
           · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>{' '}
-          · Illustrative tracks · No basemap
+          {localContext
+            ? '· GTFS Schedule tracks · Vicmap roads and water · see Sources & attribution'
+            : '· Illustrative tracks · No basemap'}
         </div>
         <div>
           Buildings:{' '}

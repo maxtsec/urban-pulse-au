@@ -2,6 +2,8 @@
 
 Status: Accepted by the project architect on 2026-10-08 for the independent synthetic experience; implementation is reviewed separately.
 
+Public source amendment, 2026-10-08: [ADR 0022](0022-public-schedule-sample.md) replaces fabricated public trams/projects with schedule simulation and DAM, adds CBD and local Vicmap context. The original source design below is historical.
+
 ## Decision
 
 Use the full-day explorer as the sole public interface. Retain the existing 360-second scenarios only in a separate test harness, excluded from the production build. A deterministic authored day covers 00:00–24:00 Melbourne time, divided into twelve selectable two-hour windows. The initial view is simulated Live at 10:00, with the preceding two hours in the detail window. This is a presentation fixture, with no database writes, import generation change, provider calls or new public API.

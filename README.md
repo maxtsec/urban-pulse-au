@@ -43,7 +43,7 @@ Current priority: the [data pipeline track](docs/delivery-plan.md#data-pipeline-
 | 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
 | 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                                               |
 
-UI-DAY: [independent full-day synthetic explorer](docs/demos/synthetic-day.md) merged in PR #71, with two-hour windows, Live/History, local tram/construction models and authored weather.
+UI-DAY: [CBD + Southbank schedule sample](docs/demos/schedule-sample.md) implementation prepared for review: real local context/DAM, schedule-simulated trams, synthetic weather and a manual Pages workflow. Public deployment follows review.
 
 MAP-01: [Southbank 3D building context](docs/demos/map-01.md) complete in [PR #47](https://github.com/maxtsec/urban-pulse-au/pull/47); [source and rendering evidence](docs/evidence/map-01-building-massing.md).
 
@@ -51,7 +51,7 @@ MAP-02 foundation: [compatible trip metadata and pinned Southbank shapes](docs/e
 
 The [raw tram collector](docs/evidence/cloud-01-raw-activation.md) is running on the dedicated encrypted host at 60/120/60 seconds, with fresh cloud heartbeat/capture/capacity streams and verified notification delivery. It retains raw locally without deletion; normalization, upload/confirmation and expiry remain in [CLOUD-01](docs/delivery-plan.md). [Bounded Weather/DAM reads](docs/evidence/src-02-weather-planning-probe.md) verified current model output and Southbank/CBD development records; continuous source policies and UI integration remain separate work.
 
-The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. City overview combines modelled weather, warning lifecycles and a planning profile with source dates and building markers. Original single-domain scenarios remain in the test harness; the public UI uses the full-day synthetic explorer. The protected hosted fixture demo is available to its named operator; live capture and continuous delivery follow the [delivery plan](docs/delivery-plan.md).
+The local Southbank demo connects retained synthetic events, revision checks, PostGIS and an area panel to a moving tram map. City overview combines modelled weather, warning lifecycles and a planning profile with source dates and building markers. Original single-domain scenarios remain in the test harness; the public UI uses the mixed-source schedule sample. The protected hosted fixture demo is available to its named operator; live capture and continuous delivery follow the [delivery plan](docs/delivery-plan.md).
 
 [Run the Southbank demo](docs/demos/city-01.md) | [CITY-01 evidence](docs/evidence/city-01-fixture-map.md) | [Weather demo](docs/demos/city-02.md) | [Integrated planning demo](docs/demos/city-03.md)
 
@@ -78,7 +78,7 @@ uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 npm.cmd --prefix apps/web run dev
 ```
 
-Open `http://127.0.0.1:5173/` for the [synthetic full-day explorer](docs/demos/synthetic-day.md). It is independent of the API. For the API-backed 360-second transport, weather and planning walkthroughs, build and open the separate [scenario test harness](docs/demos/city-01.md#run); production does not select scenarios through `?scenario=`.
+Open `http://127.0.0.1:5173/` for the [mixed-source schedule sample](docs/demos/schedule-sample.md). It is independent of the API. For the API-backed 360-second transport, weather and planning walkthroughs, build and open the separate [scenario test harness](docs/demos/city-01.md#run); production does not select scenarios through `?scenario=`.
 
 For PostGIS/Redis, start Docker Desktop and run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/services-smoke.ps1`. See the [development guide](docs/development.md) for setup, configuration and troubleshooting.
 

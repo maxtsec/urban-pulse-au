@@ -1,28 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CityMap } from '../CityMap';
 import type { Boundary } from '../CityMap';
-import boundaryFeature from '../assets/southbank-boundary.json';
+import { makeSchedule } from './schedule';
+import type { LoadedSample } from './sample';
 import { useReducedMotion } from '../useReducedMotion';
-import {
-  WINDOW_MS,
-  SITES,
-  WEATHER,
-  clockLabel,
-  tramsAt,
-  weatherAt,
-} from './day';
+import { WINDOW_MS, WEATHER, clockLabel, weatherAt } from './day';
 import type { VisualScene } from './scene';
 import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
 
-const boundary: Boundary = {
-  revision: 'synthetic-preview-boundary',
-  feature: boundaryFeature as Boundary['feature'],
-};
 const emptyWarnings: [] = [];
 const icons = { sunny: '☀', cloudy: '☁', rainy: '☂' };
 
-export function Explorer() {
+export function Explorer({ sample }: { sample: LoadedSample }) {
+  const { data, manifest } = sample;
+  const boundary: Boundary = useMemo(
+    () => ({ revision: manifest.version, feature: data.boundary }),
+    [data, manifest],
+  );
+  const schedule = useMemo(() => makeSchedule(data), [data]);
+  const sites = data.developments;
+  const mapSites = useMemo(
+    () => sites.filter((site) => site.status.toUpperCase() !== 'COMPLETED'),
+    [sites],
+  );
+  const localContext = useMemo(
+    () => ({ tracks: schedule.tracks, roads: data.roads, water: data.water }),
+    [schedule, data],
+  );
+  const [credits, setCredits] = useState(false);
   const reduced = useReducedMotion();
   const playback = useDayPlayback(reduced);
   const {
@@ -52,24 +58,36 @@ export function Explorer() {
     weather: true,
     tracks: true,
   });
-  const trams = useMemo(() => tramsAt(clock), [clock]);
+  const trams = useMemo(() => schedule.at(clock), [clock, schedule]);
   const weather = weatherAt(clock);
   const selectItem = useCallback((id: string) => {
     select(id);
-    setDetail(id.startsWith('demo-tram') ? 'trams' : 'works');
+    setDetail(id.startsWith('schedule:') ? 'trams' : 'works');
   }, []);
   const scene: VisualScene = useMemo(
     () => ({
       trams: layers.trams ? trams : [],
-      sites: layers.works ? SITES : [],
+      sites: layers.works ? mapSites : [],
       clock: reduced ? Math.floor(clock / 60000) * 60000 : clock,
       weather: weather.kind,
       weatherVisible: layers.weather,
       buildingsVisible: layers.buildings,
       selected,
       select: selectItem,
+      buildingsUrl: sample.buildingsUrl,
+      buildingHash: sample.buildingHash,
     }),
-    [trams, layers, clock, reduced, weather.kind, selected, selectItem],
+    [
+      trams,
+      layers,
+      clock,
+      reduced,
+      weather.kind,
+      selected,
+      selectItem,
+      mapSites,
+      sample,
+    ],
   );
   const [wide, setWide] = useState(() => window.innerWidth > 900);
   useEffect(() => {
@@ -87,22 +105,60 @@ export function Explorer() {
     [wide],
   );
   const selectedTram = trams.find((t) => t.id === selected),
-    selectedSite = SITES.find((s) => s.development_key === selected);
+    selectedSite = sites.find((s) => s.development_key === selected);
   return (
     <div className="explorer-shell">
       <header className="explorer-header">
-        <a href="/" className="explorer-brand">
+        <a href={import.meta.env.BASE_URL} className="explorer-brand">
           UrbanPulse<span>Melbourne</span>
         </a>
         <span className="demo-pill">
           <i />
-          Synthetic · 8 Oct 2026
+          Schedule sample · 8 Oct 2026
         </span>
       </header>
+      <button className="sample-credit-button" onClick={() => setCredits(true)}>
+        Sources & attribution
+      </button>
+      {credits && (
+        <dialog
+          open
+          className="sample-credits"
+          aria-label="Sources and attribution"
+        >
+          <button onClick={() => setCredits(false)}>Close sources</button>
+          <h2>Sources and attribution</h2>
+          <p>
+            Schedule simulation, not live. Weather is synthetic. Original 3D
+            models are illustrative.
+          </p>
+          {manifest.attribution.map((source) => (
+            <section key={source.name}>
+              <h3>
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  {source.name}
+                </a>
+              </h3>
+              <p>{source.changes}</p>
+              <a href={manifest.licence_url}>CC BY 4.0</a>
+            </section>
+          ))}
+          <p>
+            Dataset {manifest.version} · {manifest.date}. No endorsement by
+            source publishers is implied.
+          </p>
+          <p>
+            DAM status is not an actual worksite location. Footprints are
+            historical surveys; the sample clock does not reconstruct planning
+            or buildings for that time.
+          </p>
+        </dialog>
+      )}
       <main className="explorer-stage">
         <div className="explorer-viewport">
           <CityMap
             boundary={boundary}
+            localContext={localContext}
             vehicles={trams}
             selected={selectedTram?.id ?? null}
             onSelect={selectItem}
@@ -111,7 +167,7 @@ export function Explorer() {
             showTracks={layers.tracks}
             warnings={emptyWarnings}
             showWarnings={false}
-            developments={SITES}
+            developments={mapSites}
             showPlanning={layers.works}
             selectedDevelopment={selectedSite?.development_key ?? null}
             onSelectDevelopment={selectItem}
@@ -130,7 +186,7 @@ export function Explorer() {
           <div className="explorer-top">
             <div className="place-heading">
               <span>YOUR CITY, AT A GLANCE</span>
-              <h1>Southbank</h1>
+              <h1>CBD + Southbank</h1>
               <p>
                 {mode === 'live'
                   ? 'Following simulated time'
@@ -172,11 +228,11 @@ export function Explorer() {
           <div className="explorer-legend glass">
             <span>
               <i className="teal" />
-              Simulated trams
+              Schedule simulation · not live
             </span>
             <span>
               <i className="amber" />
-              Illustrative works
+              DAM developments
             </span>
             {threeD && <span>Historical buildings</span>}
           </div>
@@ -196,7 +252,7 @@ export function Explorer() {
                   ? 'Simulated live · 1×'
                   : `${clockLabel(Math.max(0, edge - clock), true)} behind live`}
               </span>
-              <span className="day-help">Today · 8 October</span>
+              <span className="day-help">Sample · 8 October</span>
             </div>
             <div className="playback-line">
               <button
@@ -291,7 +347,7 @@ export function Explorer() {
           <div className="detail-heading">
             <div>
               <span className="panel-eyebrow">AREA INFORMATION</span>
-              <h2>Southbank</h2>
+              <h2>CBD + Southbank</h2>
             </div>
             <span className="panel-clock">{clockLabel(clock)}</span>
           </div>
@@ -344,13 +400,13 @@ export function Explorer() {
                 <div className="health-status">
                   <span>AREA HEALTH</span>
                   <h3>Not assessed</h3>
-                  <p>Real source coverage is not connected yet.</p>
+                  <p>A sample day cannot assess current conditions.</p>
                 </div>
                 <h4>Data coverage</h4>
                 <ul className="coverage-list">
                   <li>
                     <span>Transport</span>
-                    <strong>Synthetic</strong>
+                    <strong>Schedule simulation</strong>
                   </li>
                   <li>
                     <span>Weather</span>
@@ -358,15 +414,18 @@ export function Explorer() {
                   </li>
                   <li>
                     <span>Planning</span>
-                    <strong>Synthetic</strong>
+                    <strong>DAM snapshot</strong>
                   </li>
                 </ul>
-                <p>No health rating until real coverage is available.</p>
+                <p>No live condition coverage or numerical health score.</p>
               </>
             )}
             {detail === 'trams' && (
               <>
-                <p>Simulated movement · 6 trams</p>
+                <p>
+                  Schedule simulation, not live · {trams.length} scheduled trips
+                  in view area
+                </p>
                 {trams.map((tram) => (
                   <button
                     className="detail-row"
@@ -376,7 +435,7 @@ export function Explorer() {
                   >
                     <span className="glance-dot teal" />
                     {tram.label}
-                    <small>Track {tram.route_id}</small>
+                    <small>Route {tram.route_id}</small>
                   </button>
                 ))}
               </>
@@ -384,9 +443,11 @@ export function Explorer() {
             {detail === 'works' && (
               <>
                 <p>
-                  Illustrative projects. Construction does not imply disruption.
+                  DAM status, not actual worksite location. Source:{' '}
+                  {data.dam_date.slice(0, 10)}. Construction does not imply
+                  disruption.
                 </p>
-                {SITES.map((site) => (
+                {sites.map((site) => (
                   <button
                     className="detail-row"
                     key={site.development_key}
@@ -410,7 +471,7 @@ export function Explorer() {
                     <span className="weather-name">{weather.kind}</span>
                   </div>
                 </div>
-                <p>Synthetic weather · today’s readings</p>
+                <p>Synthetic weather · authored sample day</p>
                 {WEATHER.filter(
                   (reading) => reading.at * 3600000 <= Math.min(clock, edge),
                 ).map((reading) => (

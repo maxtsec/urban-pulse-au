@@ -12,17 +12,30 @@ export type Building = {
   date_captured: string;
 };
 export type Mass = Building & { polygon: number[][][] };
-let retained: Promise<Mass[]> | undefined;
+const retained = new globalThis.Map<string, Promise<Mass[]>>();
 
 /** Load once on demand; a failed fetch may be retried by switching back to 3D. */
-export function loadBuildings(): Promise<Mass[]> {
-  retained ??= fetch(assetUrl)
+export function loadBuildings(
+  url = assetUrl,
+  expectedHash?: string,
+): Promise<Mass[]> {
+  const key = `${url}:${expectedHash ?? ''}`;
+  const cached = retained.get(key);
+  if (cached) return cached;
+  const loading = fetch(url)
     .then(async (response) => {
       if (!response.ok) throw new Error('Building fixture unavailable');
-      const data = (await response.json()) as FeatureCollection<
-        Polygon | MultiPolygon,
-        Building
-      >;
+      const bytes = await response.arrayBuffer();
+      if (expectedHash) {
+        const hash = Array.from(
+          new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+          (b) => b.toString(16).padStart(2, '0'),
+        ).join('');
+        if (hash !== expectedHash) throw new Error('Building version mismatch');
+      }
+      const data = JSON.parse(
+        new TextDecoder().decode(bytes),
+      ) as FeatureCollection<Polygon | MultiPolygon, Building>;
       return data.features.flatMap(({ geometry, properties }) => {
         const polygons =
           geometry.type === 'Polygon'
@@ -37,10 +50,11 @@ export function loadBuildings(): Promise<Mass[]> {
       });
     })
     .catch((error: unknown) => {
-      retained = undefined;
+      retained.delete(key);
       throw error;
     });
-  return retained;
+  retained.set(key, loading);
+  return loading;
 }
 
 export async function addBuildings(

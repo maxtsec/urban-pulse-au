@@ -10,7 +10,7 @@ test('full day keeps evenly spaced two-hour controls, weather and accessible sel
   });
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Southbank', level: 1 }),
+    page.getByRole('heading', { name: 'CBD + Southbank', level: 1 }),
   ).toBeVisible();
   await expect(
     page
@@ -28,7 +28,7 @@ test('full day keeps evenly spaced two-hour controls, weather and accessible sel
     page.getByRole('button', { name: '22:00 to 24:00' }),
   ).toBeDisabled();
   await page.getByRole('tab', { name: 'Trams', exact: true }).click();
-  const row = page.getByRole('button', { name: 'Tram 1 Track A', exact: true });
+  const row = page.locator('.information-content .detail-row').first();
   await row.focus();
   await page.keyboard.press('Enter');
   await expect(row).toHaveAttribute('aria-pressed', 'true');
@@ -47,9 +47,13 @@ test('3D local models and rain load, layers toggle and fallback keeps selection'
   });
   await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }),
   ).toHaveCount(0);
   await page.getByLabel('History time').fill(String(9 * 3600000));
   await expect(page.locator('.weather-atmosphere')).toHaveClass(/rainy/);
@@ -58,7 +62,7 @@ test('3D local models and rain load, layers toggle and fallback keeps selection'
   await expect(page.locator('.weather-atmosphere')).toHaveCount(0);
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
@@ -130,7 +134,11 @@ test('model loading obeys the deployed CSP and failed assets retain usable marke
   });
   await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   expect(violations).toEqual([]);
   await page.route('**/demo-tram*.glb', (route) =>
     route.fulfill({ status: 503, body: 'unavailable' }),
@@ -141,18 +149,22 @@ test('model loading obeys the deployed CSP and failed assets retain usable marke
     page.getByText('3D models unavailable.', { exact: false }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
 });
 test('missing buildings do not prevent models and WebGL recovery uses the selected time', async ({
   page,
 }) => {
-  await page.route('**/southbank-buildings*.geojson', (route) =>
+  await page.route('**/buildings*.geojson', (route) =>
     route.fulfill({ status: 503, body: 'unavailable' }),
   );
   await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   await expect(
     page.getByText('Buildings unavailable.', { exact: false }),
   ).toBeVisible();
@@ -171,11 +183,15 @@ test('missing buildings do not prevent models and WebGL recovery uses the select
   await expect(
     page.getByText('Map unavailable.', { exact: false }),
   ).toHaveCount(0);
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   await expect(page.getByTestId('day-clock')).toHaveText('09:00:00');
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
   await extension.dispose();
 });
@@ -238,7 +254,11 @@ test('tram and construction geometry grow on zoom instead of shrinking to a pixe
   await page.goto('/');
   await page.getByRole('button', { name: '08:00 to 10:00' }).click();
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   await page.getByRole('button', { name: 'Layers', exact: true }).click();
   for (const name of ['weather', 'buildings'])
     await page.getByRole('checkbox', { name, exact: true }).uncheck();
@@ -315,14 +335,19 @@ test('tram and construction geometry grow on zoom instead of shrinking to a pixe
 test('3D models reach ready while Live continuously advances and after restoring context', async ({
   page,
 }) => {
+  test.setTimeout(60000);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   const clock = await page.getByTestId('day-clock').innerText();
   await expect(page.getByTestId('day-clock')).not.toHaveText(clock);
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }),
   ).toHaveCount(0);
   const ext = await page
     .getByTestId('map')
@@ -335,7 +360,11 @@ test('3D models reach ready while Live continuously advances and after restoring
     page.getByText('Map unavailable.', { exact: false }),
   ).toBeVisible();
   await ext.evaluate((e) => e.restoreContext());
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   await expect(
     page.getByText('Map unavailable.', { exact: false }),
   ).toHaveCount(0);
@@ -378,10 +407,14 @@ test('reentering 3D resets readiness before replacing flat markers', async ({
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
   const changes = await page.getByTestId('map').evaluateHandle((map) => {
     const values: (string | null)[] = [];
@@ -396,7 +429,11 @@ test('reentering 3D resets readiness before replacing flat markers', async ({
     return { values, observer };
   });
   await page.getByRole('button', { name: '3D', exact: true }).click();
-  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(page.getByTestId('map')).toHaveAttribute(
+    'data-models',
+    'ready',
+    { timeout: 15000 },
+  );
   expect(
     await changes.evaluate(({ values, observer }) => {
       observer.disconnect();

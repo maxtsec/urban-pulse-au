@@ -3,7 +3,27 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'static-csp',
+      apply: 'build',
+      transformIndexHtml: {
+        order: 'post',
+        handler: () => [
+          {
+            tag: 'meta',
+            attrs: {
+              'http-equiv': 'Content-Security-Policy',
+              content:
+                "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'",
+            },
+            injectTo: 'head-prepend',
+          },
+        ],
+      },
+    },
+  ],
   resolve: {
     alias: {
       'meshoptimizer/decoder': fileURLToPath(

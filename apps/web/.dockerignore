@@ -50,3 +50,10 @@
 !src/explorer/useDayPlayback.ts
 
 !src/explorer/meshopt-disabled.ts
+
+!src/explorer/schedule.ts
+!src/explorer/sample.ts
+!src/explorer/SampleExplorer.tsx
+!src/assets/sample/city.json
+!src/assets/sample/buildings.geojson
+!src/assets/sample/manifest.json
