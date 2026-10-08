@@ -9,6 +9,7 @@ import { fixtureTracks } from './fixture-tracks';
 import { placeLabels } from './labels';
 import type { Box } from './labels';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import type { VisualScene } from './explorer/scene';
 
 // Emit the worker and its imports as local build assets.
 maplibregl.setWorkerUrl(workerUrl);
@@ -55,6 +56,7 @@ type Props = {
   glideMs: number;
   threeDimensional: boolean;
   showBuildings: boolean;
+  visualScene?: VisualScene;
 };
 
 type Observed = { lngLat: [number, number]; freshness: Vehicle['freshness'] };
@@ -81,7 +83,14 @@ export function CityMap({
   glideMs,
   threeDimensional,
   showBuildings,
+  visualScene,
 }: Props) {
+  const [modelState, setModelState] = useState('loading');
+  const sceneUpdate = useRef<((scene: VisualScene) => void) | null>(null);
+  const latestScene = useRef(visualScene);
+  const hasScene = Boolean(visualScene);
+  const hideFlatMarkers =
+    hasScene && threeDimensional && modelState === 'ready';
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const contextLost = useRef(false);
@@ -357,9 +366,10 @@ export function CityMap({
         showTracks ? 'visible' : 'none',
       );
     }
-    const visible = showVehicles
-      ? vehicles.filter((vehicle) => vehicle.visible_on_map)
-      : [];
+    const visible =
+      showVehicles && !hideFlatMarkers
+        ? vehicles.filter((vehicle) => vehicle.visible_on_map)
+        : [];
     const ids = new Set(visible.map((vehicle) => vehicle.id));
     for (const [id, marker] of markers.current) {
       if (!ids.has(id)) {
@@ -456,6 +466,7 @@ export function CityMap({
     selected,
     onSelect,
     showVehicles,
+    hideFlatMarkers,
     showBoundary,
     showTracks,
     layoutLabels,
@@ -477,11 +488,12 @@ export function CityMap({
   useEffect(() => {
     const instance = map.current;
     if (!instance || ready !== instance || contextLost.current) return;
-    const visible = showPlanning
-      ? developments.filter(
-          (record) => record.position && record.applicable === true,
-        )
-      : [];
+    const visible =
+      showPlanning && !hideFlatMarkers
+        ? developments.filter(
+            (record) => record.position && record.applicable === true,
+          )
+        : [];
     const ids = new Set(visible.map((record) => record.development_key));
     for (const [id, marker] of developmentMarkers.current) {
       if (!ids.has(id)) {
@@ -522,6 +534,7 @@ export function CityMap({
     ready,
     developments,
     showPlanning,
+    hideFlatMarkers,
     selectedDevelopment,
     onSelectDevelopment,
     layoutLabels,
@@ -546,7 +559,8 @@ export function CityMap({
       ready !== map.current ||
       contextLost.current ||
       !threeDimensional ||
-      !showBuildings
+      !showBuildings ||
+      hasScene
     )
       return;
     const controller = new AbortController();
@@ -572,7 +586,52 @@ export function CityMap({
       }
     });
     return () => controller.abort();
-  }, [ready, threeDimensional, showBuildings]);
+  }, [ready, threeDimensional, showBuildings, hasScene]);
+
+  useEffect(() => {
+    latestScene.current = visualScene;
+    if (visualScene) sceneUpdate.current?.(visualScene);
+  }, [visualScene]);
+  useEffect(() => {
+    if (!ready || !hasScene || !threeDimensional) return;
+    const controller = new AbortController();
+    Promise.resolve().then(async () => {
+      if (controller.signal.aborted) return;
+      setModelState('loading');
+      setBuildingState('loading');
+      try {
+        const { mountScene } = await import('./explorer/scene');
+        const update = await mountScene(
+          ready,
+          latestScene.current!,
+          controller.signal,
+          () => {
+            if (!controller.signal.aborted) setModelState('ready');
+          },
+          () => {
+            if (!controller.signal.aborted) {
+              setModelState('unavailable');
+              controller.abort();
+            }
+          },
+          (available) => {
+            if (!controller.signal.aborted)
+              setBuildingState(available ? 'ready' : 'unavailable');
+          },
+        );
+        if (!controller.signal.aborted) {
+          sceneUpdate.current = update;
+          if (latestScene.current) update?.(latestScene.current);
+        }
+      } catch {
+        if (!controller.signal.aborted) setModelState('unavailable');
+      }
+    });
+    return () => {
+      sceneUpdate.current = null;
+      controller.abort();
+    };
+  }, [ready, hasScene, threeDimensional]);
 
   const visibleWarnings = useMemo(
     () =>
@@ -604,6 +663,7 @@ export function CityMap({
         ref={container}
         aria-label="Southbank city map"
         data-testid="map"
+        data-models={hasScene && threeDimensional ? modelState : 'hidden'}
         data-view={threeDimensional ? '3d' : '2d'}
         data-buildings={
           threeDimensional && showBuildings ? buildingState : 'hidden'
@@ -613,6 +673,11 @@ export function CityMap({
         <p className="building-notice" role="status">
           Buildings unavailable. Switch to 2D and back to retry; city details
           remain available.
+        </p>
+      )}
+      {hasScene && threeDimensional && modelState === 'unavailable' && (
+        <p className="building-notice" role="status">
+          3D models unavailable. Showing static markers.
         </p>
       )}
       {failed && (

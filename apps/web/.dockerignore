@@ -37,3 +37,12 @@
 
 !src/buildings.ts
 !src/assets/southbank-buildings.geojson
+
+!src/explorer/Explorer.tsx
+!src/explorer/explorer.css
+!src/explorer/day.ts
+!src/explorer/scene.ts
+!src/assets/southbank-boundary.json
+!src/assets/demo-tram.glb
+!src/assets/demo-crane.glb
+!src/assets/demo-planned.glb

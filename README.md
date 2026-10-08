@@ -40,6 +40,8 @@ The modular backend uses the same event contracts in process during the MVP and 
 | 5     | Historical city analytics and governance evidence                        | Planned; completes the first city release                                                                                     |
 | 6     | Evaluated scores, AI tools or subscriptions                              | Later, individually prioritised                                                                                               |
 
+UI-DAY: [independent full-day synthetic explorer](docs/demos/synthetic-day.md) implemented for review, with two-hour windows, Live/History, local tram/construction models and authored weather.
+
 MAP-01: [Southbank 3D building context](docs/demos/map-01.md) complete in [PR #47](https://github.com/maxtsec/urban-pulse-au/pull/47); [source and rendering evidence](docs/evidence/map-01-building-massing.md).
 
 MAP-02 foundation: [compatible trip metadata and pinned Southbank shapes](docs/evidence/map-02-trip-foundation.md) implemented; [CBD geometry expansion](docs/evidence/map-02-cbd-expansion.md) verified with shared full-route assets. [Order-independent shape-pool build](docs/evidence/map-02-shape-pool.md) implemented offline, with an [opt-in shape/route loading comparison](docs/evidence/map-02-chunk-loading.md); [gzip/network/heap evidence](docs/evidence/map-02-route-validation.md) supports the route candidate. Production chunk selection and browser serving remain pending. The [two-observation interpolation core](docs/evidence/map-02-path-interpolation.md) and [exact timestamp helpers](docs/evidence/map-02-exact-time.md) are implemented independently; animation playback, CBD area UI and their rollout remain in the delivery plan.
