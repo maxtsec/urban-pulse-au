@@ -1,5 +1,10 @@
 import type { Vehicle } from '../city';
 
+export type SampleDay = 'today' | 'previous';
+export const SAMPLE_DATES = {
+  today: '8 October 2026',
+  previous: '7 October 2026',
+};
 export const DAY_MS = 86_400_000;
 export const WINDOW_MS = 7_200_000;
 export const INITIAL_MS = 8 * 3_600_000;
@@ -37,9 +42,27 @@ export function clockLabel(ms: number, seconds = false): string {
     s = Math.floor(value / 1000) % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}${seconds ? `:${String(s).padStart(2, '0')}` : ''}`;
 }
-export function weatherAt(ms: number) {
+export const PREVIOUS_WEATHER: typeof WEATHER = [
+  { at: 0, kind: 'cloudy', temperature: 12 },
+  { at: 4, kind: 'rainy', temperature: 11 },
+  { at: 6, kind: 'cloudy', temperature: 13 },
+  { at: 8, kind: 'sunny', temperature: 17 },
+  { at: 11, kind: 'sunny', temperature: 23 },
+  { at: 13, kind: 'cloudy', temperature: 24 },
+  { at: 15, kind: 'rainy', temperature: 19 },
+  { at: 17, kind: 'rainy', temperature: 16 },
+  { at: 19, kind: 'cloudy', temperature: 15 },
+  { at: 20, kind: 'cloudy', temperature: 14 },
+  { at: 22, kind: 'cloudy', temperature: 13 },
+];
+export function weatherReadings(day: SampleDay = 'today') {
+  return day === 'previous' ? PREVIOUS_WEATHER : WEATHER;
+}
+export function weatherAt(ms: number, day: SampleDay = 'today') {
   const hour = clampClock(ms) / 3_600_000;
-  return [...WEATHER].reverse().find((reading) => reading.at <= hour)!;
+  return [...weatherReadings(day)]
+    .reverse()
+    .find((reading) => reading.at <= hour)!;
 }
 export const LIVE_START_MS = 10 * 3_600_000;
 export function liveEdgeAt(elapsedMs: number): number {

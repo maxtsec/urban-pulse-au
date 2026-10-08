@@ -1,7 +1,8 @@
-import { DAY_MS, WEATHER } from './day.ts';
+import type { SampleDay } from './day.ts';
+import { DAY_MS, weatherReadings } from './day.ts';
 import {
-  DEMO_REASONS,
-  DEMO_COVERAGE_GAPS,
+  demoReasons,
+  demoGaps,
   demoStatus,
   AREA_NAMES,
 } from './health-demo.ts';
@@ -25,14 +26,15 @@ export function dayRows(
   edge: number,
   constructionCount: number,
   damDate: string,
+  day: SampleDay = 'today',
 ): DayRow[] {
   if (!Number.isFinite(edge) || edge < 0 || edge > DAY_MS)
     throw new Error('Invalid live edge');
   const traffic: DayRow[] = (['cbd', 'southbank'] as const).map((area) => {
-    const reasons = DEMO_REASONS.filter(
+    const reasons = demoReasons(day).filter(
       (r) => r.area === area && r.domain === 'transport',
     );
-    const gaps = DEMO_COVERAGE_GAPS.filter(
+    const gaps = demoGaps(day).filter(
       (g) => g.area === area && g.domain === 'transport',
     );
     const bounds = [
@@ -76,13 +78,14 @@ export function dayRows(
       }),
     };
   });
+  const readings = weatherReadings(day);
   const weather: DayRow = {
     id: 'weather',
     label: 'Weather',
     kind: 'weather',
-    segments: WEATHER.flatMap((reading, i) => {
+    segments: readings.flatMap((reading, i) => {
       const start = reading.at * 3600000,
-        end = Math.min(edge, (WEATHER[i + 1]?.at ?? 24) * 3600000);
+        end = Math.min(edge, (readings[i + 1]?.at ?? 24) * 3600000);
       return start < end
         ? [
             {

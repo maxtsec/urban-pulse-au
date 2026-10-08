@@ -1,8 +1,10 @@
+import type { SampleDay } from './day';
 import { useEffect, useMemo, useRef } from 'react';
-import { DAY_MS, clockLabel } from './day';
+import { DAY_MS, clockLabel, SAMPLE_DATES } from './day';
 import { dayRows } from './day-overview';
 import type { DayRow } from './day-overview';
 type Props = {
+  day: SampleDay;
   clock: number;
   edge: number;
   constructionCount: number;
@@ -11,6 +13,7 @@ type Props = {
   jump: (at: number, row: DayRow) => void;
 };
 export function DayOverview({
+  day,
   clock,
   edge,
   constructionCount,
@@ -20,8 +23,8 @@ export function DayOverview({
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const rows = useMemo(
-    () => dayRows(edge, constructionCount, damDate),
-    [edge, constructionCount, damDate],
+    () => dayRows(edge, constructionCount, damDate, day),
+    [edge, constructionCount, damDate, day],
   );
   useEffect(() => {
     dialog.current?.showModal();
@@ -35,7 +38,7 @@ export function DayOverview({
     >
       <header>
         <div>
-          <span>8 OCTOBER 2026 · SAMPLE DAY</span>
+          <span>{SAMPLE_DATES[day]} · SAMPLE DAY</span>
           <h2 id="day-overview-title">Day overview</h2>
           <p>Spot a change, then select a time to explore the map.</p>
         </div>
@@ -44,7 +47,20 @@ export function DayOverview({
           aria-label="Close day overview"
           onClick={() => dialog.current?.close()}
         >
-          ×
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m6 6 12 12M18 6 6 18"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
       </header>
       <div className="overview-key">
@@ -105,22 +121,21 @@ export function DayOverview({
                       close();
                     }}
                   >
-                    <span>
-                      {segment.end - segment.start > 3600000
-                        ? segment.label
-                        : segment.tone === 'severe'
-                          ? '!!'
-                          : segment.tone === 'affected'
-                            ? '!'
-                            : segment.tone === 'unknown'
-                              ? '?'
-                              : segment.tone === 'rainy'
-                                ? '☂'
-                                : segment.tone === 'cloudy'
-                                  ? '☁'
-                                  : segment.tone === 'sunny'
-                                    ? '☀'
-                                    : '✓'}
+                    <span aria-hidden="true">
+                      {
+                        (
+                          {
+                            clear: '',
+                            affected: '!',
+                            severe: '!',
+                            unknown: '?',
+                            sunny: '☀',
+                            cloudy: '☁',
+                            rainy: '☂',
+                            snapshot: '',
+                          } as Record<string, string>
+                        )[segment.tone]
+                      }
                     </span>
                   </button>
                 ))}
@@ -142,34 +157,39 @@ export function DayOverview({
             </div>
           ))}
           <div className="overview-now">
-            Viewing {clockLabel(clock)} · Simulated Live {clockLabel(edge)}
+            Viewing {clockLabel(clock)} ·{' '}
+            {day === 'previous'
+              ? 'Full 24-hour history'
+              : `Simulated Live ${clockLabel(edge)}`}
           </div>
         </div>
       </div>
-      <section className="overview-moments" aria-label="Changes today">
-        <strong>Changes today</strong>
-        <div>
-          {rows.flatMap((row) =>
-            row.segments
-              .filter(
-                (segment) =>
-                  segment.start > 0 &&
-                  (row.kind === 'weather' ||
-                    ['affected', 'severe', 'unknown'].includes(segment.tone)),
-              )
-              .map((segment) => (
+      <section className="overview-moments" aria-label="Timetable details">
+        <strong>Time & conditions</strong>
+        <p className="overview-caption">
+          Exact intervals below — colours above show their duration.
+        </p>
+        <div className="overview-detail-grid">
+          {rows.map((row) => (
+            <section key={row.id}>
+              <h3>{row.label}</h3>
+              {row.segments.map((segment) => (
                 <button
                   key={`${row.id}-${segment.start}`}
+                  className={`overview-detail ${segment.tone}`}
                   onClick={() => {
                     jump(segment.start, row);
                     close();
                   }}
                 >
-                  <time>{clockLabel(segment.start)}</time>
-                  {row.label} · {segment.label}
+                  <time>
+                    {clockLabel(segment.start)}–{clockLabel(segment.end)}
+                  </time>
+                  <span>{segment.label}</span>
                 </button>
-              )),
-          )}
+              ))}
+            </section>
+          ))}
         </div>
       </section>
       <footer>
@@ -180,9 +200,10 @@ export function DayOverview({
           known.
         </p>
         <p>
-          Only elapsed demo time is selectable. Future cells stay hidden until
-          simulated Live reaches them. Hover or focus a block for its time
-          range; select it to jump.
+          {day === 'previous'
+            ? 'The complete previous sample day is selectable.'
+            : 'Only elapsed demo time is selectable; future cells stay hidden until simulated Live reaches them.'}{' '}
+          Select a time range below to explore its conditions.
         </p>
       </footer>
     </dialog>

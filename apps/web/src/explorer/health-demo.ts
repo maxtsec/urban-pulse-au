@@ -1,3 +1,7 @@
+import type { Polygon, MultiPolygon } from 'geojson';
+import type { DemoTram } from './day.ts';
+import { inArea } from './schedule.ts';
+import type { SampleDay } from './day.ts';
 /** Authored presentation events, never measurements or production area policy. */
 export type DemoArea = 'cbd' | 'southbank';
 export type DemoStatus = 'clear' | 'affected' | 'severe' | 'unknown';
@@ -90,15 +94,19 @@ export type DemoAssessment = {
   reasons: DemoReason[];
   missing: DemoDomain[];
 };
-export function assessDemo(area: DemoArea, clock: number): DemoAssessment {
+export function assessDemo(
+  area: DemoArea,
+  clock: number,
+  day: SampleDay = 'today',
+): DemoAssessment {
   if (!Number.isFinite(clock) || clock < 0 || clock > 86_400_000)
     throw new Error('Invalid demo clock');
-  const reasons = DEMO_REASONS.filter(
+  const reasons = demoReasons(day).filter(
     (r) => r.area === area && r.start <= clock && clock < r.end,
   );
-  const missing: DemoDomain[] = DEMO_COVERAGE_GAPS.filter(
-    (gap) => gap.area === area && gap.start <= clock && clock < gap.end,
-  ).map((gap) => gap.domain);
+  const missing: DemoDomain[] = demoGaps(day)
+    .filter((gap) => gap.area === area && gap.start <= clock && clock < gap.end)
+    .map((gap) => gap.domain);
   const status = demoStatus(reasons, missing);
   return {
     area,
@@ -130,37 +138,207 @@ export function demoTramDelay(
   longitude: number,
   latitude: number,
   area: DemoArea,
+  day: SampleDay = 'today',
 ): DemoReason | undefined {
-  return DEMO_REASONS.filter(
-    (reason) =>
-      reason.domain === 'transport' &&
-      reason.area === area &&
-      reason.start <= clock &&
-      clock < reason.end &&
-      Math.hypot(
-        (longitude - reason.location[0]) * 88000,
-        (latitude - reason.location[1]) * 111000,
-      ) <= 650,
-  ).sort(
-    (a, b) => Number(b.severity === 'severe') - Number(a.severity === 'severe'),
-  )[0];
+  return demoReasons(day)
+    .filter(
+      (reason) =>
+        reason.domain === 'transport' &&
+        reason.area === area &&
+        reason.start <= clock &&
+        clock < reason.end &&
+        Math.hypot(
+          (longitude - reason.location[0]) * 88000,
+          (latitude - reason.location[1]) * 111000,
+        ) <= 650,
+    )
+    .sort(
+      (a, b) =>
+        Number(b.severity === 'severe') - Number(a.severity === 'severe'),
+    )[0];
 }
 
-export function demoChanges(area: DemoArea, clock: number) {
+export function demoChanges(
+  area: DemoArea,
+  clock: number,
+  day: SampleDay = 'today',
+) {
   const times = [
     ...new Set([
       0,
-      ...DEMO_REASONS.filter((r) => r.area === area).flatMap((r) => [
-        r.start,
-        r.end,
-      ]),
-      ...DEMO_COVERAGE_GAPS.filter((gap) => gap.area === area).flatMap(
-        (gap) => [gap.start, gap.end],
-      ),
+      ...demoReasons(day)
+        .filter((r) => r.area === area)
+        .flatMap((r) => [r.start, r.end]),
+      ...demoGaps(day)
+        .filter((gap) => gap.area === area)
+        .flatMap((gap) => [gap.start, gap.end]),
     ]),
   ].sort((a, b) => a - b);
   return {
     previous: times.filter((t) => t <= clock).at(-1) ?? 0,
     next: times.find((t) => t > clock) ?? null,
+  };
+}
+
+const PREVIOUS_REASONS: readonly DemoReason[] = [
+  {
+    id: 'am-cbd',
+    area: 'cbd',
+    domain: 'transport',
+    severity: 'affected',
+    title: 'Morning service delays',
+    detail:
+      'Demo morning disruption near Swanston Street; scheduled movement is unchanged.',
+    start: minute(7, 15),
+    end: minute(8, 45),
+    location: [144.9665, -37.8154],
+  },
+  {
+    id: 'am-southbank',
+    area: 'southbank',
+    domain: 'transport',
+    severity: 'affected',
+    title: 'Local morning delays',
+    detail: 'Authored delays near Queensbridge; not measured congestion.',
+    start: minute(8),
+    end: minute(9, 20),
+    location: [144.9601, -37.8231],
+  },
+  {
+    id: 'lunch-cbd',
+    area: 'cbd',
+    domain: 'transport',
+    severity: 'severe',
+    title: 'Midday service interruption',
+    detail:
+      'A short severe-delay demonstration. Map vehicles still follow the timetable.',
+    start: minute(12, 10),
+    end: minute(12, 35),
+    location: [144.9665, -37.8154],
+  },
+  {
+    id: 'pm-rain',
+    area: 'southbank',
+    domain: 'weather',
+    severity: 'affected',
+    title: 'Heavy-rain warning',
+    detail: 'Synthetic warning over Southbank; no observed hazard is asserted.',
+    start: minute(15),
+    end: minute(17, 40),
+    location: [144.963, -37.825],
+  },
+  {
+    id: 'pm-cbd-rain',
+    area: 'cbd',
+    domain: 'weather',
+    severity: 'affected',
+    title: 'Heavy-rain warning',
+    detail: 'Synthetic warning over CBD, independent of tram service coverage.',
+    start: minute(15, 30),
+    end: minute(17, 30),
+    location: [144.9665, -37.8154],
+  },
+  {
+    id: 'pm-southbank',
+    area: 'southbank',
+    domain: 'transport',
+    severity: 'severe',
+    title: 'Evening service delays',
+    detail:
+      'Authored peak-period interruption near Queensbridge; simulated positions remain on schedule.',
+    start: minute(17),
+    end: minute(18, 15),
+    location: [144.9601, -37.8231],
+  },
+  {
+    id: 'pm-cbd',
+    area: 'cbd',
+    domain: 'transport',
+    severity: 'affected',
+    title: 'Evening local delays',
+    detail: 'Authored local tram delays, not an estimate from vehicle counts.',
+    start: minute(17, 20),
+    end: minute(18, 40),
+    location: [144.9665, -37.8154],
+  },
+  {
+    id: 'late-cbd',
+    area: 'cbd',
+    domain: 'transport',
+    severity: 'affected',
+    title: 'Late service delays',
+    detail:
+      'Authored late-evening service impact with recovery before midnight.',
+    start: minute(22, 15),
+    end: minute(23),
+    location: [144.9665, -37.8154],
+  },
+];
+const PREVIOUS_GAPS = [
+  {
+    area: 'cbd' as const,
+    domain: 'transport' as const,
+    start: minute(10, 15),
+    end: minute(10, 45),
+  },
+  {
+    area: 'southbank' as const,
+    domain: 'transport' as const,
+    start: minute(15, 45),
+    end: minute(16, 15),
+  },
+  {
+    area: 'southbank' as const,
+    domain: 'transport' as const,
+    start: minute(20),
+    end: minute(20, 40),
+  },
+];
+export const demoReasons = (day: SampleDay = 'today') =>
+  day === 'previous' ? PREVIOUS_REASONS : DEMO_REASONS;
+export const demoGaps = (day: SampleDay = 'today') =>
+  day === 'previous' ? PREVIOUS_GAPS : DEMO_COVERAGE_GAPS;
+export const healthMoments = (day: SampleDay = 'today') =>
+  day === 'previous'
+    ? [
+        { label: 'Morning delays', at: minute(8, 15) },
+        { label: 'Midday interruption', at: minute(12, 15) },
+        { label: 'Rain + evening delays', at: minute(17, 25) },
+        { label: 'Missing data', at: minute(20, 15) },
+        { label: 'Recovered', at: minute(23, 30) },
+      ]
+    : HEALTH_MOMENTS;
+
+export type DemoImpact = {
+  affected: number | null;
+  total: number | null;
+  percent: number | null;
+  reason: 'missing' | 'empty' | null;
+};
+/** Instantaneous sample share, not actual lateness or an interval average. */
+export function demoImpact(
+  trams: readonly DemoTram[],
+  area: DemoArea,
+  geometry: Polygon | MultiPolygon,
+  clock: number,
+  day: SampleDay = 'today',
+): DemoImpact {
+  if (assessDemo(area, clock, day).missing.includes('transport'))
+    return { affected: null, total: null, percent: null, reason: 'missing' };
+  const local = [
+    ...new Map(
+      trams
+        .filter((t) => inArea([t.longitude, t.latitude], geometry))
+        .map((t) => [t.id, t]),
+    ).values(),
+  ];
+  const affected = local.filter((t) =>
+    demoTramDelay(clock, t.longitude, t.latitude, area, day),
+  ).length;
+  return {
+    affected,
+    total: local.length,
+    percent: local.length ? Math.round((affected / local.length) * 100) : null,
+    reason: local.length ? null : 'empty',
   };
 }

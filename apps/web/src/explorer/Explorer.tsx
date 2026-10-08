@@ -4,13 +4,24 @@ import type { Boundary } from '../CityMap';
 import { makeSchedule, inArea } from './schedule';
 import type { LoadedSample } from './sample';
 import { useReducedMotion } from '../useReducedMotion';
-import { WINDOW_MS, WEATHER, clockLabel, weatherAt } from './day';
+import {
+  WINDOW_MS,
+  SAMPLE_DATES,
+  weatherReadings,
+  clockLabel,
+  weatherAt,
+} from './day';
 import type { VisualScene } from './scene';
 import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
 import { DayOverview } from './DayOverview';
 import { HealthPanel } from './HealthPanel';
-import { assessDemo, AREA_CENTRES, demoTramDelay } from './health-demo';
+import {
+  assessDemo,
+  AREA_CENTRES,
+  demoTramDelay,
+  demoImpact,
+} from './health-demo';
 import type { DemoArea, DemoReason } from './health-demo';
 
 const emptyWarnings: [] = [];
@@ -22,7 +33,6 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     () => ({ revision: manifest.version, feature: data.boundary }),
     [data, manifest],
   );
-  const schedule = useMemo(() => makeSchedule(data), [data]);
   const sites = data.developments;
   const mapSites = useMemo(
     () => sites.filter((site) => site.status.toUpperCase() !== 'COMPLETED'),
@@ -30,17 +40,26 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
   );
   const localContext = useMemo(
     () => ({
-      tracks: schedule.tracks,
+      tracks: data.display_tracks,
       roads: data.roads,
       water: data.water,
       focusMask: data.focus_mask,
     }),
-    [schedule, data],
+    [data],
   );
   const [credits, setCredits] = useState(false);
   const [overview, setOverview] = useState(false);
   const reduced = useReducedMotion();
   const playback = useDayPlayback(reduced);
+  const { day, selectDay } = playback;
+  const schedule = useMemo(
+    () =>
+      makeSchedule({
+        ...data,
+        schedule: day === 'previous' ? sample.previousSchedule : data.schedule,
+      }),
+    [data, sample.previousSchedule, day],
+  );
   const {
     clock,
     edge,
@@ -53,8 +72,8 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     chooseWindow,
     togglePlay,
   } = playback;
-  const cbdHealth = assessDemo('cbd', clock);
-  const southbankHealth = assessDemo('southbank', clock);
+  const cbdHealth = assessDemo('cbd', clock, day);
+  const southbankHealth = assessDemo('southbank', clock, day);
   const assessments = { cbd: cbdHealth, southbank: southbankHealth };
   const healthAreas = useMemo(
     () => ({
@@ -132,14 +151,14 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
         inArea([tram.longitude, tram.latitude], feature.geometry),
       )?.properties.area_id;
       const delay = area
-        ? demoTramDelay(clock, tram.longitude, tram.latitude, area)
+        ? demoTramDelay(clock, tram.longitude, tram.latitude, area, day)
         : undefined;
       if (delay) delays[tram.id] = delay;
       return { ...tram, demoDelay: delay?.severity };
     });
     return { trams: items, tramDelays: delays };
-  }, [clock, schedule, data]);
-  const weather = weatherAt(clock);
+  }, [clock, schedule, data, day]);
+  const weather = weatherAt(clock, day);
   const selectItem = useCallback((id: string) => {
     select(id);
     setDetail(id.startsWith('schedule:') ? 'trams' : 'works');
@@ -192,10 +211,21 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
         <a href={import.meta.env.BASE_URL} className="explorer-brand">
           UrbanPulse<span>Melbourne</span>
         </a>
-        <span className="demo-pill">
-          <i />
-          Schedule sample · 8 Oct 2026
-        </span>
+        <label className="demo-pill sample-day-select">
+          Sample date
+          <select
+            aria-label="Sample date"
+            value={day}
+            onChange={(e) => {
+              selectDay(e.target.value as 'today' | 'previous');
+              select(null);
+              setLocatedReason(null);
+            }}
+          >
+            <option value="today">8 Oct 2026 · Simulated today</option>
+            <option value="previous">7 Oct 2026 · Full-day history</option>
+          </select>
+        </label>
       </header>
       <button className="sample-credit-button" onClick={() => setCredits(true)}>
         Sources & attribution
@@ -224,8 +254,8 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
             </section>
           ))}
           <p>
-            Dataset {manifest.version} · {manifest.date}. No endorsement by
-            source publishers is implied.
+            Dataset {manifest.version} · viewing {SAMPLE_DATES[day]}. No
+            endorsement by source publishers is implied.
           </p>
           <p>
             DAM status is not an actual worksite location. Footprints are
@@ -236,6 +266,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
       )}
       {overview && (
         <DayOverview
+          day={day}
           clock={clock}
           edge={edge}
           constructionCount={
@@ -380,7 +411,9 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
               <span className="player-context">
                 {mode === 'live'
                   ? 'Simulated live · 1×'
-                  : `${clockLabel(Math.max(0, edge - clock), true)} behind live`}
+                  : day === 'previous'
+                    ? 'Full-day history · 7 October'
+                    : `${clockLabel(Math.max(0, edge - clock), true)} behind live`}
               </span>
               <button
                 className="day-help overview-open"
@@ -460,7 +493,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                     <span>{clockLabel(start)}</span>
                     <i
                       className={
-                        start < edge ? weatherAt(start).kind : 'future'
+                        start < edge ? weatherAt(start, day).kind : 'future'
                       }
                     />
                   </button>
@@ -473,7 +506,9 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                   ? 'Reduced motion · use the time slider'
                   : mode === 'live'
                     ? 'Live follows a simulated clock. No live feeds connected.'
-                    : 'Today’s history · future times are unavailable'}
+                    : day === 'previous'
+                      ? 'Full 24-hour sample · all times available'
+                      : 'Today’s history · future times are unavailable'}
               </span>
               <span>Sunny · Cloudy · Rainy</span>
             </div>
@@ -549,6 +584,16 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                     ),
                   ].sort(),
                 }}
+                impact={demoImpact(
+                  trams,
+                  healthArea,
+                  data.areas.features.find(
+                    (f) => f.properties.area_id === healthArea,
+                  )!.geometry,
+                  clock,
+                  day,
+                )}
+                day={day}
                 assessments={assessments}
                 selected={healthArea}
                 clock={clock}
@@ -560,7 +605,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                 jump={(at) => {
                   setLocatedReason(null);
                   setHealthArea(
-                    assessDemo('southbank', at).status === 'clear'
+                    assessDemo('southbank', at, day).status === 'clear'
                       ? 'cbd'
                       : 'southbank',
                   );
@@ -641,28 +686,30 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                   </div>
                 </div>
                 <p>Synthetic weather · authored sample day</p>
-                {WEATHER.filter(
-                  (reading) => reading.at * 3600000 <= Math.min(clock, edge),
-                ).map((reading) => (
-                  <button
-                    key={reading.at}
-                    className="detail-row"
-                    onClick={() => {
-                      chooseWindow(
-                        Math.floor((reading.at * 3600000) / WINDOW_MS) *
-                          WINDOW_MS,
-                        reading.at * 3600000,
-                      );
-                    }}
-                  >
-                    <span>
-                      {icons[reading.kind]} {clockLabel(reading.at * 3600000)}
-                    </span>
-                    <small>
-                      {reading.kind} · {reading.temperature}°
-                    </small>
-                  </button>
-                ))}
+                {weatherReadings(day)
+                  .filter(
+                    (reading) => reading.at * 3600000 <= Math.min(clock, edge),
+                  )
+                  .map((reading) => (
+                    <button
+                      key={reading.at}
+                      className="detail-row"
+                      onClick={() => {
+                        chooseWindow(
+                          Math.floor((reading.at * 3600000) / WINDOW_MS) *
+                            WINDOW_MS,
+                          reading.at * 3600000,
+                        );
+                      }}
+                    >
+                      <span>
+                        {icons[reading.kind]} {clockLabel(reading.at * 3600000)}
+                      </span>
+                      <small>
+                        {reading.kind} · {reading.temperature}°
+                      </small>
+                    </button>
+                  ))}
               </>
             )}
           </section>

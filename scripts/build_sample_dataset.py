@@ -154,7 +154,7 @@ def along(value: float, source_distances: list[float], distances: list[float]) -
     return round(distances[i - 1] + (value - a) / (b - a) * (distances[i] - distances[i - 1]), 3)
 
 
-def timetable(raw: bytes, boundary) -> tuple[dict, dict]:
+def timetable(raw: bytes, boundary, target_day: date = DAY) -> tuple[dict, dict]:
     rejected: Counter[str] = Counter()
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         grouped = defaultdict(list)
@@ -178,7 +178,7 @@ def timetable(raw: bytes, boundary) -> tuple[dict, dict]:
             selected[key] = {"coordinates": coordinates, "distances": distances}
             original[key] = source_d
         calendar, exceptions = list(rows(z, "calendar.txt")), list(rows(z, "calendar_dates.txt"))
-        days = [(DAY - timedelta(days=1), -DAY_MS), (DAY, 0)]
+        days = [(target_day - timedelta(days=1), -DAY_MS), (target_day, 0)]
         active = {day: service_ids(calendar, exceptions, day) for day, _ in days}
         routes = {r["route_id"]: r for r in rows(z, "routes.txt")}
         trips = {
@@ -238,7 +238,7 @@ def timetable(raw: bytes, boundary) -> tuple[dict, dict]:
                 )
         used = {t["shape"] for t in output}
         return {
-            "date": DAY.isoformat(),
+            "date": target_day.isoformat(),
             "timezone": "Australia/Melbourne",
             "trips": output,
             "shapes": {k: v for k, v in selected.items() if k in used},
@@ -374,6 +374,9 @@ def build(pack: Path, lock: Path, output: Path) -> dict:
     boundaries = [json.loads(inputs[n]) for n in ("southbank.geojson", "cbd.geojson")]
     boundary = unary_union([shape(b["geometry"]) for b in boundaries])
     schedule, rejected = timetable(inputs["tram.zip"], boundary)
+    previous_schedule, previous_rejected = timetable(
+        inputs["tram.zip"], boundary, DAY - timedelta(days=1)
+    )
     sites, dam_date = developments(inputs, boundary)
     buildings = []
     counts = {}
@@ -417,6 +420,7 @@ def build(pack: Path, lock: Path, output: Path) -> dict:
     files = {}
     for name, value in [
         ("city.json", data),
+        ("previous-schedule.json", previous_schedule),
         ("buildings.geojson", {"type": "FeatureCollection", "features": buildings}),
     ]:
         raw = encode(value)
@@ -434,6 +438,11 @@ def build(pack: Path, lock: Path, output: Path) -> dict:
         "attribution": CREDIT,
         "building_counts": counts,
         "trip_count": len(schedule["trips"]),
+        "previous_day": {
+            "date": previous_schedule["date"],
+            "trip_count": len(previous_schedule["trips"]),
+            "schedule_exclusions": previous_rejected,
+        },
         "shape_count": len(schedule["shapes"]),
         "dam_count": len(sites),
         "schedule_exclusions": rejected,

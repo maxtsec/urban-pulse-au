@@ -1,3 +1,4 @@
+import type { SampleDay } from './day';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DAY_MS,
@@ -12,6 +13,7 @@ import {
 
 /** One monotonic live edge, shared by playback, seeking and future-data gating. */
 export function useDayPlayback(reduced: boolean) {
+  const [day, setDay] = useState<SampleDay>('today');
   const [clock, setClock] = useState(LIVE_START_MS);
   const [edge, setEdge] = useState(LIVE_START_MS);
   const [mode, setMode] = useState<'live' | 'history'>('live');
@@ -26,10 +28,12 @@ export function useDayPlayback(reduced: boolean) {
   }, []);
   const nowEdge = useCallback(
     () =>
-      liveEdgeAt(
-        anchor.current === null ? 0 : performance.now() - anchor.current,
-      ),
-    [],
+      day === 'previous'
+        ? DAY_MS
+        : liveEdgeAt(
+            anchor.current === null ? 0 : performance.now() - anchor.current,
+          ),
+    [day],
   );
   useEffect(() => {
     anchor.current ??= performance.now();
@@ -55,7 +59,7 @@ export function useDayPlayback(reduced: boolean) {
         last = now;
         if (mode === 'history' && next >= end) {
           setPlaying(false);
-          if (end === latest) setMode('live');
+          if (end === latest && day === 'today') setMode('live');
           return;
         }
         if (next >= DAY_MS) {
@@ -72,7 +76,7 @@ export function useDayPlayback(reduced: boolean) {
       cancelAnimationFrame(frame);
       window.clearTimeout(timer);
     };
-  }, [mode, playing, reduced, speed, selectedWindow, nowEdge, tick]);
+  }, [mode, playing, reduced, speed, selectedWindow, nowEdge, tick, day]);
   const rollingStart = () =>
     Math.floor(Math.max(0, clockRef.current - WINDOW_MS) / 1000) * 1000;
   function seek(value: number) {
@@ -86,7 +90,26 @@ export function useDayPlayback(reduced: boolean) {
   function goLive() {
     setPlaying(false);
     setMode('live');
-    tick(nowEdge());
+    setDay('today');
+    const latest = liveEdgeAt(
+      anchor.current === null ? 0 : performance.now() - anchor.current,
+    );
+    setEdge(latest);
+    tick(latest);
+  }
+  function selectDay(value: SampleDay) {
+    setDay(value);
+    setPlaying(false);
+    setMode('history');
+    setSelectedWindow(INITIAL_MS);
+    tick(INITIAL_MS);
+    setEdge(
+      value === 'previous'
+        ? DAY_MS
+        : liveEdgeAt(
+            anchor.current === null ? 0 : performance.now() - anchor.current,
+          ),
+    );
   }
   function chooseWindow(start: number, value = start) {
     const latest = nowEdge();
@@ -106,7 +129,10 @@ export function useDayPlayback(reduced: boolean) {
       return;
     }
     if (clockRef.current >= availableWindow(selectedWindow, nowEdge()).end) {
-      goLive();
+      if (day === 'previous') {
+        tick(selectedWindow);
+        setPlaying(true);
+      } else goLive();
       return;
     }
     setPlaying(!playing);
@@ -119,6 +145,8 @@ export function useDayPlayback(reduced: boolean) {
         }
       : availableWindow(selectedWindow, Math.max(edge, clock));
   return {
+    day,
+    selectDay,
     clock,
     edge: Math.max(edge, mode === 'live' ? clock : edge),
     mode,

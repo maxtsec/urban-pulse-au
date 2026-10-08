@@ -1,4 +1,5 @@
 import cityUrl from '../assets/sample/city.json?url';
+import previousScheduleUrl from '../assets/sample/previous-schedule.json?url';
 import manifestUrl from '../assets/sample/manifest.json?url';
 import buildingsUrl from '../assets/sample/buildings.geojson?url';
 import type { SampleData } from './schedule';
@@ -38,6 +39,14 @@ export async function loadSample() {
   return {
     data,
     manifest,
+    previousSchedule: JSON.parse(
+      new TextDecoder().decode(
+        await verifiedBytes(
+          previousScheduleUrl,
+          manifest.files['previous-schedule.json'],
+        ),
+      ),
+    ) as SampleData['schedule'],
     buildingsUrl,
     buildingHash: manifest.files['buildings.geojson'].sha256,
   };
