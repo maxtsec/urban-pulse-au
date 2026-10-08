@@ -53,7 +53,7 @@ def test_committed_sample_rebuilds_byte_for_byte(tmp_path):
     manifest = build(
         ROOT / "sample-data/sources.zip", ROOT / "sample-data/sources.lock.json", tmp_path
     )
-    for name in ["city.json", "buildings.geojson", "manifest.json"]:
+    for name in [*manifest["files"], "manifest.json"]:
         assert (tmp_path / name).read_bytes() == (
             ROOT / "apps/web/src/assets/sample" / name
         ).read_bytes()
@@ -114,3 +114,15 @@ def test_real_display_rails_do_not_escape_the_focus_area():
     for feature in city["display_tracks"]["features"]:
         assert boundary.buffer(1e-12).covers(shape(feature["geometry"]))
     assert {f["properties"]["area_id"] for f in city["areas"]["features"]} == {"cbd", "southbank"}
+
+
+def test_previous_day_is_an_independent_calendar_export_with_shared_display_shapes():
+    city = json.loads((ROOT / "apps/web/src/assets/sample/city.json").read_bytes())
+    previous = json.loads((ROOT / "apps/web/src/assets/sample/previous-schedule.json").read_bytes())
+    assert previous["date"] == "2026-10-07"
+    assert len(previous["trips"]) > 4000
+    assert {t["service_date"] for t in previous["trips"]} == {"2026-10-06", "2026-10-07"}
+    assert set(previous["shapes"]) <= set(city["schedule"]["shapes"])
+    assert all(
+        city["schedule"]["shapes"][key] == value for key, value in previous["shapes"].items()
+    )

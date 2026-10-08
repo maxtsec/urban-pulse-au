@@ -4,14 +4,17 @@ Open the root web page for **CBD + Southbank**. Trams use real schedules and rou
 
 - Use 3D for surveyed building massing and illustrative tram/project models; 2D remains the accessible fallback.
 - Select Trams to inspect scheduled trips; they are not observed vehicles. DAM status and source date are in Works; projects marked completed are retained in the list but excluded from map models.
-- Simulated Live starts at 10:00. History selects a two-hour window up to the advancing simulated edge. All 24 hours exist in the dataset; the existing Live/history control policy still gates future windows.
+- **Sample date → 7 Oct 2026 · Full-day history** unlocks the complete previous 24 hours, with distinct authored morning, midday, evening and late events. Use **8 Oct** for the current sample; **Go live** always returns to that date.
+- Simulated Live starts at 10:00. History selects a two-hour window up to the advancing simulated edge. All 24 hours exist on each date; only the current sample day gates future windows.
 - Area health explains authored demo conditions, separately for CBD and Southbank. Open `?demo=health` to jump to 09:15: CBD amber, Southbank red. Use **Explore the story** for calm, local impacts, major impacts, recovery and missing data. Click a reason to focus the map; the route list explains which simulated trips are highlighted.
 - Yellow/red tram tint and halos mean **Demo delay**, not measured road congestion. Schedule motion remains unchanged. Green requires complete demo inputs; grey means insufficient inputs. Weather warnings may affect the demo state; project counts never do.
 - **Layers → Main street names** toggles local labels in either view. Rails outside the two areas are hidden visually, while full paths remain available to the schedule simulation. The 2D helmet/plan markers describe DAM statuses; click for details.
 
 ## Day overview
 
-Open **Day overview** beside the player for a 24-hour timetable. Separate CBD/Southbank tram rows show exact authored impact and coverage boundaries, including short severe-delay intervals. Weather uses the same synthetic readings as the map. The development row repeats one dated DAM snapshot; it does not assert operating hours. Clicking an elapsed block pauses at its start and opens the relevant information panel. Future cells stay masked beyond the simulated Live edge. Escape closes the dialog and restores keyboard focus; mobile users can scroll the timetable horizontally.
+Open **Day overview** beside the player for a 24-hour timetable. Separate CBD/Southbank tram rows show exact authored impact and coverage boundaries, including short severe-delay intervals. Weather uses the same synthetic readings as the map. The development row repeats one dated DAM snapshot; it does not assert operating hours. Clicking an elapsed block pauses at its start and opens the relevant information panel. On 8 October, future cells stay masked beyond simulated Live; 7 October is fully selectable. Narrow bands carry colour/symbols only, with exact times and readable text in the interval list. Escape closes the dialog and restores keyboard focus; mobile users can scroll the timetable horizontally.
+
+The compact Area health panel shows **Demo affected trips**, with numerator/denominator at the selected instant. This is an authored-zone share of simulated trips, not a true delay rate. N/A means missing transport data or no trips. Expand **Method & area profile** for the definition, source completeness and dated DAM context.
 
 ## Rebuild offline
 

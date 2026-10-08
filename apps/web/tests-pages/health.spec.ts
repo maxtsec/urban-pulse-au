@@ -24,6 +24,7 @@ test('demo health explains impacts, locates them and recovers without inventing 
   ).toBeVisible();
   await expect(page.locator('.demo-delay-severe')).toHaveCount(0);
   await expect(page.locator('.demo-delay-affected')).toHaveCount(0);
+  await page.getByText('Method & area profile', { exact: true }).click();
   await expect(page.locator('.health-profile')).toContainText(
     'does not lower health',
   );

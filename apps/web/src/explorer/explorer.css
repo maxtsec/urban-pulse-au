@@ -1252,3 +1252,155 @@
     flex: 1;
   }
 }
+
+.sample-map-label {
+  color: #243e52;
+  background: #ffffffed;
+  border: 1px solid #b6c5ce;
+  font-weight: 650;
+  text-shadow: 0 1px 0 #fff;
+  box-shadow: 0 1px 3px #20354324;
+}
+.river-label {
+  color: #245d79;
+}
+.sample-day-select select {
+  border: 0;
+  background: transparent;
+  color: #334e5d;
+  font-size: 11px;
+}
+.overview-detail-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px !important;
+}
+.overview-detail-grid h3 {
+  font-size: 12px;
+  margin: 8px 0;
+}
+.overview-detail-grid .overview-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  border-left: 3px solid var(--condition, #8a9eab);
+  gap: 5px;
+  margin-bottom: 6px;
+  padding: 9px;
+}
+.overview-detail time {
+  white-space: nowrap;
+  font-size: 10px;
+}
+.overview-detail span {
+  white-space: normal;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.overview-caption {
+  color: #687d86;
+  font-size: 11px;
+}
+.overview-segment span {
+  display: block;
+  padding: 0;
+  font-size: 10px;
+}
+@media (max-width: 900px) {
+  .overview-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .sample-day-select {
+    gap: 4px;
+    font-size: 0;
+  }
+  .sample-day-select select {
+    font-size: 10px;
+    max-width: 180px;
+  }
+  .overview-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.day-overview header {
+  position: sticky;
+  top: -26px;
+  z-index: 3;
+  background: #f9fbfc;
+  padding: 12px 0 16px;
+}
+.day-overview header button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c9d5de;
+  color: #304e60;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px #243e5210;
+}
+.day-overview header button:hover {
+  background: #e7eff4;
+  border-color: #7b94a5;
+}
+.day-overview header button:focus-visible {
+  outline: 3px solid #168d9b;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .day-overview header {
+    top: -18px;
+  }
+}
+
+.health-impact-stat {
+  padding: 4px 2px 14px;
+  border-bottom: 1px solid #dce4e8;
+  margin-bottom: 12px;
+}
+.health-impact-stat > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.health-impact-stat strong {
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -1px;
+  font-weight: 600;
+  color: #2e4b5b;
+}
+.health-impact-stat span {
+  font-size: 12px;
+  color: #4f6876;
+}
+.explorer-details .health-impact-stat p {
+  margin: 7px 0 4px;
+  font-size: 12px;
+  color: #47616e;
+}
+.health-impact-stat small {
+  font-size: 10px;
+  color: #72838d;
+}
+.explorer-details .health-route-summary {
+  font-size: 11px;
+  margin: 9px 0;
+  color: #526d7a;
+}
+.compact-health .condition-card {
+  margin: 12px 0;
+  padding: 12px;
+}
+.compact-health .condition-reason {
+  padding: 10px 9px;
+}
+.compact-health .health-method {
+  margin-top: 16px;
+}

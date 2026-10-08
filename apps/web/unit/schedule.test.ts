@@ -56,3 +56,35 @@ test('real schedule supports arbitrary seeking without observed claims or invent
   assert.ok(schedule.at(9 * 3600000).length > 20);
   assert.equal(schedule.at(86400000).length >= 0, true);
 });
+
+test('previous civil day uses separately generated calendar trips and supports late-night seeking', () => {
+  const previous = JSON.parse(
+    readFileSync(
+      new URL('../src/assets/sample/previous-schedule.json', import.meta.url),
+      'utf8',
+    ),
+  ) as SampleData['schedule'];
+  assert.equal(previous.date, '2026-10-07');
+  assert.ok(
+    previous.trips.every(
+      (t) => t.service_date === '2026-10-07' || t.service_date === '2026-10-06',
+    ),
+  );
+  const schedule = makeSchedule({ ...data, schedule: previous });
+  for (const clock of [
+    0,
+    8 * 3600000,
+    12 * 3600000,
+    17 * 3600000,
+    22.5 * 3600000,
+  ]) {
+    const result = schedule.at(clock);
+    schedule.at(0);
+    assert.deepEqual(schedule.at(clock), result);
+  }
+  assert.ok(schedule.at(22.5 * 3600000).length > 0);
+  assert.notEqual(
+    schedule.at(8 * 3600000)[0].id,
+    makeSchedule(data).at(8 * 3600000)[0].id,
+  );
+});

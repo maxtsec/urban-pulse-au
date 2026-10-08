@@ -6,8 +6,9 @@ Measured 2026-10-08. Scope and interpretation: [ADR 0022](../adr/0022-public-sch
 | --- | --- |
 | Licensed source archive, excluded from website | 16,759,478 bytes |
 | City/schedule JSON | 9,133,337 bytes; about 1.33 MB gzip in Vite's report |
+| Previous-day schedule JSON | 8,221,545 bytes; separate hash-pinned 7 October calendar export, 4,539 trip instances |
 | On-demand building geometry | 3,340,553 bytes |
-| Entire static build, before HTTP compression | 16,486,243 bytes |
+| Entire static build, before HTTP compression | 24,715,017 bytes |
 | Fixed-day trips / used full shapes | 4,539 / 84 |
 | DAM records | 463; 108 non-completed, spatially applicable records have map models |
 | Local street features / river polygon | 3,181 / 1 |
@@ -43,3 +44,13 @@ The updated compiled Caddy browser suite passes all 19 cases, including the fixe
 The timetable derives traffic intervals from the same authored transport events/coverage gaps, weather from the existing synthetic readings, and development from the dated DAM snapshot. It clips all selectable intervals at simulated Live and does not reveal later weather or incident endpoints. Three new unit tests verify contiguous elapsed coverage, short disruptions, domain separation and future gating (37 total frontend unit tests pass).
 
 Six Pages browser cases now pass, including timetable-to-map navigation, weather/project tabs on mobile, Escape and focus restoration. The first mobile run exposed the inherited hidden help-label style; the overview button now has explicit mobile visibility and the affected suite passes. Lint/format and the production build pass. The earlier 19-case Caddy rehearsal is retained above; it preceded this timetable-only addition.
+
+### Previous day and affected-trip share
+
+The 7 October calendar is generated independently, including 6 October service-day carry-over. Eight builder tests pass, now comparing every manifest-listed file byte-for-byte. The fixed input happens to produce 4,539 trips on both civil days; distinct service dates/IDs are retained rather than relabelling current-day trips. Shapes are identical across these two retained calendars, verified by test. The extra uncompressed schedule is about 8.22 MB (about 1.21 MB gzip); the complete static artifact grows to about 24.72 MB. No file exceeds the 12 MiB dataset cap.
+
+Forty frontend unit tests pass, including unique local denominators, missing/empty N/A, weather exclusion, day-specific conditions and previous-day seek determinism. Eight Pages browser cases pass, covering previous-day 24-hour access, map preservation on date change, return to bounded current-day Live, midnight playback completion, short-event navigation, mobile tabs, corrupt data and 2D/3D models. Screenshots were inspected for the compact percentage panel and expanded interval list. On the 390 px mobile viewport the document width remains 390 px and the close button remains a visible 44 x 44 px target after scrolling to the bottom.
+
+Ruff lint/format, mypy (85-file scope), frontend lint/format and production build pass. Both actual and adversarial Docker contexts pass the updated allowlist inventory. The metric and authored history are presentation samples, not measured delay performance or captured history; the unchanged DAM snapshot asserts no daily working hours.
+
+The final compiled Caddy rehearsal was rerun after these changes: all 19 browser cases passed, followed by API/database outage and recovery. Smoke resources were removed successfully.
