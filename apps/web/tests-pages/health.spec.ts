@@ -119,7 +119,7 @@ test('scripted status is explicit and street labels never overlap markers or rou
 }) => {
   await page.goto('./?demo=health');
   await expect(page.locator('.demo-scenario-banner')).toBeVisible();
-  await expect(page.locator('.demo-scenario-banner')).toHaveText(
+  await expect(page.locator('.demo-scenario-banner > span')).toHaveText(
     'Demo scenario — scripted incidents, not real service status',
   );
   await expect(
@@ -169,6 +169,15 @@ test('mobile keeps the demo banner visible while credits and status remain usabl
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./?demo=health');
+  const bannerText = await page
+    .locator('.demo-scenario-banner > span')
+    .boundingBox();
+  const creditsButton = await page
+    .getByRole('button', { name: 'Sources & attribution' })
+    .boundingBox();
+  expect(bannerText!.x + bannerText!.width).toBeLessThanOrEqual(
+    creditsButton!.x,
+  );
   await page.getByRole('button', { name: 'Sources & attribution' }).click();
   await expect(
     page.getByRole('dialog', { name: 'Sources and attribution' }),

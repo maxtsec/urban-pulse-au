@@ -277,7 +277,13 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
         </label>
       </header>
       <div className="demo-scenario-banner">
-        Demo scenario — scripted incidents, not real service status
+        <span>Demo scenario — scripted incidents, not real service status</span>
+        <button
+          className="sample-credit-button"
+          onClick={() => setCredits(true)}
+        >
+          Sources &amp; attribution
+        </button>
       </div>
       {previousLoading && (
         <div className="sample-load-notice" role="status">
@@ -296,9 +302,6 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           </button>
         </div>
       )}
-      <button className="sample-credit-button" onClick={() => setCredits(true)}>
-        Sources & attribution
-      </button>
       {credits && (
         <dialog
           open
