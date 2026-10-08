@@ -38,14 +38,11 @@ test('compiled city reloads from a nested URL with three domains and no dev runt
     page.getByRole('heading', { name: 'Southbank', level: 1 }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Select Tram 01 on map', exact: true }),
+    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('region', { name: 'Weather summary' }),
-  ).toContainText('18 °C');
-  await expect(page.getByTestId('planning-map-count')).toHaveText(
-    '3 developments',
-  );
+    page.getByRole('heading', { name: 'Not assessed' }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () =>
@@ -54,15 +51,7 @@ test('compiled city reloads from a nested URL with three domains and no dev runt
     ),
   ).toEqual([]);
   await page.reload();
-  await expect(
-    page.getByRole('combobox', { name: 'Scenario', exact: true }),
-  ).toHaveValue('city');
-  await expect(
-    page.getByRole('region', { name: 'Weather summary' }),
-  ).toContainText('18 °C');
-  await expect(page.getByTestId('planning-map-count')).toHaveText(
-    '3 developments',
-  );
+  await expect(page.getByRole('tab', { name: 'Area health' })).toBeVisible();
   expect(
     await page.evaluate(
       () =>
@@ -161,7 +150,7 @@ test('CSP blocks inline scripts without disrupting the compiled map', async ({
 }) => {
   await page.goto('/?scenario=city');
   await expect(
-    page.getByRole('button', { name: 'Select Tram 01 on map', exact: true }),
+    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
   ).toBeVisible();
   const blocked = page.waitForEvent('console', {
     predicate: (message) => message.text().includes('script-src'),

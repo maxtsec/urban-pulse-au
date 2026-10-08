@@ -132,7 +132,7 @@ svg {
   overflow: hidden;
 }
 .map-shell,
-.map-canvas {
+.map-shell .map-canvas {
   position: absolute;
   inset: 0;
 }

@@ -22,7 +22,7 @@ test('city overview combines three domains and synchronizes development map/list
       external.push(request.url());
   });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   await expect(scenarioPicker(page)).toHaveValue('city');
   await expect(
     page.getByRole('region', { name: 'Weather summary' }),
@@ -79,7 +79,7 @@ test('city overview combines three domains and synchronizes development map/list
 test('partial, replacement, outage and recovery preserve source dates and explicit unknowns', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   await openTab(page, 'Developments');
   const planning = page.getByRole('region', { name: 'Planning details' });
   await moment(page, '120s · Partial capture').click();
@@ -141,7 +141,7 @@ test('partial, replacement, outage and recovery preserve source dates and explic
 test('planning diagnostics and evidence preserve original captures without future data', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   await moment(page, '120s · Partial capture').click();
   await expect(page.getByTestId('clock')).toHaveText('11:02:00');
   await page.getByText('Replay diagnostics', { exact: true }).click();
@@ -185,7 +185,7 @@ for (const empty of [false, true]) {
       }
       await route.fulfill({ response, json: data });
     });
-    await page.goto('/');
+    await page.goto('/tests/scenario.html');
     await openTab(page, 'Developments');
     const planning = page.getByRole('region', { name: 'Planning details' });
     await expect(planning).toContainText(
@@ -203,7 +203,7 @@ test('integrated profile fits mobile and keeps conditions and weather on the map
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   const summary = page.getByRole('region', { name: 'Weather summary' });
   await expect(summary).toContainText('18 °C');
   const bounds = await summary.boundingBox();
@@ -225,7 +225,7 @@ test('integrated profile fits mobile and keeps conditions and weather on the map
 test('planning panel distinguishes accepted location gaps from rejected captures', async ({
   page,
 }) => {
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   await openTab(page, 'Developments');
   const planning = page.getByRole('region', { name: 'Planning details' });
   await moment(page, '150s · Cancelled / New planning snapshot').click();
@@ -247,7 +247,7 @@ test('planning panel distinguishes accepted location gaps from rejected captures
 test('planning outage moments describe only received data and continuing failure', async ({
   page,
 }) => {
-  await page.goto('/?scenario=planning-outage');
+  await page.goto('/tests/scenario.html?scenario=planning-outage');
   const moments = page.getByRole('group', {
     name: 'Scenario moments',
     exact: true,
@@ -280,7 +280,7 @@ test('mobile selection remains visible after scrolling to unlocated developments
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   await moment(page, '150s · Cancelled / New planning snapshot').click();
   await expect(page.getByTestId('clock')).toHaveText('11:02:30');
   await openTab(page, 'Developments');

@@ -48,7 +48,7 @@ For the full-day visual preview: [synthetic day walkthrough](demos/synthetic-day
 
 | Document                                                 | Owns                                                               | Update when                                             |
 | -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
-| [ADR 0020](adr/0020-synthetic-day-explorer.md) | Independent synthetic day, Live/History and presentation boundaries | Preview time or data ownership changes |
+| [ADR 0020](adr/0020-synthetic-day-explorer.md) | Sole synthetic day UI, live-bounded history, fixed health/coverage panel and presentation boundaries | Preview time or data ownership changes |
 | [Synthetic day evidence](evidence/synthetic-day.md) | Browser/asset checks, rendering measurements and limitations | A changed preview is measured |
 | [Synthetic day walkthrough](demos/synthetic-day.md) | Full-day visual demonstration and asset reproduction | Preview controls or assets change |
 | [Project brief](../project_brief.md)                     | Product scope, selected technology and release requirements        | Product direction or a major constraint changes         |

@@ -8,3 +8,5 @@ playwright-report
 src/assets/southbank-buildings.geojson
 
 src/assets/southbank-boundary.json
+
+dist-test

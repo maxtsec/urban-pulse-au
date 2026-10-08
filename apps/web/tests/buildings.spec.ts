@@ -14,7 +14,7 @@ test('3D buildings load on demand, preserve API state and keyboard selection, an
     if (/^https?:/.test(url) && new URL(url).hostname !== '127.0.0.1')
       external.push(url);
   });
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   const map = page.getByTestId('map');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map', exact: true }),
@@ -74,7 +74,7 @@ test('missing building asset leaves city details usable and can retry', async ({
   await page.route('**/southbank-buildings-*.geojson', (route) =>
     route.abort(),
   );
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map', exact: true }),
   ).toBeVisible();
@@ -104,7 +104,7 @@ test('mobile reduced-motion view retains visible controls and local building con
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map', exact: true }),
   ).toBeVisible();
@@ -130,7 +130,7 @@ test('mobile reduced-motion view retains visible controls and local building con
 test('map legend uses the approved classes and explains the temporary 2D glide', async ({
   page,
 }) => {
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   await page.getByRole('button', { name: '3D view', exact: true }).click();
   await page.locator('.layers-menu > summary').click();
   await page.getByText('Map display classes', { exact: true }).click();

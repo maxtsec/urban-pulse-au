@@ -23,7 +23,7 @@ test('weather lifecycle changes the area view and map with independent coverage'
       external.push(request.url());
   });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/?scenario=weather');
+  await page.goto('/tests/scenario.html?scenario=weather');
   const details = page.getByRole('region', { name: 'Weather details' });
   const reasons = page.getByTestId('condition');
   await expect(
@@ -85,7 +85,7 @@ test('weather lifecycle changes the area view and map with independent coverage'
 test('outage keeps received warning and attribution without leaking cancellation', async ({
   page,
 }) => {
-  await page.goto('/?scenario=weather');
+  await page.goto('/tests/scenario.html?scenario=weather');
   await chooseScenario(page, 'Weather outage');
   await moment(page, '180s · Emergency Warning').click();
   await openTab(page, 'Warnings');
@@ -121,7 +121,7 @@ test('weather details are usable on a small screen and replay keeps original rec
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?scenario=weather');
+  await page.goto('/tests/scenario.html?scenario=weather');
   await moment(page, '270s · Coverage restored').click();
   await expect(condition(page)).toHaveText('Normal');
   await moment(page, '30s · Advice').click();
@@ -147,7 +147,7 @@ for (const viewport of [
     page,
   }) => {
     await page.setViewportSize(viewport);
-    await page.goto('/?scenario=weather');
+    await page.goto('/tests/scenario.html?scenario=weather');
     await expect(scenarioPicker(page)).toHaveValue('weather');
     const summary = page.getByRole('region', { name: 'Weather summary' });
     await expect(summary).toContainText('18 °C');
@@ -174,7 +174,7 @@ for (const viewport of [
 test('scenario picker supports keyboard selection and preserves the chosen clock', async ({
   page,
 }) => {
-  await page.goto('/?scenario=weather');
+  await page.goto('/tests/scenario.html?scenario=weather');
   await moment(page, '60s · Watch and Act').click();
   const picker = scenarioPicker(page);
   await picker.focus();
@@ -203,7 +203,7 @@ for (const scenario of ['weather', 'weather-outage']) {
       data.weather.reading = null;
       await route.fulfill({ response, json: data });
     });
-    await page.goto(`/?scenario=${scenario}`);
+    await page.goto(`/tests/scenario.html?scenario=${scenario}`);
     const summary = page.getByRole('region', { name: 'Weather summary' });
     await expect(summary).toContainText('No modelled weather reading received');
     await expect(summary).not.toContainText('transport scenario');
@@ -217,7 +217,7 @@ for (const scenario of ['weather', 'weather-outage']) {
 test('scenario navigation updates shareable URLs and supports browser history', async ({
   page,
 }) => {
-  await page.goto('/?scenario=weather&example=keep#demo');
+  await page.goto('/tests/scenario.html?scenario=weather&example=keep#demo');
   const summary = page.getByRole('region', { name: 'Weather summary' });
   await expect(summary).toContainText('18 °C');
   await chooseScenario(page, 'Tram journey');
@@ -238,7 +238,7 @@ test('scenario navigation updates shareable URLs and supports browser history', 
 test('scenario transition preserves the map canvas and camera while labelling previous data', async ({
   page,
 }) => {
-  await page.goto('/?scenario=weather');
+  await page.goto('/tests/scenario.html?scenario=weather');
   const canvas = page.locator('.maplibregl-canvas');
   await expect(canvas).toBeVisible();
   const original = await canvas.elementHandle();
@@ -290,7 +290,7 @@ test('scenario transition preserves the map canvas and camera while labelling pr
 test('replay diagnostics separate weather duplicates from transport counts', async ({
   page,
 }) => {
-  await page.goto('/?scenario=weather');
+  await page.goto('/tests/scenario.html?scenario=weather');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   await page.getByLabel('Scenario time', { exact: true }).fill('120');
   await expect(page.getByTestId('clock')).toHaveText('11:02:00');

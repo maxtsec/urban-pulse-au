@@ -11,7 +11,7 @@ if (!baseURL || new URL(baseURL).hostname !== '127.0.0.1') {
 export default defineConfig({
   ...local,
   testDir: '.',
-  testMatch: ['tests/**/*.spec.ts', 'tests-serving/**/*.spec.ts'],
+  testMatch: ['tests/explorer.spec.ts', 'tests-serving/**/*.spec.ts'],
   outputDir: 'test-results/serving',
   use: { ...local.use, baseURL },
   webServer: undefined,

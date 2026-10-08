@@ -38,7 +38,8 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: 'npm run preview -- --port 5174',
+      command:
+        'npm run build:test && npm run preview -- --outDir dist-test --port 5174',
       url: 'http://127.0.0.1:5174',
       env: { VITE_API_PROXY: 'http://127.0.0.1:8011' },
       reuseExistingServer: false,

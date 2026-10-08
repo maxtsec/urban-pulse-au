@@ -17,7 +17,7 @@ async function tramPosition(page: Page): Promise<Point> {
 
 /** Observed positions at 0s and 30s, reached by direct seeks (no glide). */
 async function observedPositions(page: Page) {
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(page.locator(TRAM)).toBeVisible();
   const start = await tramPosition(page);
   await moment(page, '30s · Position update').click();
@@ -211,7 +211,7 @@ test('reduced motion progress stays on the displayed snapshot', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   const fill = page.getByTestId('playback-progress');
   const initial = (await fill.boundingBox())!.width;
@@ -229,7 +229,7 @@ test('reduced motion progress stays on the displayed snapshot', async ({
 test('3D keeps tram markers at observations instead of using the temporary 2D glide', async ({
   page,
 }) => {
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(page.locator(TRAM)).toBeVisible();
   await page.getByRole('button', { name: '3D view', exact: true }).click();
   await expect(page.getByTestId('map')).toHaveAttribute(

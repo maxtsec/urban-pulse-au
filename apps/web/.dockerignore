@@ -46,3 +46,7 @@
 !src/assets/demo-tram.glb
 !src/assets/demo-crane.glb
 !src/assets/demo-planned.glb
+
+!src/explorer/useDayPlayback.ts
+
+!src/explorer/meshopt-disabled.ts

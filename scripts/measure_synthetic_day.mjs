@@ -28,7 +28,7 @@ try {
     });
     const requests = [];
     page.on("response", (r) => requests.push(r.url()));
-    await page.goto(origin + "/?experience=day");
+    await page.goto(origin + "/");
     await page.getByRole("button", { name: "3D", exact: true }).click();
     await page.waitForFunction(
       () =>

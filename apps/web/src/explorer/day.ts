@@ -133,3 +133,16 @@ export function tramsAt(ms: number): DemoTram[] {
     };
   });
 }
+
+export const LIVE_START_MS = 10 * 3_600_000;
+export function liveEdgeAt(elapsedMs: number): number {
+  return clampClock(LIVE_START_MS + Math.max(0, elapsedMs));
+}
+export function availableWindow(start: number, edge: number) {
+  const end = clampClock(edge);
+  const safeStart = Math.max(0, Math.min(clampClock(start), end));
+  return { start: safeStart, end: Math.min(end, safeStart + WINDOW_MS) };
+}
+export function historyClock(requested: number, edge: number): number {
+  return Math.min(clampClock(requested), clampClock(edge));
+}

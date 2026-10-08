@@ -21,7 +21,7 @@ test('3D renders under the deployed Content Security Policy without relaxing it'
       headers: { ...response.headers(), 'content-security-policy': policy },
     });
   });
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map', exact: true }),
   ).toBeVisible();
@@ -40,7 +40,7 @@ test('WebGL loss hides stale markers and restoration renders the latest clock an
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/?scenario=city');
+  await page.goto('/tests/scenario.html?scenario=city');
   const marker = page.getByRole('button', {
     name: 'Select Tram 01 on map',
     exact: true,
