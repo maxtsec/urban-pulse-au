@@ -30,7 +30,7 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 ## Progress
 
-Current priority: the [data pipeline track](docs/delivery-plan.md#data-pipeline-priority-track), with cloud source/static capture alongside Phase 1a normalized Tram schema and a one-day Parquet → GCS vertical slice. The schema is under review; raw expiry stays disabled.
+Current priority: the [data pipeline track](docs/delivery-plan.md#data-pipeline-priority-track), with cloud source/static capture alongside Phase 1a normalized Tram schema and a one-day Parquet → GCS vertical slice. The approach is accepted; schema freeze requires a one-day source-field audit. Export state stays separate from live capture; raw expiry stays disabled.
 
 
 | Phase | Outcome                                                                  | Status                                                                                                                        |
