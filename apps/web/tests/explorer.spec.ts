@@ -341,3 +341,105 @@ test('3D models reach ready while Live continuously advances and after restoring
   ).toHaveCount(0);
   await ext.dispose();
 });
+
+test('seeking after Live advances retains its rolling window and plays history', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await expect(page.getByTestId('day-clock')).toBeVisible();
+  await page.clock.install();
+  await page.clock.fastForward(30 * 60_000);
+  await expect(page.getByTestId('day-clock')).toHaveText(/^10:30:/);
+  await page.getByLabel('History time').fill(String((10 * 60 + 20) * 60_000));
+  await expect(page.getByTestId('day-clock')).toHaveText('10:20:00');
+  const slider = page.getByLabel('History time');
+  expect(Number(await slider.getAttribute('min'))).toBeGreaterThanOrEqual(
+    8.5 * 3600000,
+  );
+  expect(Number(await slider.getAttribute('max'))).toBeGreaterThanOrEqual(
+    10.5 * 3600000,
+  );
+  await page.getByRole('button', { name: 'Play demo', exact: true }).click();
+  await page.clock.runFor(1000);
+  await expect(page.getByTestId('day-clock')).toHaveText(/^10:20:/);
+  await expect(page.getByTestId('day-clock')).not.toHaveText('10:20:00');
+  await expect(page.getByRole('button', { name: 'Go live' })).not.toHaveClass(
+    /at-live/,
+  );
+  await page.getByRole('button', { name: 'Go live' }).click();
+  await page.getByRole('button', { name: '06:00 to 08:00' }).click();
+  await expect(page.getByTestId('day-clock')).toHaveText('06:00:00');
+  await expect(slider).toHaveAttribute('min', String(6 * 3600000));
+});
+
+test('reentering 3D resets readiness before replacing flat markers', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await page.getByRole('button', { name: '2D', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+  ).toBeVisible();
+  const changes = await page.getByTestId('map').evaluateHandle((map) => {
+    const values: (string | null)[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) values.push(record.oldValue);
+    });
+    observer.observe(map, {
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ['data-models'],
+    });
+    return { values, observer };
+  });
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  expect(
+    await changes.evaluate(({ values, observer }) => {
+      observer.disconnect();
+      return values;
+    }),
+  ).toEqual(['hidden', 'loading']);
+  await changes.dispose();
+});
+
+test('crossing the mobile breakpoint preserves the map and keeps controls outside the panel', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '08:00 to 10:00' }).click();
+  const canvas = await page
+    .getByTestId('map')
+    .locator('canvas')
+    .elementHandle();
+  for (const size of [
+    { width: 900, height: 1100 },
+    { width: 1100, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      )
+      .toBe(true);
+    const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+    await expect(zoom).toBeVisible();
+    await expect
+      .poll(async () => {
+        const a = (await zoom.boundingBox())!,
+          b = (await page
+            .getByRole('complementary', { name: 'Area information' })
+            .boundingBox())!;
+        return a.x + a.width <= b.x || a.y + a.height <= b.y;
+      })
+      .toBe(true);
+    expect(await canvas!.evaluate((node) => node.isConnected)).toBe(true);
+    await expect(page.getByTestId('day-clock')).toHaveText('08:00:00');
+  }
+});

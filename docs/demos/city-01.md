@@ -20,10 +20,13 @@ uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 In a second terminal:
 
 ```powershell
-npm.cmd --prefix apps/web run dev
+npm.cmd --prefix apps/web run build:test
+npm.cmd --prefix apps/web run preview -- --outDir dist-test --port 5174
 ```
 
-Open [UrbanPulse](http://127.0.0.1:5173/?scenario=journey), or choose **Tram journey** in the **Scenario** menu on the map. No provider key is required. The fixture import is required before serving. Rerun it after changing fixture files; GET requests never create captures or migrate the database.
+The CITY-01–04 walkthroughs use the API-backed test harness, excluded from the production build. The public `/` instead opens the independent [synthetic day explorer](synthetic-day.md).
+
+Open [the scenario harness](http://127.0.0.1:5174/tests/scenario.html?scenario=journey), or choose **Tram journey** in the **Scenario** menu on the map. No provider key is required. The fixture import is required before serving. Rerun it after changing fixture files; GET requests never create captures or migrate the database.
 
 ## Walkthrough
 

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DAY_MS,
+  sampleDistance,
   liveEdgeAt,
   historyClock,
   availableWindow,
@@ -109,4 +110,16 @@ test('original models need no compressed decoder and unsupported compression fai
     assert.deepEqual(json.extensionsRequired ?? [], []);
     assert.deepEqual(json.extensionsUsed ?? [], []);
   }
+});
+
+test('interpolation uses both independent sample distances, including reverse travel', () => {
+  const a = { at: 60_000, distance: 100 };
+  const b = { at: 120_000, distance: 220 };
+  assert.equal(sampleDistance(90_000, a, b), 160);
+  assert.equal(sampleDistance(90_000, a, { ...b, distance: 300 }), 200);
+  assert.equal(sampleDistance(90_000, { ...a, distance: 20 }, b), 120);
+  assert.equal(sampleDistance(90_000, { ...a, distance: 300 }, b), 260);
+  assert.equal(sampleDistance(0, a, b), 100);
+  assert.equal(sampleDistance(180_000, a, b), 220);
+  assert.equal(sampleDistance(90_000, a, a), 100);
 });

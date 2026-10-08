@@ -86,6 +86,12 @@ export function CityMap({
   visualScene,
 }: Props) {
   const [modelState, setModelState] = useState('loading');
+  const [modelView, setModelView] = useState(threeDimensional);
+  // Readiness belongs to this view, before marker effects can hide the fallback.
+  if (modelView !== threeDimensional) {
+    setModelView(threeDimensional);
+    setModelState('loading');
+  }
   const sceneUpdate = useRef<((scene: VisualScene) => void) | null>(null);
   const latestScene = useRef(visualScene);
   const hasScene = Boolean(visualScene);
@@ -111,6 +117,7 @@ export function CityMap({
   >('hidden');
   const buildingAbort = useRef<AbortController | null>(null);
   const initialInsets = useRef(insets);
+
   const labelOrder = useRef<string[]>([]);
   const frame = useRef(0);
   const observed = useRef<Map<string, Observed>>(new Map());
@@ -587,6 +594,14 @@ export function CityMap({
     });
     return () => controller.abort();
   }, [ready, threeDimensional, showBuildings, hasScene]);
+
+  useEffect(() => {
+    initialInsets.current = insets;
+    if (ready) {
+      ready.setPadding(insets);
+      layoutLabels();
+    }
+  }, [insets, ready, layoutLabels]);
 
   useEffect(() => {
     latestScene.current = visualScene;

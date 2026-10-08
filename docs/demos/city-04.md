@@ -4,7 +4,7 @@ Use the [city setup](city-01.md#run): start PostGIS, migrate, explicitly import 
 
 ## City story and events
 
-1. Open `http://127.0.0.1:5173/?scenario=city`. Inspect tram service, weather warnings and the separate planning profile.
+1. Open `http://127.0.0.1:5174/tests/scenario.html?scenario=city`. Inspect tram service, weather warnings and the separate planning profile.
 2. Read `/api/v1/areas/au-vic-melbourne-clue-southbank?scenario=weather-outage&seconds=239`. Conditions are Degraded by the retained warning, with source coverage kept separate.
 3. Request 240 seconds: the warning expires without a new warning delivery. Conditions become Unknown; `composition.area_events` ends with that time-driven transition and original input references.
 4. Request 241 seconds: evaluation time advances, but the same transition list remains. Rewind to 60 seconds; no later resolution/profile snapshot may appear.

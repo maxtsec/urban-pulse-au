@@ -4,8 +4,8 @@ Measured 2026-10-08 against the compiled feature working tree, with Playwright C
 
 ## Functional checks
 
-- The retained scenario harness passed 59 browser checks, with 2 opt-in building measurements skipped. The final explorer-only run passed all 10 checks, including fixed panel geometry, keyboard tabs, live/history bounds, model zoom growth, CSP, failed models and WebGL recovery during continuous Live playback.
-- 28 typed frontend unit tests passed. Seek is stateless, samples never require future receipt, live bounds are explicit and original model files require no compression extensions.
+- The complete browser run passed 72 checks: 59 retained scenario checks and 13 explorer checks, with 2 opt-in building measurements skipped. Regressions cover seeking to 10:20 after Live reaches 10:30, 3D readiness on re-entry, and resizing across the 900px breakpoint, alongside fixed panels, keyboard tabs, model zoom growth, CSP, asset failure and WebGL recovery.
+- 29 typed frontend unit tests passed. Interpolation tests change each endpoint independently, including reverse travel and startup holds. Seek is stateless, samples never require future receipt, live bounds are explicit and original model files require no compression extensions.
 - Web lint, formatting and production build passed. Real Docker context/export verification and 16 compiled Caddy browser checks passed, including API/database outage and recovery; no cloud resources, database semantics or provider adapters change in this UI PR.
 - Desktop and mobile layouts were visually inspected. Models use fixed world-space scale (tram 3×, works 1.5×), without pixel clamps. A rendered browser regression compares connected coloured model regions before and after zoom, excluding UI legends. Missing assets preserve the accessible list and flat markers.
 - The production entry always renders the full-day explorer. `npm run build:test` emits a separate `dist-test` harness for retained scenarios; ordinary builds and the Docker allowlist exclude test entry files. Health displays status and synthetic coverage, without a numeric score.

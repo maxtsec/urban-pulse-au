@@ -211,7 +211,7 @@ export function App() {
           UrbanPulse
         </a>
         <span className="city-name">Melbourne, Victoria</span>
-        <a href="/?experience=day" className="scenario-link">
+        <a href="/" className="scenario-link">
           Explore a full day ↗
         </a>
         <span className="fixture-badge">SYNTHETIC DEMO · NO LIVE DATA</span>

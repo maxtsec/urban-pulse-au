@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CityMap } from '../CityMap';
 import type { Boundary } from '../CityMap';
 import boundaryFeature from '../assets/southbank-boundary.json';
@@ -71,12 +71,20 @@ export function Explorer() {
     }),
     [trams, layers, clock, reduced, weather.kind, selected, selectItem],
   );
+  const [wide, setWide] = useState(() => window.innerWidth > 900);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 901px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const insets = useMemo(
     () =>
-      window.innerWidth >= 900
+      wide
         ? { top: 105, right: 55, bottom: 210, left: 40 }
         : { top: 110, right: 40, bottom: 220, left: 24 },
-    [],
+    [wide],
   );
   const selectedTram = trams.find((t) => t.id === selected),
     selectedSite = SITES.find((s) => s.development_key === selected);
@@ -413,8 +421,8 @@ export function Explorer() {
                       chooseWindow(
                         Math.floor((reading.at * 3600000) / WINDOW_MS) *
                           WINDOW_MS,
+                        reading.at * 3600000,
                       );
-                      seek(reading.at * 3600000);
                     }}
                   >
                     <span>

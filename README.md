@@ -75,7 +75,7 @@ uv run --locked uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
 npm.cmd --prefix apps/web run dev
 ```
 
-Open [the local UI](http://127.0.0.1:5173) and [API documentation](http://127.0.0.1:8000/docs). The default City overview shows transport, modelled weather, warnings and planning together. Switch scenarios using the scenario picker. Use Play, Reset or the scenario moments to inspect moving, stale and last-known observations. Select a tram on the map or in the equivalent list.
+Open `http://127.0.0.1:5173/` for the [synthetic full-day explorer](docs/demos/synthetic-day.md). It is independent of the API. For the API-backed 360-second transport, weather and planning walkthroughs, build and open the separate [scenario test harness](docs/demos/city-01.md#run); production does not select scenarios through `?scenario=`.
 
 For PostGIS/Redis, start Docker Desktop and run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/services-smoke.ps1`. See the [development guide](docs/development.md) for setup, configuration and troubleshooting.
 
