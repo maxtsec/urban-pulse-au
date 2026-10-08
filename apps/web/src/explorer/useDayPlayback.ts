@@ -73,28 +73,35 @@ export function useDayPlayback(reduced: boolean) {
       window.clearTimeout(timer);
     };
   }, [mode, playing, reduced, speed, selectedWindow, nowEdge, tick]);
+  const rollingStart = () =>
+    Math.floor(Math.max(0, clockRef.current - WINDOW_MS) / 1000) * 1000;
   function seek(value: number) {
+    const latest = nowEdge();
+    setEdge(latest);
+    if (mode === 'live') setSelectedWindow(rollingStart());
     setPlaying(false);
     setMode('history');
-    tick(historyClock(value, nowEdge()));
+    tick(historyClock(value, latest));
   }
   function goLive() {
     setPlaying(false);
     setMode('live');
     tick(nowEdge());
   }
-  function chooseWindow(start: number) {
+  function chooseWindow(start: number, value = start) {
     const latest = nowEdge();
     if (start >= latest) return;
     setSelectedWindow(start);
-    seek(start);
+    setEdge(latest);
+    setPlaying(false);
+    setMode('history');
+    tick(historyClock(value, latest));
   }
   function togglePlay() {
     if (mode === 'live') {
+      setEdge(nowEdge());
       setMode('history');
-      setSelectedWindow(
-        Math.floor(Math.max(0, clockRef.current - WINDOW_MS) / 1000) * 1000,
-      );
+      setSelectedWindow(rollingStart());
       setPlaying(false);
       return;
     }

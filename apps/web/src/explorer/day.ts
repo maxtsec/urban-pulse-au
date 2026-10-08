@@ -62,6 +62,30 @@ const paths = fixtureTracks.features.map((track, index) => {
     length: distances.at(-1)!,
   };
 });
+export type SyntheticObservation = { at: number; distance: number };
+// Author the day's received samples once; frame rendering only reads a bracket.
+const observations = Array.from({ length: 6 }, (_, index) =>
+  Array.from({ length: DAY_MS / 60_000 + 1 }, (_, minute) => {
+    const at = minute * 60_000;
+    const phase = at + index * 120_000;
+    const fraction = (phase % 600_000) / 600_000;
+    return {
+      at,
+      distance:
+        (Math.floor(phase / 600_000) % 2 === 0 ? fraction : 1 - fraction) *
+        paths[index % paths.length].length,
+    };
+  }),
+);
+export function sampleDistance(
+  display: number,
+  a: SyntheticObservation,
+  b: SyntheticObservation,
+): number {
+  if (a.at === b.at) return a.distance;
+  const fraction = Math.max(0, Math.min(1, (display - a.at) / (b.at - a.at)));
+  return a.distance + (b.distance - a.distance) * fraction;
+}
 export function clampClock(ms: number): number {
   if (!Number.isFinite(ms)) throw new Error('Invalid demo clock');
   return Math.max(0, Math.min(DAY_MS, Math.floor(ms)));
@@ -89,16 +113,12 @@ export function tramsAt(ms: number): DemoTram[] {
     display = Math.max(0, clock - 60_000);
   return Array.from({ length: 6 }, (_, index) => {
     const { path, length } = paths[index % paths.length];
-    // Two minute-spaced samples, received by clock. Trips reverse at sample boundaries.
-    const phase = display + index * 120_000,
-      trip = Math.floor(phase / 600_000),
-      offset = phase % 600_000;
-    const a = Math.floor(offset / 60_000) * 60_000,
-      b = a + 60_000;
-    const distance =
-      ((a + (b - a) * ((offset - a) / (b - a))) / 600_000) * length;
-    const forward = trip % 2 === 0,
-      along = forward ? distance : length - distance;
+    const sampleIndex = Math.floor(display / 60_000);
+    const a = observations[index][sampleIndex];
+    const next = observations[index][sampleIndex + 1];
+    const b = clock < 60_000 ? a : next;
+    const along = sampleDistance(display, a, b);
+    const forward = next.distance > a.distance;
     const coordinate = path.at(along)!;
     const neighbour = path.at(
       Math.max(0, Math.min(length, along + (forward ? 1 : -1))),
@@ -123,13 +143,7 @@ export function tramsAt(ms: number): DemoTram[] {
       revision: 0,
       capture_ids: [],
       heading,
-      pair:
-        clock < 60_000
-          ? [0, 0]
-          : [
-              Math.max(0, display - offset + a),
-              Math.max(0, display - offset + b),
-            ],
+      pair: [a.at, b.at],
     };
   });
 }

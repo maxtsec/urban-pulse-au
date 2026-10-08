@@ -9,7 +9,7 @@ Open `http://127.0.0.1:5173/` after starting the web development server. This is
 5. Select 08:00–10:00 and move the slider: sunny changes to cloudy at 08:30 and rainy at 09:00. Weather history includes only readings at or before the selected time. Effects follow that clock; pause/seek is deterministic.
 6. Reduced motion keeps discrete Live updates and manual history selection without autoplay. On mobile the information panel is a fixed-height row below the map, with internal scrolling.
 
-Trams are **Simulated** on illustrative tracks. Construction is **Illustrative** at authored locations; two sites are under construction and one is planned. Neither is a DAM observation or a real disruption. Sunny/cloudy/rainy readings are authored, not API forecasts. The only sourced map content is the existing Southbank boundary and historical City of Melbourne building context, credited in **Map credits**. All network assets are same-origin.
+Trams are **Simulated** on illustrative tracks. Each tram has an authored series of minute-spaced position samples; the two surrounding received samples determine its constant-speed path distance, displayed one minute behind the clock. The first minute holds the initial sample. Construction is **Illustrative** at authored locations; two sites are under construction and one is planned. Neither is a DAM observation or a real disruption. Sunny/cloudy/rainy readings are authored, not API forecasts. The only sourced map content is the existing Southbank boundary and historical City of Melbourne building context, credited in **Map credits**. All network assets are same-origin.
 
 ## Assets and checks
 

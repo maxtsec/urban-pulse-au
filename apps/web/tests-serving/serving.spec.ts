@@ -19,7 +19,7 @@ function expectSecurityHeaders(response: {
 
 const area = '/api/v1/areas/au-vic-melbourne-clue-southbank';
 
-test('compiled city reloads from a nested URL with three domains and no dev runtime', async ({
+test('compiled synthetic explorer reloads from a nested URL without a dev runtime', async ({
   page,
 }) => {
   await page.addInitScript(() => {
