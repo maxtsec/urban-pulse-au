@@ -29,15 +29,56 @@ Open **http://127.0.0.1:5173/**. The sample runs without a backend or API keys. 
 
 ## Architecture
 
+System design across collection, analytics, application serving and the standalone sample:
+
 ```mermaid
-flowchart LR
-    Tram[Real Tram feeds] --> Capture[Encrypted local raw capture]
-    Capture --> Monitoring[Cloud Monitoring alerts]
-    CD[GitHub Actions + Terraform] --> Backend[Cloud Run API + Cloud SQL / PostGIS]
-    Sources[Pinned public data + authored scenarios] --> Sample[React / MapLibre static sample]
+flowchart TB
+    subgraph Collection["Source collection"]
+        Tram["Tram GTFS-Realtime"] --> Raw["Encrypted local store<br/>Payloads · receipts · manifests"]
+        Raw --> Normalize["Local normalization<br/>Stable record keys · Parquet"]
+        Public["Weather · DAM · GTFS Schedule"] --> Jobs["Cloud Run capture Jobs"]
+        Scheduler["Cloud Scheduler"] --> Jobs
+        Raw --> Monitoring["Cloud Monitoring<br/>Heartbeat · feed health · capacity"]
+    end
+
+    subgraph Analytics["Historical data pipeline"]
+        Landing["GCS landing<br/>Source / date partitions"] --> Process["Dagster jobs + Polars<br/>Partitions · reruns · backfill"]
+        Process --> BQ["BigQuery staging"]
+        BQ --> Dbt["dbt<br/>stg → int → marts · data tests"]
+        Dbt --> Publish["Validated serving publication"]
+    end
+    Normalize -->|Normalized Tram only| Landing
+    Jobs -->|Source responses and schedule archives| Landing
+
+    subgraph Backend["Application and serving"]
+        Fixture["Fixture imports"] --> Domains["Transport · Weather · Planning"]
+        Domains --> Events["Postgres outbox + consumer ledger<br/>Idempotency · retry · dead-letter / replay"]
+        Events --> Location["Location Intelligence<br/>Spatial rules · status · coverage"]
+        Location --> DB["Cloud SQL / PostGIS<br/>Domain history · serving data"]
+        DB --> API["FastAPI + web on Cloud Run<br/>IAP-protected map and area queries"]
+    end
+    Publish --> DB
+
+    subgraph Delivery["Infrastructure and delivery"]
+        CI["GitHub Actions<br/>Tests · OIDC federation"] --> Images["Artifact Registry<br/>Images pinned by digest"]
+        Images --> Deploy["Terraform / CD<br/>Zero-traffic candidate · approved promotion"]
+        Deploy --> API
+    end
+
+    subgraph Sample["Standalone public sample"]
+        Pinned["Pinned public datasets<br/>GTFS · buildings · DAM · streets / river"] --> Builder["Reproducible sample builder<br/>Source hashes · manifest · attribution"]
+        Builder --> Web["Static React + MapLibre / deck.gl<br/>Timetable simulation · authored conditions"]
+    end
+
+    classDef storage fill:#eef2f6,stroke:#64748b,color:#172b3a
+    classDef application fill:#e9f5f2,stroke:#45877a,color:#163d34
+    classDef operations fill:#fff5e5,stroke:#aa7e34,color:#58421d
+    class Raw,Landing,BQ,DB,Images storage
+    class Domains,Location,API,Web application
+    class Monitoring,CI,Deploy operations
 ```
 
-The backend serves the protected fixture demo with durable events, idempotent processing and recovery tools. The next data path is **normalize → GCS → BigQuery/dbt → PostGIS**; that warehouse pipeline is still in development. [Architecture](docs/architecture/overview.md) · [Tests and evidence](docs/testing-strategy.md) · [Delivery plan](docs/delivery-plan.md)
+Tram raw stays on the encrypted host; only normalized Tram records enter cloud landing. The static sample uses its own versioned assets. Collection, analytical processing and API requests have separate execution paths. [Architecture and domain boundaries](docs/architecture/overview.md) · [Tests and evidence](docs/testing-strategy.md) · [Delivery plan](docs/delivery-plan.md)
 
 ## Repository guide
 
