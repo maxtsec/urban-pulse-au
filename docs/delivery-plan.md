@@ -1,6 +1,6 @@
 # Delivery plan
 
-Aligned with brief revision 1. Progress is maintained here and in the [README progress table](../README.md#progress). Work IDs are planning references, not GitHub issue numbers.
+Aligned with brief revision 1. Progress is maintained here; the [README](../README.md) introduces the product and setup. Work IDs are planning references, not GitHub issue numbers.
 
 ## Data pipeline priority track
 

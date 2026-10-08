@@ -28,7 +28,7 @@
   align-items: center;
   gap: 28px;
   border-bottom: 1px solid #dde3e7;
-  background: #fafbfc;
+  background: #ffffff;
 }
 .explorer-brand {
   color: #25343b;
@@ -39,7 +39,7 @@
 }
 .explorer-brand span {
   margin-left: 13px;
-  color: #7b878e;
+  color: #61727c;
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0;
@@ -98,7 +98,7 @@
   color: #73838a;
 }
 .place-heading h1 {
-  font-size: 34px;
+  font-size: clamp(26px, 2.4vw, 36px);
   line-height: 1.2;
   margin: 5px 0;
   font-weight: 550;
@@ -106,7 +106,7 @@
 }
 .place-heading p {
   font-size: 12px;
-  color: #75828a;
+  color: #536670;
   margin: 0;
 }
 .view-tools {

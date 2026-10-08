@@ -1,3 +1,7 @@
+import { DayPlayer } from './components/DayPlayer';
+import { SourceCredits } from './components/SourceCredits';
+import { InformationTabs } from './components/InformationTabs';
+import type { InformationPage } from './components/InformationTabs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CityMap } from '../CityMap';
 import type { Boundary } from '../CityMap';
@@ -6,13 +10,7 @@ import type { LoadedSample } from './sample';
 import type { SampleData } from './schedule';
 import type { SampleDay } from './day';
 import { useReducedMotion } from '../useReducedMotion';
-import {
-  WINDOW_MS,
-  SAMPLE_DATES,
-  weatherReadings,
-  clockLabel,
-  weatherAt,
-} from './day';
+import { WINDOW_MS, weatherReadings, clockLabel, weatherAt } from './day';
 import type { VisualScene } from './scene';
 import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
@@ -101,17 +99,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
       }),
     [data, previousSchedule, day],
   );
-  const {
-    clock,
-    edge,
-    mode,
-    playing,
-    speed,
-    setSpeed,
-    seek,
-    chooseWindow,
-    togglePlay,
-  } = playback;
+  const { clock, edge, mode, chooseWindow } = playback;
   const cbdHealth = assessDemo('cbd', clock, day);
   const southbankHealth = assessDemo('southbank', clock, day);
   const assessments = { cbd: cbdHealth, southbank: southbankHealth };
@@ -168,13 +156,9 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     assessments[locatedReason.area].reasons.find(
       (reason) => reason.id === locatedReason.id,
     );
-  const windowStart = playback.window.start,
-    windowEnd = playback.window.end;
   const [threeD, setThreeD] = useState(false);
   const [selected, select] = useState<string | null>(null);
-  const [detail, setDetail] = useState<
-    'health' | 'trams' | 'works' | 'weather'
-  >('health');
+  const [detail, setDetail] = useState<InformationPage>('health');
   const [showLayers, setShowLayers] = useState(false);
   const [layers, setLayers] = useState({
     buildings: true,
@@ -303,38 +287,11 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
         </div>
       )}
       {credits && (
-        <dialog
-          open
-          className="sample-credits"
-          aria-label="Sources and attribution"
-        >
-          <button onClick={() => setCredits(false)}>Close sources</button>
-          <h2>Sources and attribution</h2>
-          <p>
-            Schedule simulation, not live. Weather is synthetic. Original 3D
-            models are illustrative.
-          </p>
-          {manifest.attribution.map((source) => (
-            <section key={source.name}>
-              <h3>
-                <a href={source.url} target="_blank" rel="noreferrer">
-                  {source.name}
-                </a>
-              </h3>
-              <p>{source.changes}</p>
-              <a href={manifest.licence_url}>CC BY 4.0</a>
-            </section>
-          ))}
-          <p>
-            Dataset {manifest.version} · viewing {SAMPLE_DATES[day]}. No
-            endorsement by source publishers is implied.
-          </p>
-          <p>
-            DAM status is not an actual worksite location. Footprints are
-            historical surveys; the sample clock does not reconstruct planning
-            or buildings for that time.
-          </p>
-        </dialog>
+        <SourceCredits
+          manifest={manifest}
+          day={day}
+          close={() => setCredits(false)}
+        />
       )}
       {overview && (
         <DayOverview
@@ -476,122 +433,12 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
               Severe demo delay
             </span>
           </div>
-          <section className="day-player glass" aria-label="Day playback">
-            <div className="player-heading">
-              <button
-                className={`live-control ${mode === 'live' ? 'at-live' : ''}`}
-                aria-label="Go live"
-                aria-pressed={mode === 'live'}
-                onClick={goLive}
-              >
-                <i />
-                LIVE
-              </button>
-              <span className="player-context">
-                {mode === 'live'
-                  ? 'Simulated live · 1×'
-                  : day === 'previous'
-                    ? 'Full-day history · 7 October'
-                    : `${clockLabel(Math.max(0, edge - clock), true)} behind live`}
-              </span>
-              <button
-                className="day-help overview-open"
-                onClick={() => setOverview(true)}
-                aria-haspopup="dialog"
-              >
-                ▦ Day overview
-              </button>
-            </div>
-            <div className="playback-line">
-              <button
-                className="play-toggle"
-                aria-label={
-                  mode === 'live' || playing ? 'Pause demo' : 'Play demo'
-                }
-                disabled={reduced && mode !== 'live'}
-                onClick={togglePlay}
-              >
-                {mode === 'live' || playing ? 'Ⅱ' : '▶'}
-              </button>
-              <output className="day-clock" data-testid="day-clock">
-                {clockLabel(clock, true)}
-              </output>
-              <div className="day-range">
-                <input
-                  style={{
-                    background: `linear-gradient(to right, #bd5d61 0%, #bd5d61 ${windowEnd > windowStart ? Math.max(0, (clock - windowStart) / (windowEnd - windowStart)) * 100 : 100}%, #d7dfe3 0%)`,
-                  }}
-                  aria-label="History time"
-                  type="range"
-                  min={windowStart}
-                  max={windowEnd}
-                  step={1000}
-                  value={clock}
-                  onChange={(e) => seek(Number(e.target.value))}
-                />
-                <div className="even-ticks">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <span key={i}>
-                      {clockLabel(
-                        windowStart + (i * (windowEnd - windowStart)) / 4,
-                      )}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <label className="speed-label">
-                Speed
-                <select
-                  aria-label="Playback speed"
-                  value={speed}
-                  disabled={mode === 'live'}
-                  onChange={(e) => setSpeed(Number(e.target.value))}
-                >
-                  {[1, 7.5, 30, 120, 300].map((rate) => (
-                    <option key={rate} value={rate}>
-                      {rate}×
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div
-              className="day-windows"
-              role="group"
-              aria-label="Choose two-hour window"
-            >
-              {Array.from({ length: 12 }, (_, i) => i * WINDOW_MS).map(
-                (start) => (
-                  <button
-                    key={start}
-                    aria-label={`${clockLabel(start)} to ${clockLabel(start + WINDOW_MS)}`}
-                    disabled={start >= edge}
-                    aria-pressed={clock >= start && clock < start + WINDOW_MS}
-                    onClick={() => chooseWindow(start)}
-                  >
-                    <span>{clockLabel(start)}</span>
-                    <i
-                      className={
-                        start < edge ? weatherAt(start, day).kind : 'future'
-                      }
-                    />
-                  </button>
-                ),
-              )}
-            </div>
-            <div className="player-footnote">
-              <span>
-                {reduced
-                  ? 'Reduced motion · use the time slider'
-                  : mode === 'live'
-                    ? 'Live follows a simulated clock. No live feeds connected.'
-                    : day === 'previous'
-                      ? 'Full 24-hour sample · all times available'
-                      : 'Today’s history · future times are unavailable'}
-              </span>
-              <span>Sunny · Cloudy · Rainy</span>
-            </div>
-          </section>
+          <DayPlayer
+            playback={playback}
+            reduced={reduced}
+            goLive={goLive}
+            openOverview={() => setOverview(true)}
+          />
         </div>
         <aside className="explorer-details glass" aria-label="Area information">
           <div className="detail-heading">
@@ -601,44 +448,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
             </div>
             <span className="panel-clock">{clockLabel(clock)}</span>
           </div>
-          <div
-            className="info-tabs"
-            role="tablist"
-            aria-label="Area information pages"
-          >
-            {(
-              [
-                { id: 'health', label: 'Area health' },
-                { id: 'weather', label: 'Weather' },
-                { id: 'trams', label: 'Trams' },
-                { id: 'works', label: 'Works' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                id={`tab-${tab.id}`}
-                role="tab"
-                aria-selected={detail === tab.id}
-                aria-controls="information-content"
-                tabIndex={detail === tab.id ? 0 : -1}
-                onClick={() => setDetail(tab.id)}
-                onKeyDown={(event) => {
-                  const tabs = ['health', 'weather', 'trams', 'works'] as const;
-                  let index = tabs.indexOf(detail);
-                  if (event.key === 'ArrowRight') index = (index + 1) % 4;
-                  else if (event.key === 'ArrowLeft') index = (index + 3) % 4;
-                  else if (event.key === 'Home') index = 0;
-                  else if (event.key === 'End') index = 3;
-                  else return;
-                  event.preventDefault();
-                  setDetail(tabs[index]);
-                  document.getElementById(`tab-${tabs[index]}`)?.focus();
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <InformationTabs detail={detail} setDetail={setDetail} />
           <section
             className="information-content"
             id="information-content"

@@ -457,7 +457,7 @@ Phases 1-2 form the city MVP; phases 3-5 complete the first city release. The ea
 
 ## 17 Demonstration and engineering evidence
 
-The public story is city conditions and area context. Keep the README focused on that outcome, with a dedicated progress table and links to reproducible demonstrations. The [Phase 0 demo](docs/demos/phase-0.md) covers local tooling; the [city MVP scenario](docs/demos/city-mvp.md) specifies the intended product demonstration.
+The public story is city conditions and area context. Keep the README focused on that outcome, with a real app screenshot, concise setup and links to reproducible demonstrations. Maintain detailed progress in the delivery plan. The [Phase 0 demo](docs/demos/phase-0.md) covers local tooling; the [city MVP scenario](docs/demos/city-mvp.md) specifies the intended product demonstration.
 
 | Stage                   | Demonstration                                                           | Evidence                                                                           |
 | ----------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
