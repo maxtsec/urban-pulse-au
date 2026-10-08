@@ -68,6 +68,7 @@ type Props = {
   showBuildings: boolean;
   visualScene?: VisualScene;
   showStreetNames?: boolean;
+  declutterLabels?: boolean;
   tramDelays?: Readonly<Record<string, DemoReason>>;
   areaHealth?: FeatureCollection<Polygon | MultiPolygon>;
   focusRequest?: { center: [number, number]; zoom: number; id: number };
@@ -106,6 +107,7 @@ export function CityMap({
   visualScene,
   localContext,
   showStreetNames = true,
+  declutterLabels = false,
   tramDelays,
   areaHealth,
   focusRequest,
@@ -183,6 +185,19 @@ export function CityMap({
           ?.getElement()
           .querySelector<HTMLElement>('.marker-label');
         if (!marker || !label) return [];
+        const element = marker.getElement();
+        const quiet =
+          element.dataset.declutter === 'true' &&
+          instance.getZoom() < 16 &&
+          !element.classList.contains('selected') &&
+          !element.classList.contains('demo-delay-affected') &&
+          !element.classList.contains('demo-delay-severe');
+        element.classList.toggle('label-quiet', quiet);
+        if (quiet) {
+          element.style.removeProperty('--label-x');
+          element.style.removeProperty('--label-y');
+          return [];
+        }
         const { x, y } = point(marker);
         return [
           { id, x, y, width: label.offsetWidth, height: label.offsetHeight },
@@ -598,6 +613,14 @@ export function CityMap({
       button.className = `tram-marker ${vehicle.freshness} ${vehicle.id === selected ? 'selected' : ''} maplibregl-marker maplibregl-marker-anchor-center`;
       const delay = tramDelays?.[vehicle.id];
       if (delay) button.classList.add(`demo-delay-${delay.severity}`);
+      button.dataset.declutter = String(declutterLabels);
+      button.classList.toggle(
+        'label-quiet',
+        declutterLabels &&
+          instance.getZoom() < 16 &&
+          vehicle.id !== selected &&
+          !delay,
+      );
       button.title = delay
         ? `${vehicle.label} · Demo delay: ${delay.title}`
         : vehicle.label;
@@ -650,11 +673,13 @@ export function CityMap({
       };
       glides.current.set(vehicle.id, requestAnimationFrame(step));
     });
-    // The selected tram claims its preferred label side first, then fresher observations.
+    // Selection and demo impacts get label space before ordinary observations.
     labelOrder.current = [...visible]
       .sort(
         (a, b) =>
           Number(b.id === selected) - Number(a.id === selected) ||
+          Number(Boolean(tramDelays?.[b.id])) -
+            Number(Boolean(tramDelays?.[a.id])) ||
           FRESHNESS_ORDER.indexOf(a.freshness) -
             FRESHNESS_ORDER.indexOf(b.freshness) ||
           a.label.localeCompare(b.label),
@@ -669,6 +694,7 @@ export function CityMap({
     showVehicles,
     hideFlatMarkers,
     tramDelays,
+    declutterLabels,
     showBoundary,
     showTracks,
     layoutLabels,

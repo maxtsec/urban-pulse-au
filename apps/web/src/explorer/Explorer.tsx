@@ -16,6 +16,7 @@ import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
 import { DayOverview } from './DayOverview';
 import { HealthPanel } from './HealthPanel';
+import { PipelineDemo } from './PipelineDemo';
 import {
   assessDemo,
   AREA_CENTRES,
@@ -34,7 +35,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     [data, manifest],
   );
   const sites = data.developments;
-  const mapSites = useMemo(
+  const nonCompletedSites = useMemo(
     () => sites.filter((site) => site.status.toUpperCase() !== 'COMPLETED'),
     [sites],
   );
@@ -49,6 +50,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
   );
   const [credits, setCredits] = useState(false);
   const [overview, setOverview] = useState(false);
+  const [pipeline, setPipeline] = useState(false);
   const reduced = useReducedMotion();
   const playback = useDayPlayback(reduced);
   const { day, selectDay } = playback;
@@ -143,7 +145,18 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     weather: true,
     tracks: true,
     streetNames: true,
+    otherProjects: false,
   });
+  const mapSites = useMemo(
+    () =>
+      nonCompletedSites.filter(
+        (site) =>
+          site.status.toUpperCase() === 'UNDER CONSTRUCTION' ||
+          layers.otherProjects ||
+          site.development_key === selected,
+      ),
+    [nonCompletedSites, layers.otherProjects, selected],
+  );
   const { trams, tramDelays } = useMemo(() => {
     const delays: Record<string, DemoReason> = {};
     const items = schedule.at(clock).map((tram) => {
@@ -264,13 +277,14 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           </p>
         </dialog>
       )}
+      {pipeline && <PipelineDemo close={() => setPipeline(false)} />}
       {overview && (
         <DayOverview
           day={day}
           clock={clock}
           edge={edge}
           constructionCount={
-            mapSites.filter(
+            nonCompletedSites.filter(
               (s) =>
                 s.applicable && s.status.toUpperCase() === 'UNDER CONSTRUCTION',
             ).length
@@ -294,6 +308,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
             focusRequest={focusRequest}
             showStreetNames={layers.streetNames}
             tramDelays={tramDelays}
+            declutterLabels
             vehicles={trams}
             selected={selectedTram?.id ?? null}
             onSelect={selectItem}
@@ -354,7 +369,13 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                       setLayers({ ...layers, [key]: e.target.checked })
                     }
                   />
-                  {key === 'streetNames' ? 'Main street names' : key}
+                  {key === 'streetNames'
+                    ? 'Main street names'
+                    : key === 'otherProjects'
+                      ? 'Other development projects'
+                      : key === 'works'
+                        ? 'Development markers'
+                        : key}
                 </label>
               ))}
               <p>Models and weather effects appear in 3D.</p>
@@ -386,7 +407,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
             </span>
             <span>
               <i className="amber" />
-              DAM developments
+              DAM construction status
             </span>
             <span>
               <i className="amber" />
@@ -560,6 +581,13 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
               </button>
             ))}
           </div>
+          <button
+            className="pipeline-open"
+            onClick={() => setPipeline(true)}
+            aria-haspopup="dialog"
+          >
+            Data &amp; pipeline <span>Mock preview ↗</span>
+          </button>
           <section
             className="information-content"
             id="information-content"
@@ -659,7 +687,9 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                   DAM status, not actual worksite location. Source:{' '}
                   {data.dam_date.slice(0, 10)}. Construction does not imply
                   disruption. Yellow helmets indicate UNDER CONSTRUCTION; blue
-                  plans indicate other non-completed statuses.
+                  plans indicate other non-completed statuses. The map starts
+                  with construction only; select a project to reveal it or
+                  enable other projects in Layers.
                 </p>
                 {sites.map((site) => (
                   <button

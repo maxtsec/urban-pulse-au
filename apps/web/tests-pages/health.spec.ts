@@ -56,9 +56,19 @@ test('street-name toggle and 2D/3D delay overlays work on the static site', asyn
   await expect(
     page.locator('.sample-project.construction img').first(),
   ).toHaveAttribute('src', /construction-/);
+  await expect(page.locator('.sample-project.planned')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Layers', exact: true }).click();
+  await page
+    .getByRole('checkbox', { name: 'Other development projects' })
+    .check();
   await expect(
     page.locator('.sample-project.planned img').first(),
   ).toHaveAttribute('src', /development-plan-/);
+  await page
+    .getByRole('checkbox', { name: 'Other development projects' })
+    .uncheck();
+  await expect(page.locator('.sample-project.planned')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Layers', exact: true }).click();
   await page.locator('.demo-delay-severe').first().click();
   await expect(page.locator('.tram-delay-detail')).toContainText(
     'Severe tram delays',
@@ -80,4 +90,26 @@ test('street-name toggle and 2D/3D delay overlays work on the static site', asyn
     page.locator('.sample-map-label').filter({ hasText: 'Collins Street' }),
   ).toBeVisible();
   await page.screenshot({ path: 'test-results/health-2d.png' });
+});
+
+test('ordinary tram labels stay quiet until focus, selection or close zoom', async ({
+  page,
+}) => {
+  await page.goto('./?demo=health');
+  const quiet = page.locator('.tram-marker.label-quiet').first();
+  await expect(quiet).toBeVisible();
+  await expect(quiet.locator('.marker-label')).toHaveCSS('opacity', '0');
+  await quiet.focus();
+  await expect(quiet.locator('.marker-label')).toHaveCSS('opacity', '1');
+  await quiet.press('Enter');
+  await expect(page.locator('.tram-marker.selected .marker-label')).toHaveCSS(
+    'opacity',
+    '1',
+  );
+  await expect(page.locator('.demo-delay-severe.label-quiet')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await expect(page.locator('.tram-marker.label-quiet')).toHaveCount(0);
 });

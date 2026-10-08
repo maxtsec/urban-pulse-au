@@ -52,3 +52,10 @@ The architect accepted **Demo affected-trip share**: at the selected instant, co
 Add a complete previous sample day (7 October) with separately calendar-selected GTFS trips and preceding service-day carry-over. Its authored conditions include morning delays, midday interruption, afternoon rain/warnings, evening delays, missing inputs and late recovery. Synthetic conditions remain explicitly labelled; this is not captured historical telemetry. Reuse the same dated buildings/DAM source snapshots, without fabricating daily construction changes or working hours. The previous schedule has its own manifest hash and stays below the existing per-file size cap; source archive inputs are unchanged.
 
 The day overview uses accurately sized colour bands with accessible labels, and a separate wrapping interval list for readable text and larger navigation targets. Closing remains available while scrolling. Day selection preserves the map instance; the source-backed schedule, authored conditions, weather, percentage and timetable all use the same selected sample date.
+
+
+## Frontend pipeline preview — 2026-10-08
+
+The architect requested a frontend mock before connecting real pipeline results. Add a separately labelled trend preview with fixed authored 15-minute counts, freshness and capture gaps, plus an intended-flow explanation and illustrative rerun/recovery outcomes. This does not approve production metric SQL, assert that the pipeline has run, or change map health. The preview is independent of the selected map clock. Existing implementation evidence stays in the repository; links distinguish it from illustrative outcomes.
+
+Default map presentation prioritises affected trams and DAM construction status. Other projects remain selectable in Works or through a layer toggle; ordinary route labels appear on interaction or close zoom. These are display choices, with no change to source records or analytical membership.
