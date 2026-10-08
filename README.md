@@ -27,58 +27,92 @@ npm --prefix apps/web run dev
 
 Open **http://127.0.0.1:5173/**. The sample runs without a backend or API keys. Start with **Day overview**, jump to a busy period, then compare CBD and Southbank.
 
-## Architecture
+## Target architecture
 
-System design across collection, analytics, application serving and the standalone sample:
+Solid arrows show data and query paths; dashed arrows show deployment and scheduling.
 
 ```mermaid
 flowchart TB
-    subgraph Collection["Source collection"]
-        Tram["Tram GTFS-Realtime"] --> Raw["Encrypted local store<br/>Payloads · receipts · manifests"]
-        Raw --> Normalize["Local normalization<br/>Stable record keys · Parquet"]
-        Public["Weather · DAM · GTFS Schedule"] --> Jobs["Cloud Run capture Jobs"]
-        Scheduler["Cloud Scheduler"] --> Jobs
-        Raw --> Monitoring["Cloud Monitoring<br/>Heartbeat · feed health · capacity"]
+    subgraph Sources["City data sources"]
+        Tram["Tram GTFS-Realtime"]
+        Weather["Open-Meteo weather"]
+        DAM["DAM developments"]
+        GTFS["GTFS Schedule"]
+        Context["Buildings · streets · river"]
     end
+
+    subgraph Collection["Capture and source history"]
+        Raw["Encrypted local Tram store<br/>Payloads · receipts · manifests"]
+        Normalize["Local normalization<br/>Stable record keys · Parquet"]
+        Jobs["Weather / DAM<br/>Cloud Run capture Jobs"]
+        Archive["GTFS Schedule archive Job<br/>Daily check · version on change"]
+        Scheduler["Cloud Scheduler"]
+        Monitoring["Cloud Monitoring<br/>Heartbeat · last success · capacity"]
+    end
+    Tram --> Raw --> Normalize
+    Weather --> Jobs
+    DAM --> Jobs
+    GTFS --> Archive
+    Scheduler -.->|15 min weather / daily DAM| Jobs
+    Scheduler -.->|Daily| Archive
+    Raw -->|Capture and capacity metrics| Monitoring
+    Jobs -->|Execution and success metrics| Monitoring
+    Archive -->|Execution and success metrics| Monitoring
 
     subgraph Analytics["Historical data pipeline"]
-        Landing["GCS landing<br/>Source / date partitions"] --> Process["Dagster jobs + Polars<br/>Partitions · reruns · backfill"]
-        Process --> BQ["BigQuery staging"]
-        BQ --> Dbt["dbt<br/>stg → int → marts · data tests"]
-        Dbt --> Publish["Validated serving publication"]
+        Landing["GCS landing<br/>Source / date partitions"]
+        Process["Dagster on Cloud Run Jobs + Polars<br/>Partitions · reruns · backfill"]
+        Warehouse["BigQuery + dbt<br/>staging → intermediate → marts<br/>Data tests · scan accounting"]
+        Publish["Validated serving publication"]
+        Landing --> Process --> Warehouse --> Publish
     end
     Normalize -->|Normalized Tram only| Landing
-    Jobs -->|Source responses and schedule archives| Landing
+    Jobs -->|Raw responses and manifests| Landing
+    Archive -->|Tram schedule member and provenance| Landing
+    Scheduler -.->|Partition execution| Process
 
-    subgraph Backend["Application and serving"]
-        Fixture["Fixture imports"] --> Domains["Transport · Weather · Planning"]
-        Domains --> Events["Postgres outbox + consumer ledger<br/>Idempotency · retry · dead-letter / replay"]
-        Events --> Location["Location Intelligence<br/>Spatial rules · status · coverage"]
-        Location --> DB["Cloud SQL / PostGIS<br/>Domain history · serving data"]
-        DB --> API["FastAPI + web on Cloud Run<br/>IAP-protected map and area queries"]
+    subgraph Serving["Application and area intelligence"]
+        Worker["Domain / Location workers<br/>Outbox · consumer ledger<br/>Idempotency · retry · replay"]
+        DB["Cloud SQL / PostGIS<br/>Domain history · area summaries"]
+        API["FastAPI + web on Cloud Run"]
+        IAP["IAP<br/>Authenticated access"]
+        City["Protected city map and area panels"]
+        Worker <-->|Events and projections| DB
+        DB <-->|Spatial and time queries| API
+        API <--> IAP <--> City
     end
     Publish --> DB
 
-    subgraph Delivery["Infrastructure and delivery"]
-        CI["GitHub Actions<br/>Tests · OIDC federation"] --> Images["Artifact Registry<br/>Images pinned by digest"]
-        Images --> Deploy["Terraform / CD<br/>Zero-traffic candidate · approved promotion"]
-        Deploy --> API
-    end
-
     subgraph Sample["Standalone public sample"]
-        Pinned["Pinned public datasets<br/>GTFS · buildings · DAM · streets / river"] --> Builder["Reproducible sample builder<br/>Source hashes · manifest · attribution"]
-        Builder --> Web["Static React + MapLibre / deck.gl<br/>Timetable simulation · authored conditions"]
+        Builder["Reproducible sample builder<br/>Pinned sources · hashes · attribution"]
+        Pages["GitHub Pages<br/>React · MapLibre · deck.gl<br/>Schedule simulation · authored conditions"]
+        Builder -->|Versioned sample assets| Pages
+    end
+    GTFS -->|Pinned timetable and shapes| Builder
+    DAM -->|Dated project snapshot| Builder
+    Context --> Builder
+
+    subgraph Delivery["Infrastructure and delivery"]
+        CI["GitHub Actions<br/>Tests · OIDC federation"]
+        Images["Artifact Registry<br/>Images pinned by digest"]
+        Deploy["Terraform / CD<br/>Zero-traffic candidate<br/>Approved promotion · rollback"]
+        CI -.->|Publish images| Images
+        Images -.->|Select immutable release| Deploy
+        Deploy -.->|Deploy| API
+        Deploy -.->|Configure Jobs| Jobs
+        Deploy -.->|Configure archive Job| Archive
+        CI -.->|Manual Pages deployment| Pages
     end
 
     classDef storage fill:#eef2f6,stroke:#64748b,color:#172b3a
     classDef application fill:#e9f5f2,stroke:#45877a,color:#163d34
     classDef operations fill:#fff5e5,stroke:#aa7e34,color:#58421d
-    class Raw,Landing,BQ,DB,Images storage
-    class Domains,Location,API,Web application
-    class Monitoring,CI,Deploy operations
+    class Raw,Landing,Warehouse,DB,Images storage
+    class Worker,API,IAP,City,Pages application
+    class Monitoring,Scheduler,CI,Deploy operations
 ```
 
-Tram raw stays on the encrypted host; only normalized Tram records enter cloud landing. The static sample uses its own versioned assets. Collection, analytical processing and API requests have separate execution paths. [Architecture and domain boundaries](docs/architecture/overview.md) · [Tests and evidence](docs/testing-strategy.md) · [Delivery plan](docs/delivery-plan.md)
+Tram raw stays on the encrypted host; only normalized Tram records enter cloud landing. Shared public sources also feed the independently built sample; GitHub Pages does not call the protected API. [Architecture and domain boundaries](docs/architecture/overview.md) · [Tests and evidence](docs/testing-strategy.md) · [Delivery plan](docs/delivery-plan.md)
 
 ## Repository guide
 
