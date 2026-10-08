@@ -10,6 +10,7 @@ from scripts import collector_service as service
 
 IMAGE = "sha256:" + "a" * 64
 CONFIG = {"image_id": IMAGE}
+ACCOUNT = "collector@example-capture.iam.gserviceaccount.com"
 
 
 class Stop:
@@ -187,18 +188,35 @@ def private_keys(monkeypatch):
     monkeypatch.setattr(service.host, "mounted", lambda *_: {"source": "encrypted"})
 
 
-def test_monitoring_launch_binds_only_two_readonly_keys(private_keys):
-    args = service.command(CONFIG, True, "example-capture", "pilot")
+def test_monitoring_launch_binds_only_two_readonly_keys(private_keys, monkeypatch):
+    from io import BytesIO
+
+    monkeypatch.setattr(
+        service.Path,
+        "open",
+        lambda *_: BytesIO(
+            json.dumps(
+                {
+                    "type": "service_account",
+                    "project_id": "example-capture",
+                    "client_email": ACCOUNT,
+                }
+            ).encode()
+        ),
+    )
+    args = service.command(CONFIG, True, "example-capture", "pilot", ACCOUNT)
     mounts = [args[index + 1] for index, arg in enumerate(args) if arg == "--mount"]
     assert f"type=bind,src={service.KEY},dst=/run/dtp-key,readonly" in mounts
     assert (
         f"type=bind,src={service.MONITORING_KEY},dst=/run/collector-upload.json,readonly" in mounts
     )
-    assert args[-6:] == [
+    assert args[-8:] == [
         "--monitoring-project",
         "example-capture",
         "--monitoring-collector",
         "pilot",
+        "--monitoring-service-account",
+        ACCOUNT,
         "--monitoring-key-file",
         "/run/collector-upload.json",
     ]
@@ -247,7 +265,7 @@ def test_monitoring_key_must_be_private_on_same_encrypted_volume(private_keys, m
             },
         )
     with pytest.raises(service.host.HostRefused, match="key"):
-        service.command(CONFIG, True, "example-capture", "pilot")
+        service.command(CONFIG, True, "example-capture", "pilot", ACCOUNT)
 
 
 def test_adoption_refuses_existing_process_with_different_monitoring_target(monkeypatch):
@@ -264,7 +282,7 @@ def test_adoption_refuses_existing_process_with_different_monitoring_target(monk
                 "--live",
                 "--key-file",
                 "/run/dtp-key",
-                *service.monitoring_arguments("example-capture", "other"),
+                *service.monitoring_arguments("example-capture", "other", ACCOUNT),
             ],
         },
         "State": {"Running": True},
@@ -280,4 +298,72 @@ def test_adoption_refuses_existing_process_with_different_monitoring_target(monk
         ),
     )
     with pytest.raises(service.host.HostRefused, match="mode"):
-        service.owned_container(IMAGE, True, "example-capture", "pilot")
+        service.owned_container(IMAGE, True, "example-capture", "pilot", ACCOUNT)
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "deployer@example-capture.iam.gserviceaccount.com",
+        "collector-extra@example-capture.iam.gserviceaccount.com",
+        None,
+    ],
+)
+def test_supervisor_rejects_wrong_key_identity_before_launch(private_keys, monkeypatch, email):
+    from io import BytesIO
+
+    monkeypatch.setattr(
+        service.Path,
+        "open",
+        lambda *_: BytesIO(
+            json.dumps(
+                {
+                    "type": "service_account",
+                    "project_id": "example-capture",
+                    "client_email": email,
+                }
+            ).encode()
+        ),
+    )
+    with pytest.raises(service.host.HostRefused, match="identity"):
+        service.command(CONFIG, True, "example-capture", "pilot", ACCOUNT)
+
+
+def test_adoption_requires_exact_configured_service_account(monkeypatch):
+    row = {
+        "Image": IMAGE,
+        "Config": {
+            "Labels": {"au.urbanpulse.collector": "continuous"},
+            "Cmd": [
+                "serve",
+                "--store",
+                "/data",
+                "--store-version",
+                "v3",
+                "--live",
+                "--key-file",
+                "/run/dtp-key",
+                *service.monitoring_arguments(
+                    "example-capture", "pilot", "deployer@example-capture.iam.gserviceaccount.com"
+                ),
+            ],
+        },
+        "State": {"Running": True},
+    }
+    monkeypatch.setattr(
+        service,
+        "docker",
+        Mock(
+            side_effect=[
+                SimpleNamespace(returncode=0, stdout="id"),
+                SimpleNamespace(returncode=0, stdout=json.dumps([row])),
+            ]
+        ),
+    )
+    with pytest.raises(service.host.HostRefused, match="mode"):
+        service.owned_container(IMAGE, True, "example-capture", "pilot", ACCOUNT)
+
+
+def test_supervisor_requires_explicit_service_account_even_with_valid_project_and_alias():
+    with pytest.raises(service.host.HostRefused):
+        service.command(CONFIG, True, "example-capture", "pilot")

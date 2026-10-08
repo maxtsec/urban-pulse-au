@@ -153,9 +153,7 @@ class MonitoringSink:
         if len(content) > 16384:
             raise DeliveryError("credential_file_invalid")
         key = ServiceKey.model_validate_json(content)
-        if key.project_id != self.target.project or not key.client_email.endswith(
-            "@" + self.target.project + ".iam.gserviceaccount.com"
-        ):
+        if key.project_id != self.target.project or key.client_email != self.target.service_account:
             raise DeliveryError("credential_identity_mismatch")
         signer = crypt.RSASigner.from_string(  # type: ignore[no-untyped-call]
             key.private_key.get_secret_value(), key.private_key_id

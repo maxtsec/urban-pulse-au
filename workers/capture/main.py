@@ -47,16 +47,24 @@ def main() -> int:
     parser.add_argument("--reserve-inodes", type=int, default=INODE_RESERVE)
     parser.add_argument("--monitoring-project")
     parser.add_argument("--monitoring-collector")
+    parser.add_argument("--monitoring-service-account")
     parser.add_argument("--monitoring-key-file", type=Path)
     args = parser.parse_args()
     send: Callable[[str], None] = print
-    monitoring = (args.monitoring_project, args.monitoring_collector, args.monitoring_key_file)
+    monitoring = (
+        args.monitoring_project,
+        args.monitoring_collector,
+        args.monitoring_service_account,
+        args.monitoring_key_file,
+    )
     if any(value is not None for value in monitoring):
         if not all(monitoring) or args.command != "serve" or not args.live:
-            parser.error("monitoring_requires_live_serve_and_all_three_options")
+            parser.error("monitoring_requires_live_serve_and_all_four_options")
         try:
             target = MonitoringTarget(
-                project=args.monitoring_project, collector=args.monitoring_collector
+                project=args.monitoring_project,
+                collector=args.monitoring_collector,
+                service_account=args.monitoring_service_account,
             )
         except ValidationError:
             parser.error("invalid_monitoring_target")
