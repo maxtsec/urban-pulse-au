@@ -29,7 +29,7 @@ Validation performed:
 - Real/adversarial Docker build contexts passed the exact allowlist inventory check. Public source ZIP, credentials and tests are excluded from the image.
 - Pages workflow passed actionlint; 378 changed-document local link targets resolved before adding this evidence page.
 
-Limits: the complete schedule has 24 hours, while the retained simulated Live/history UI still gates future windows. Minute-resolution stop times can create instantaneous changes at equal timestamps. The sample is not actual fleet telemetry, historical construction reconstruction, routing, flood coverage or a current health assessment. Pages publication itself remains a post-review action. CSP meta cannot enforce frame-ancestors; managed Caddy retains its header protection. Vite reports large JS chunks; cold 3D loading and device performance remain visible trade-offs rather than claimed performance guarantees.
+Limits: the complete schedule has 24 hours, while the retained simulated Live/history UI still gates future windows. Minute-resolution stop times can create instantaneous changes at equal timestamps. The sample is not actual fleet telemetry, historical construction reconstruction, routing, flood coverage or a current health assessment. Public deployment is recorded below. CSP meta cannot enforce frame-ancestors; managed Caddy retains its header protection. Vite reports large JS chunks; cold 3D loading and device performance remain visible trade-offs rather than claimed performance guarantees.
 
 ### Area-health and map-focus review additions
 
@@ -72,3 +72,12 @@ The initial page fetches zero previous-schedule assets. Selecting 7 October fetc
 Thirteen Pages tests pass, including the new loading/retry/race cases, prominent scripted-status notices, mobile sticky notice with accessible credits, and street-label bounding boxes checked against icons, route labels and each other at two zoom levels. Overview labels are restricted to primary streets; overlapping names disappear whole. Desktop and mobile screenshots were inspected.
 
 Frontend lint/format, TypeScript, the production build and all 40 unit tests pass. A new compiled Caddy rehearsal passes all 19 browser cases plus API/database outage and recovery, and cleans up its resources. That rehearsal preceded the final mobile banner/credits layout and status-card flex-width adjustments. The final seven affected health/sample browser cases were rerun after those adjustments and pass, including a bounding-box check that credits and the banner text do not overlap. The existing large-JavaScript warning remains. Source ZIP relocation and removal from unmerged branch history remain a separate publishing decision; no archive has been removed or externally released in this revision.
+
+
+## Public GitHub Pages deployment
+
+Published on 9 October 2026 (Australia/Sydney) from reviewed main commit `b851e73b921792b74ab1a4b488555b1287318671` through [Pages run 37851108992](https://github.com/maxtsec/urban-pulse-au/actions/runs/37851108992). The build/test and deployment jobs succeeded. The [public demo](https://maxtsec.github.io/urban-pulse-au/) returned HTTP 200 and compiled asset references; the repository About/Website field points to it.
+
+A browser check against the public origin passed: CBD/Southbank map, all four information panels, explicit scripted-status notice, 3D models and buildings, six source attributions, and mobile banner visibility. No page-script errors or HTTP error responses were observed, and automatic asset requests stayed on the Pages origin without API calls. Desktop and mobile captures were retained privately; this is functional verification, not a cold-load performance benchmark.
+
+The public site uses the merged PR76 app. PR77's component refactor and README updates remain a separate review; this deployment does not merge that branch or change GCP serving traffic, identities or live collection.

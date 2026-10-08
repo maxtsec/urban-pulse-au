@@ -1,5 +1,7 @@
 # Public schedule sample
 
+[Open the public demo](https://maxtsec.github.io/urban-pulse-au/). Deployment details are in the [sample evidence](../evidence/schedule-sample.md#public-github-pages-deployment).
+
 Open the root web page for **CBD + Southbank**. Trams use real schedules and routes but their positions are simulated. Buildings, streets, the river and DAM project records come from fixed government open-data snapshots. Weather is synthetic. Open **Sources & attribution** for the six dataset links, licences and modifications.
 
 - Use 3D for surveyed building massing and illustrative tram/project models; 2D remains the accessible fallback.

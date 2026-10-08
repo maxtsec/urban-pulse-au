@@ -1,5 +1,7 @@
 # UrbanPulse AU
 
+[**Open the interactive demo →**](https://maxtsec.github.io/urban-pulse-au/)
+
 **What is happening around my city right now, and how healthy is an area?**
 
 ![UrbanPulse Melbourne: a 3D city map, timetable-simulated trams and area conditions](docs/images/urbanpulse-app.jpg)
