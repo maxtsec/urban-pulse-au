@@ -52,6 +52,14 @@ export const DEMO_REASONS: readonly DemoReason[] = [
     location: [144.9601, -37.8231],
   },
 ];
+export const DEMO_COVERAGE_GAPS = [
+  {
+    area: 'cbd' as const,
+    domain: 'transport' as const,
+    start: minute(9, 40),
+    end: minute(10, 5),
+  },
+];
 export const HEALTH_MOMENTS = [
   { label: 'Calm', at: minute(8) },
   { label: 'Local impact', at: minute(8, 25) },
@@ -88,10 +96,9 @@ export function assessDemo(area: DemoArea, clock: number): DemoAssessment {
   const reasons = DEMO_REASONS.filter(
     (r) => r.area === area && r.start <= clock && clock < r.end,
   );
-  const missing: DemoDomain[] =
-    area === 'cbd' && clock >= minute(9, 40) && clock < minute(10, 5)
-      ? ['transport']
-      : [];
+  const missing: DemoDomain[] = DEMO_COVERAGE_GAPS.filter(
+    (gap) => gap.area === area && gap.start <= clock && clock < gap.end,
+  ).map((gap) => gap.domain);
   const status = demoStatus(reasons, missing);
   return {
     area,
@@ -147,7 +154,9 @@ export function demoChanges(area: DemoArea, clock: number) {
         r.start,
         r.end,
       ]),
-      ...(area === 'cbd' ? [minute(9, 40), minute(10, 5)] : []),
+      ...DEMO_COVERAGE_GAPS.filter((gap) => gap.area === area).flatMap(
+        (gap) => [gap.start, gap.end],
+      ),
     ]),
   ].sort((a, b) => a - b);
   return {

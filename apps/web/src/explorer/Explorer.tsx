@@ -8,6 +8,7 @@ import { WINDOW_MS, WEATHER, clockLabel, weatherAt } from './day';
 import type { VisualScene } from './scene';
 import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
+import { DayOverview } from './DayOverview';
 import { HealthPanel } from './HealthPanel';
 import { assessDemo, AREA_CENTRES, demoTramDelay } from './health-demo';
 import type { DemoArea, DemoReason } from './health-demo';
@@ -37,6 +38,7 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     [schedule, data],
   );
   const [credits, setCredits] = useState(false);
+  const [overview, setOverview] = useState(false);
   const reduced = useReducedMotion();
   const playback = useDayPlayback(reduced);
   const {
@@ -232,6 +234,26 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           </p>
         </dialog>
       )}
+      {overview && (
+        <DayOverview
+          clock={clock}
+          edge={edge}
+          constructionCount={
+            mapSites.filter(
+              (s) =>
+                s.applicable && s.status.toUpperCase() === 'UNDER CONSTRUCTION',
+            ).length
+          }
+          damDate={data.dam_date}
+          close={() => setOverview(false)}
+          jump={(at, row) => {
+            chooseWindow(Math.floor(at / WINDOW_MS) * WINDOW_MS, at);
+            setLocatedReason(null);
+            setDetail(row.kind);
+            if (row.area) setHealthArea(row.area);
+          }}
+        />
+      )}
       <main className="explorer-stage">
         <div className="explorer-viewport">
           <CityMap
@@ -305,6 +327,10 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                 </label>
               ))}
               <p>Models and weather effects appear in 3D.</p>
+              <p>
+                2D projects: yellow helmet = DAM under construction; blue plan =
+                other development status.
+              </p>
             </section>
           )}
           {currentReason && (
@@ -356,7 +382,13 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                   ? 'Simulated live · 1×'
                   : `${clockLabel(Math.max(0, edge - clock), true)} behind live`}
               </span>
-              <span className="day-help">Sample · 8 October</span>
+              <button
+                className="day-help overview-open"
+                onClick={() => setOverview(true)}
+                aria-haspopup="dialog"
+              >
+                ▦ Day overview
+              </button>
             </div>
             <div className="playback-line">
               <button
@@ -581,7 +613,8 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                 <p>
                   DAM status, not actual worksite location. Source:{' '}
                   {data.dam_date.slice(0, 10)}. Construction does not imply
-                  disruption.
+                  disruption. Yellow helmets indicate UNDER CONSTRUCTION; blue
+                  plans indicate other non-completed statuses.
                 </p>
                 {sites.map((site) => (
                   <button

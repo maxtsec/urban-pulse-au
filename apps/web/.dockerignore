@@ -63,3 +63,6 @@
 
 !src/assets/construction.svg
 !src/assets/development-plan.svg
+
+!src/explorer/DayOverview.tsx
+!src/explorer/day-overview.ts

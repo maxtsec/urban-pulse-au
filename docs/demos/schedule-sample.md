@@ -9,6 +9,10 @@ Open the root web page for **CBD + Southbank**. Trams use real schedules and rou
 - Yellow/red tram tint and halos mean **Demo delay**, not measured road congestion. Schedule motion remains unchanged. Green requires complete demo inputs; grey means insufficient inputs. Weather warnings may affect the demo state; project counts never do.
 - **Layers → Main street names** toggles local labels in either view. Rails outside the two areas are hidden visually, while full paths remain available to the schedule simulation. The 2D helmet/plan markers describe DAM statuses; click for details.
 
+## Day overview
+
+Open **Day overview** beside the player for a 24-hour timetable. Separate CBD/Southbank tram rows show exact authored impact and coverage boundaries, including short severe-delay intervals. Weather uses the same synthetic readings as the map. The development row repeats one dated DAM snapshot; it does not assert operating hours. Clicking an elapsed block pauses at its start and opens the relevant information panel. Future cells stay masked beyond the simulated Live edge. Escape closes the dialog and restores keyboard focus; mobile users can scroll the timetable horizontally.
+
 ## Rebuild offline
 
 From the repository root:

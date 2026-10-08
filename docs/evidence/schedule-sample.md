@@ -7,7 +7,7 @@ Measured 2026-10-08. Scope and interpretation: [ADR 0022](../adr/0022-public-sch
 | Licensed source archive, excluded from website | 16,759,478 bytes |
 | City/schedule JSON | 9,133,337 bytes; about 1.33 MB gzip in Vite's report |
 | On-demand building geometry | 3,340,553 bytes |
-| Entire static build, before HTTP compression | 16,477,216 bytes |
+| Entire static build, before HTTP compression | 16,486,243 bytes |
 | Fixed-day trips / used full shapes | 4,539 / 84 |
 | DAM records | 463; 108 non-completed, spatially applicable records have map models |
 | Local street features / river polygon | 3,181 / 1 |
@@ -37,3 +37,9 @@ The display-only track builder clips drawn lines to the CLUE union without modif
 Four Pages browser cases pass: original offline/integrity checks plus demo-state navigation, reason focus, recovery, missing coverage, street-name toggle, replacement project icons, tram explanation and 2D/3D re-entry. Screenshots were inspected in both views. Yellow/red model tint and halos are authored demo conditions; no congestion measurement is claimed. Real and adversarial Docker contexts pass the exact allowlist check with the new components and SVGs.
 
 The updated compiled Caddy browser suite passes all 19 cases, including the fixed panel, zoom controls, mobile resize, model-loading failure and WebGL recovery. Repository Ruff lint/format and strict mypy scope (85 files) also pass after these additions.
+
+### Day overview addition
+
+The timetable derives traffic intervals from the same authored transport events/coverage gaps, weather from the existing synthetic readings, and development from the dated DAM snapshot. It clips all selectable intervals at simulated Live and does not reveal later weather or incident endpoints. Three new unit tests verify contiguous elapsed coverage, short disruptions, domain separation and future gating (37 total frontend unit tests pass).
+
+Six Pages browser cases now pass, including timetable-to-map navigation, weather/project tabs on mobile, Escape and focus restoration. The first mobile run exposed the inherited hidden help-label style; the overview button now has explicit mobile visibility and the affected suite passes. Lint/format and the production build pass. The earlier 19-case Caddy rehearsal is retained above; it preceded this timetable-only addition.
