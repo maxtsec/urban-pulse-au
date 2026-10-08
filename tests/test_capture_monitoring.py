@@ -21,7 +21,11 @@ from urbanpulse.contracts.capture_control import Summary
 from urbanpulse.contracts.local_capture import FEEDS
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
-TARGET = MonitoringTarget(project="example-capture", collector="pilot")
+TARGET = MonitoringTarget(
+    project="example-capture",
+    collector="pilot",
+    service_account="collector@example-capture.iam.gserviceaccount.com",
+)
 
 
 def pulse(at=NOW, **changes):
@@ -512,6 +516,8 @@ def test_linux_live_cli_wires_sink_without_changing_durable_captures(
             TARGET.project,
             "--monitoring-collector",
             TARGET.collector,
+            "--monitoring-service-account",
+            TARGET.service_account,
             "--monitoring-key-file",
             str(boundary.key),
         ],
@@ -548,3 +554,107 @@ def test_stalled_delivery_cleanup_never_blocks_collector_or_queues_attempts(boun
     finally:
         release.set()
         assert sink.pending.wait(3)
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "deployer@example-capture.iam.gserviceaccount.com",
+        "runtime@example-capture.iam.gserviceaccount.com",
+        "collector-extra@example-capture.iam.gserviceaccount.com",
+        "collector@other-project.iam.gserviceaccount.com",
+    ],
+)
+def test_wrong_account_is_rejected_before_signing_or_network(boundary, monkeypatch, email):
+    from unittest.mock import Mock
+
+    from urbanpulse.adapters import capture_monitoring
+
+    content = json.loads(boundary.key.read_text())
+    content["client_email"] = email
+    boundary.key.write_text(json.dumps(content))
+    signer = Mock(side_effect=AssertionError("must not sign a JWT"))
+    monkeypatch.setattr(capture_monitoring.crypt.RSASigner, "from_string", signer)
+    with pytest.raises(DeliveryError, match="credential_identity_mismatch"):
+        sink_for(boundary)(json.dumps(pulse()))
+    signer.assert_not_called()
+    assert boundary.calls == []
+    assert email not in "".join(boundary.logs)
+
+
+def test_rotation_to_another_same_project_account_is_refused_on_refresh(boundary, monkeypatch):
+    from unittest.mock import Mock
+
+    from urbanpulse.adapters import capture_monitoring
+
+    sink = sink_for(boundary)
+    sink(json.dumps(pulse()))
+    content = json.loads(boundary.key.read_text())
+    content["client_email"] = "deployer@example-capture.iam.gserviceaccount.com"
+    boundary.key.write_text(json.dumps(content))
+    advance(boundary, 3541)
+    signer = Mock(side_effect=AssertionError("must not sign with replacement key"))
+    monkeypatch.setattr(capture_monitoring.crypt.RSASigner, "from_string", signer)
+    with pytest.raises(DeliveryError, match="credential_identity_mismatch"):
+        sink(json.dumps(pulse(boundary.now)))
+    signer.assert_not_called()
+    assert len(boundary.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "account", [None, "collector@other-project.iam.gserviceaccount.com", "invalid"]
+)
+def test_live_cli_requires_explicit_valid_same_project_account(tmp_path, monkeypatch, account):
+    from workers.capture.main import main
+
+    store = tmp_path / "absent"
+    args = [
+        "capture",
+        "serve",
+        "--live",
+        "--store",
+        str(store),
+        "--store-version",
+        "v3",
+        "--monitoring-project",
+        TARGET.project,
+        "--monitoring-collector",
+        TARGET.collector,
+        "--monitoring-key-file",
+        "test-only.json",
+    ]
+    if account is not None:
+        args += ["--monitoring-service-account", account]
+    monkeypatch.setattr(sys, "argv", args)
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2 and not store.exists()
+
+
+def test_fixture_cli_rejects_even_complete_monitoring_configuration(tmp_path, monkeypatch):
+    from workers.capture.main import main
+
+    store = tmp_path / "absent"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "capture",
+            "serve",
+            "--store",
+            str(store),
+            "--store-version",
+            "v3",
+            "--monitoring-project",
+            TARGET.project,
+            "--monitoring-collector",
+            TARGET.collector,
+            "--monitoring-key-file",
+            "test-only.json",
+            "--monitoring-service-account",
+            TARGET.service_account,
+        ],
+    )
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2 and not store.exists()

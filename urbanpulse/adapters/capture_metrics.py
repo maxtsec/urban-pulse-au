@@ -15,6 +15,15 @@ class MonitoringTarget(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     project: str = Field(pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
     collector: str = Field(pattern=r"^[a-z][a-z0-9-]{0,62}$")
+    service_account: str = Field(
+        pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$"
+    )
+
+    @model_validator(mode="after")
+    def account_project(self) -> "MonitoringTarget":
+        if self.service_account.split("@")[1] != self.project + ".iam.gserviceaccount.com":
+            raise ValueError("monitoring_account_project_mismatch")
+        return self
 
     def resource(self) -> dict[str, object]:
         return {
