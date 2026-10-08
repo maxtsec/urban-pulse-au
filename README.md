@@ -30,6 +30,9 @@ The modular backend uses the same event contracts in process during the MVP and 
 
 ## Progress
 
+Current priority: the [data pipeline track](docs/delivery-plan.md#data-pipeline-priority-track), with cloud source/static capture alongside Phase 1a normalized Tram schema and a one-day Parquet → GCS vertical slice. The schema is under review; raw expiry stays disabled.
+
+
 | Phase | Outcome                                                                  | Status                                                                                                                        |
 | ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Reproducible local foundation                                            | Complete: [phase-0 release](https://github.com/maxtsec/urban-pulse-au/releases/tag/phase-0), demo and verified clean checkout |

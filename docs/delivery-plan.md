@@ -2,6 +2,24 @@
 
 Aligned with brief revision 1. Progress is maintained here and in the [README progress table](../README.md#progress). Work IDs are planning references, not GitHub issue numbers.
 
+## Data pipeline priority track
+
+Accepted delivery order, 2026-10-08. These **pipeline phases** set current work priority; the earlier milestone table remains historical product/platform evidence, not a competing execution order. No new phase tags are required.
+
+| Pipeline phase | Scope and exit evidence | Current state |
+| --- | --- | --- |
+| 0 (parallel with 1) | Weather every 15 minutes and DAM daily on keyless Cloud Run Jobs/Scheduler, raw to isolated GCS prefixes; daily change-only GTFS Schedule archive; failed-job and last-success alerts; Terraform separately approved; actual Tram 24-hour allocated-byte/inode growth and limiting reserve | ADR 0021 cloud design reviewed; jobs not deployed. [GTFS archive proposal](architecture/gtfs-schedule-archive.md) adds the missing static-history work; its dedicated prefix-scoped create+get identity is accepted, with Terraform apply still separate. Capacity baseline is 2026-10-08 05:10:16 UTC; a valid >=24-hour comparison is not due before 2026-10-09 05:10:17 UTC (16:10:17 Sydney). No follow-up automation is enabled. |
+| 1a | Agree [normalized Tram schema](architecture/normalized-tram-contract.md); offline one-day host Parquet export preserving positions and stop-level updates, original/receipt times and service instance; one confirmed GCS upload with existing identity | Contract proposed; normalizer/export/upload not implemented by the proposal. Raw expiry remains disabled. |
+| 1b | GCS → BigQuery → one dbt area/15-minute mart → atomic PostGIS publication → real-data panel; in-service tram count, median position age and explicit gaps | Pending 1a. Review exact count grain/freshness/gap semantics before SQL: observed distinct vehicles are not automatically in-service vehicles. Bad/incomplete partitions do not replace a verified publication. |
+| 1c | Automate bounded normalization and confirmed upload with durable restart/retry progress | After one-off 1a/1b acceptance; no new capture loop. |
+| 2 | Bounded late-data lookback; service_date partitioning with explicit unknown-date handling; dbt data tests; scanned-byte evidence; row-for-row rerun/backfill equivalence | Next; choose lookback from evidence, not an invented default. Phase 1 still includes basic tests and idempotent one-off writes. |
+| 3 | Cross-domain joins using effective intervals/SCD2; preserve provenance and coverage | Later; describe correlations only, not causation. |
+| 4 | Delay percentage and corridor speed | Later; metric definitions require separate architect approval. |
+| 5 | Cloud live-map poller and MAP-02 real-data integration, independent of home historical capture | Later; retain combined provider quota and source-time rules. |
+| 6 | One evaluated AI tool | Last; fixed evaluation data, baselines and failure evidence. |
+
+Schema coverage is an additional expiry gate, not replacement of source retention, successful normalization of every required feed, upload confirmation or verification holds. Capture and static-history accumulation can proceed alongside warehouse development; do not wait for the final map or AI work.
+
 ## Milestones and exit evidence
 
 | Phase | Deliverable                                       | Status and exit evidence                                                                                                                                   |
