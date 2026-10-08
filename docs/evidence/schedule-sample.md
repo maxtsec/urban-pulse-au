@@ -10,7 +10,7 @@ Measured 2026-10-08. Scope and interpretation: [ADR 0022](../adr/0022-public-sch
 | On-demand building geometry | 3,340,553 bytes |
 | Entire static build, before HTTP compression | 24,715,017 bytes |
 | Fixed-day trips / used full shapes | 4,539 / 84 |
-| DAM records | 463; 108 non-completed, spatially applicable records have map models |
+| DAM records | 463; 108 non-completed, spatially applicable records; 16 construction markers shown by default |
 | Local street features / river polygon | 3,181 / 1 |
 | CBD building source polygons | 4,587; 4,441 valid Structure polygons; 2 invalid Structure records rejected without invented heights |
 | Southbank building source polygons | 1,189; 1,108 valid Structure polygons |
@@ -54,3 +54,12 @@ Forty frontend unit tests pass, including unique local denominators, missing/emp
 Ruff lint/format, mypy (85-file scope), frontend lint/format and production build pass. Both actual and adversarial Docker contexts pass the updated allowlist inventory. The metric and authored history are presentation samples, not measured delay performance or captured history; the unchanged DAM snapshot asserts no daily working hours.
 
 The final compiled Caddy rehearsal was rerun after these changes: all 19 browser cases passed, followed by API/database outage and recovery. Smoke resources were removed successfully.
+
+
+### Mock trend preview and quieter map
+
+The new frontend-only Data & pipeline dialog shows eight authored 15-minute intervals, comparing CBD/Southbank counts with median position age and capture completeness. Partial intervals stay marked and a missing interval returns N/A. Its fixed partition is independent of the map clock and is labelled mock throughout; the illustrative engineering outcomes are not claimed as executed tests. Linked contracts/recovery documents exist on main.
+
+Eleven Pages browser cases pass, including complete/partial/missing trend interactions, independent area selection, no API requests, keyboard tabs, Escape/focus restoration, narrow-screen overflow checks, construction-only defaults, optional project visibility and tram-label focus/selection/zoom behaviour. Desktop and 390 px screenshots were inspected. Forty existing frontend unit tests, ESLint, Prettier, TypeScript and the production build pass; dataset content and builder inputs are unchanged. The subpath build totals 24,733,229 bytes.
+
+The exact Docker input inventory passes for both working-tree and adversarial contexts after allowing the two new source files. A fresh compiled Caddy rehearsal passes all 19 browser cases and API/database outage/recovery; its containers, networks and recorded volumes were removed. The two-minute walkthrough distinguishes map simulation, mock trends and real repository evidence.

@@ -68,3 +68,6 @@
 !src/explorer/day-overview.ts
 
 !src/assets/sample/previous-schedule.json
+
+!src/explorer/PipelineDemo.tsx
+!src/explorer/pipeline-demo.css
