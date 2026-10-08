@@ -1463,8 +1463,8 @@
     height: auto;
   }
   .demo-scenario-banner {
-    height: 48px;
-    padding-right: 130px;
+    height: 60px;
+    padding: 6px 12px;
     font-size: 11px;
     text-align: left;
   }
@@ -1477,4 +1477,25 @@
 .condition-card > div {
   flex: 1;
   min-width: 0;
+}
+
+.demo-scenario-banner {
+  gap: 16px;
+}
+.demo-scenario-banner > span {
+  flex: 1;
+  min-width: 0;
+}
+.explorer-shell .demo-scenario-banner .sample-credit-button {
+  position: static;
+  flex: 0 0 auto;
+  max-width: 100px;
+  padding: 4px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #69480b;
+}
+.explorer-header .demo-pill {
+  margin-right: 0;
 }
