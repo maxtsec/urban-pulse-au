@@ -56,10 +56,10 @@ Ruff lint/format, mypy (85-file scope), frontend lint/format and production buil
 The final compiled Caddy rehearsal was rerun after these changes: all 19 browser cases passed, followed by API/database outage and recovery. Smoke resources were removed successfully.
 
 
-### Mock trend preview and quieter map
+### Quieter map and product focus
 
-The new frontend-only Data & pipeline dialog shows eight authored 15-minute intervals, comparing CBD/Southbank counts with median position age and capture completeness. Partial intervals stay marked and a missing interval returns N/A. Its fixed partition is independent of the map clock and is labelled mock throughout; the illustrative engineering outcomes are not claimed as executed tests. Linked contracts/recovery documents exist on main.
+The default map shows 16 DAM construction-status markers, with other non-completed projects available through Layers or individual selection in Works. Ordinary 2D tram labels stay hidden at overview zoom and appear on focus, selection or close zoom; affected trams receive label placement priority. These display choices do not change data or area health.
 
-Eleven Pages browser cases pass, including complete/partial/missing trend interactions, independent area selection, no API requests, keyboard tabs, Escape/focus restoration, narrow-screen overflow checks, construction-only defaults, optional project visibility and tram-label focus/selection/zoom behaviour. Desktop and 390 px screenshots were inspected. Forty existing frontend unit tests, ESLint, Prettier, TypeScript and the production build pass; dataset content and builder inputs are unchanged. The subpath build totals 24,733,229 bytes.
+The separate mock analytics dialog and pipeline UI were removed before review. Engineering discussion and links to existing contracts/recovery evidence remain in the demo document. The two-minute walkthrough uses area comparisons, Day overview, missing coverage and source attribution.
 
-The exact Docker input inventory passes for both working-tree and adversarial contexts after allowing the two new source files. A fresh compiled Caddy rehearsal passes all 19 browser cases and API/database outage/recovery; its containers, networks and recorded volumes were removed. The two-minute walkthrough distinguishes map simulation, mock trends and real repository evidence.
+After removing the mock UI, ESLint, Prettier, TypeScript, the production subpath build and all nine retained Pages browser tests pass. Label focus/selection/zoom, construction-only defaults, optional projects, 2D/3D, day navigation and missing coverage remain covered. The actual and adversarial Docker build contexts pass the reduced allowlist inventory. The refreshed local preview was inspected. The earlier 19-case Caddy rehearsal above predates this UI removal and was not rerun.

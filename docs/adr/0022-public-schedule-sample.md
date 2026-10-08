@@ -54,8 +54,8 @@ Add a complete previous sample day (7 October) with separately calendar-selected
 The day overview uses accurately sized colour bands with accessible labels, and a separate wrapping interval list for readable text and larger navigation targets. Closing remains available while scrolling. Day selection preserves the map instance; the source-backed schedule, authored conditions, weather, percentage and timetable all use the same selected sample date.
 
 
-## Frontend pipeline preview — 2026-10-08
+## Product focus amendment — 2026-10-08
 
-The architect requested a frontend mock before connecting real pipeline results. Add a separately labelled trend preview with fixed authored 15-minute counts, freshness and capture gaps, plus an intended-flow explanation and illustrative rerun/recovery outcomes. This does not approve production metric SQL, assert that the pipeline has run, or change map health. The preview is independent of the selected map clock. Existing implementation evidence stays in the repository; links distinguish it from illustrative outcomes.
+The architect chose to keep the public interface focused on the map, area health and Day overview. Do not ship the separate mock trend dashboard or pipeline workflow. Engineering explanations and evidence belong in repository documentation. Future real-data trends should integrate with the selected area, date and time after the pipeline and metric definitions are reviewed; this does not approve new production metrics.
 
 Default map presentation prioritises affected trams and DAM construction status. Other projects remain selectable in Works or through a layer toggle; ordinary route labels appear on interaction or close zoom. These are display choices, with no change to source records or analytical membership.

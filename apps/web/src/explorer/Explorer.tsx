@@ -16,7 +16,6 @@ import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
 import { DayOverview } from './DayOverview';
 import { HealthPanel } from './HealthPanel';
-import { PipelineDemo } from './PipelineDemo';
 import {
   assessDemo,
   AREA_CENTRES,
@@ -50,7 +49,6 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
   );
   const [credits, setCredits] = useState(false);
   const [overview, setOverview] = useState(false);
-  const [pipeline, setPipeline] = useState(false);
   const reduced = useReducedMotion();
   const playback = useDayPlayback(reduced);
   const { day, selectDay } = playback;
@@ -277,7 +275,6 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           </p>
         </dialog>
       )}
-      {pipeline && <PipelineDemo close={() => setPipeline(false)} />}
       {overview && (
         <DayOverview
           day={day}
@@ -581,13 +578,6 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
               </button>
             ))}
           </div>
-          <button
-            className="pipeline-open"
-            onClick={() => setPipeline(true)}
-            aria-haspopup="dialog"
-          >
-            Data &amp; pipeline <span>Mock preview ↗</span>
-          </button>
           <section
             className="information-content"
             id="information-content"

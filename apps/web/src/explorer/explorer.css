@@ -1404,3 +1404,11 @@
 .compact-health .health-method {
   margin-top: 16px;
 }
+
+.explorer-shell .tram-marker.label-quiet .marker-label {
+  opacity: 0;
+}
+.explorer-shell .tram-marker.label-quiet:hover .marker-label,
+.explorer-shell .tram-marker.label-quiet:focus-visible .marker-label {
+  opacity: 1;
+}
