@@ -61,4 +61,4 @@ In another terminal in the same folder:
 node scripts/capture-readme.mjs
 ```
 
-Install Playwright Chromium with `npm run test:e2e:install` if needed. The script opens the fixed 09:15 sample in 3D with reduced motion, waits for buildings/models, zooms in once, and writes `docs/images/urbanpulse-app.jpg`. Review it after map or layout changes. Run `npx playwright test --config=playwright.pages.config.ts` with the preview stopped to verify the sample's full browser flows.
+Install Playwright Chromium with `npm run test:e2e:install` if needed. The script opens the sample in normal-motion mode, paused at 09:15 in 3D, waits for buildings/models, zooms in once, and writes `docs/images/urbanpulse-app.jpg`. It checks that Play is enabled and the reduced-motion notice is absent. Review it after map or layout changes. Run `npx playwright test --config=playwright.pages.config.ts` with the preview stopped to verify the sample's full browser flows.
