@@ -49,6 +49,7 @@ For the full-day visual preview: [synthetic day walkthrough](demos/synthetic-day
 | Document                                                 | Owns                                                               | Update when                                             |
 | -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
 | [ADR 0020](adr/0020-synthetic-day-explorer.md) | Sole synthetic day UI, live-bounded history, fixed health/coverage panel and presentation boundaries | Preview time or data ownership changes |
+| [ADR 0021](adr/0021-independent-weather-planning-capture.md) | Proposed lightweight Weather/DAM timer jobs: immutable capture files, snapshot consistency, reserve ordering and separate alerts | Capture format, source cadence or host/monitoring policy changes |
 | [Synthetic day evidence](evidence/synthetic-day.md) | Browser/asset checks, rendering measurements and limitations | A changed preview is measured |
 | [Synthetic day walkthrough](demos/synthetic-day.md) | Full-day visual demonstration and asset reproduction | Preview controls or assets change |
 | [Project brief](../project_brief.md)                     | Product scope, selected technology and release requirements        | Product direction or a major constraint changes         |
