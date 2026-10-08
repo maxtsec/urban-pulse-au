@@ -1,6 +1,8 @@
 # Source register
 
-Reviewed: 7 October 2026. This register owns source evidence and enablement requirements. Integration progress is in the [delivery plan](delivery-plan.md). Measurements and official references are in the [SRC-01 evidence](evidence/src-01-source-feasibility.md).
+Reviewed: 8 October 2026. This register owns source evidence and enablement requirements. Integration progress is in the [delivery plan](delivery-plan.md). Measurements and official references are in the [SRC-01 evidence](evidence/src-01-source-feasibility.md).
+
+Dated access evidence: [continuous raw tram activation](evidence/cloud-01-raw-activation.md) and [bounded Open-Meteo/DAM reads](evidence/src-02-weather-planning-probe.md). The latter preserves model output, original planning status, capture times and source publication dates; it does not enable scheduled weather/planning collection or public serving.
 
 ## Source scope and enablement gates
 

@@ -77,6 +77,8 @@ For the full-day visual preview: [synthetic day walkthrough](demos/synthetic-day
 | [Area contract](architecture/area-contract.md) | Area identity, spatial rules, map/panel behavior and condition examples | Pilot semantics or API proposal changes |
 | [Capture/event contract](architecture/capture-event-contract.md) | Capture identities/recovery proposal and integration wire profile | Contract, compatibility or recovery design changes |
 | [Early capture options](architecture/early-capture-options.md) | Hosting trade-offs, workload assumptions and A-06 proposal | Host decision or measured resource requirements change |
+| [Raw tram activation evidence](evidence/cloud-01-raw-activation.md) | Dated service activation, store verification and cloud telemetry readback | A deployment or acceptance observation changes |
+| [Weather/DAM bounded probe](evidence/src-02-weather-planning-probe.md) | Replayable public-source reads, response hashes and remaining enablement gates | Source access/schema measurements change |
 | [Source register](source-register.md)                    | Provider evidence, coverage, access and open questions             | A source is evaluated, enabled or changes terms         |
 | [Development guide](development.md)                      | Runnable setup, configuration and troubleshooting                  | Tooling or commands change                              |
 | [Testing strategy](testing-strategy.md)                  | Existing checks and required feature coverage                      | Behavior or a service boundary changes                  |
