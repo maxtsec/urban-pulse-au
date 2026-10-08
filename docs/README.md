@@ -49,7 +49,7 @@ For the full-day visual preview: [synthetic day walkthrough](demos/synthetic-day
 | Document                                                 | Owns                                                               | Update when                                             |
 | -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
 | [ADR 0020](adr/0020-synthetic-day-explorer.md) | Sole synthetic day UI, live-bounded history, fixed health/coverage panel and presentation boundaries | Preview time or data ownership changes |
-| [Normalized Tram contract](architecture/normalized-tram-contract.md) | Proposed Phase 1a complete field mapping, stable keys, range pins and one-day export; alerts in 1c | Normalized schema or export semantics change |
+| [Normalized Tram contract](architecture/normalized-tram-contract.md) | Accepted export isolation, stable keys and field-audit gate; range pins and alerts in 1c | Normalized schema or export semantics change |
 | [GTFS Schedule archive](architecture/gtfs-schedule-archive.md) | Daily change-only static history proposal and least-privilege choice | Archive identity, source limits or IAM changes |
 | [ADR 0021](adr/0021-independent-weather-planning-capture.md) | Cloud Weather/DAM Jobs and Scheduler: immutable GCS captures, prefix-only identities, snapshot consistency and daily-alert limits | Capture format, cloud scope, cadence or monitoring policy changes |
 | [Synthetic day evidence](evidence/synthetic-day.md) | Browser/asset checks, rendering measurements and limitations | A changed preview is measured |

@@ -20,9 +20,11 @@ Use a **fresh capture-store-v3**; retain the rehearsed v2 store and image unchan
 
 Use existing publication/fsync primitives. Keep normalization progress separate from per-object upload progress. Scope a bounded normalizer cursor by store UUID and normalizer/area/static versions. Publish deterministic output and a create-only completion manifest before advancing it. Every required upload has a durable pending record with name, SHA-256, service-validated checksum, byte count and source capture pins before network I/O. Retries verify/reuse the same records and identity.
 
-### Phase 1a upload-pin amendment under review
+### Phase 1a isolation and Phase 1c upload-pin amendment
 
-The architect requested on 2026-10-08 that new upload pending records pin a contiguous store-scoped capture-sequence range plus an immutable inventory hash, replacing the implemented maximum of 32 inline capture references per object. The [normalized contract](../architecture/normalized-tram-contract.md#sequence-range-upload-pins) specifies the versioned record, inventory publication, completeness/confirmation checks and reader rollout. This amendment does not relax any expiry condition, alter existing capture evidence or authorize a runtime upgrade. PR review precedes implementation; legacy pending/confirmation records retain their original meaning.
+Accepted by the project architect on 2026-10-08: Phase 1a reads finalized raw without acquiring or writing the live store. With expiry disabled, export inventory, pending and confirmations live in a separate encrypted export directory with its own lock. They provide retry/provenance, not raw pins or expiry authorization; the running collector needs no stop or upgrade.
+
+Phase 1c introduces contiguous store-scoped capture-sequence ranges plus immutable inventory hashes for automated upload pins, replacing the implemented maximum of 32 inline capture references per object. The [normalized contract](../architecture/normalized-tram-contract.md#sequence-range-upload-pins) specifies versioned records, inventory publication, completeness/confirmation checks and compatible collector/verifier rollout. Legacy records retain their original meaning. Revalidate export-local evidence before any integration into expiry state; the amendment does not relax the four expiry conditions.
 
 Capture and downstream passes have independent bounds. Network uploads run outside store ownership against immutable files; state publication and expiry checks hold ownership. Verification holds block capture and expiry. Reserve/backlog checks stop collection without deleting pinned data when capacity is exhausted.
 
