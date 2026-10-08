@@ -676,3 +676,58 @@
   font-size: 12px;
   color: #6b7d86;
 }
+
+.sample-credit-button {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  z-index: 5;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sample-credits {
+  position: fixed;
+  inset: 6vh 0 auto;
+  margin: auto;
+  z-index: 20;
+  width: min(720px, 90vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid #d1dadc;
+  border-radius: 16px;
+  box-shadow: 0 12px 100px #0005;
+}
+.sample-credits h3 {
+  font-size: 16px;
+}
+.explorer-header .demo-pill {
+  margin-right: 165px;
+}
+@media (max-width: 900px) {
+  .sample-credit-button {
+    top: 54px;
+    right: 18px;
+    font-size: 11px;
+  }
+  .explorer-header .demo-pill {
+    margin-right: 0;
+  }
+}
+
+.sample-map-label {
+  color: #677b83;
+  font:
+    10px system-ui,
+    sans-serif;
+  text-shadow:
+    0 1px 3px white,
+    0 -1px 3px white;
+  pointer-events: none;
+}
+.river-label {
+  color: #376b83;
+  font-style: italic;
+}

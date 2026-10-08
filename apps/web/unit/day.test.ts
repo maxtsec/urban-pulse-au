@@ -4,13 +4,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DAY_MS,
-  sampleDistance,
   liveEdgeAt,
   historyClock,
   availableWindow,
   WINDOW_MS,
   clockLabel,
-  tramsAt,
   weatherAt,
   windowFor,
   clampClock,
@@ -32,39 +30,6 @@ test('weather is an explicit authored state, selected without future readings', 
   assert.equal(weatherAt(9 * 3600000).kind, 'rainy');
   assert.equal(weatherAt(13 * 3600000).kind, 'sunny');
 });
-test('seek and playback yield identical positions and never require an unreceived sample', () => {
-  for (const t of [
-    0,
-    1,
-    59999,
-    60000,
-    60100,
-    360001,
-    7200000,
-    32452750,
-    DAY_MS,
-  ]) {
-    const before = tramsAt(t);
-    tramsAt(DAY_MS - t);
-    const seek = tramsAt(t);
-    assert.deepEqual(before, seek);
-    assert.equal(seek.length, 6);
-    for (const tram of seek) {
-      assert.ok(tram.pair[1] <= t);
-      assert.ok(tram.pair[0] <= tram.pair[1]);
-      assert.equal(tram.observed_at, null);
-      assert.equal(tram.capture_ids.length, 0);
-    }
-  }
-});
-test('two observations move along the authored route and hold the first minute', () => {
-  assert.deepEqual(tramsAt(0), tramsAt(59000));
-  assert.notEqual(tramsAt(60000)[0].longitude, tramsAt(90000)[0].longitude);
-  const a = tramsAt(359999)[0],
-    b = tramsAt(360000)[0];
-  assert.ok(Math.abs(a.longitude - b.longitude) < 0.000001);
-});
-
 test('preview boundary preserves the retained source geometry and credit', () => {
   const preview = JSON.parse(
     readFileSync(
@@ -110,16 +75,4 @@ test('original models need no compressed decoder and unsupported compression fai
     assert.deepEqual(json.extensionsRequired ?? [], []);
     assert.deepEqual(json.extensionsUsed ?? [], []);
   }
-});
-
-test('interpolation uses both independent sample distances, including reverse travel', () => {
-  const a = { at: 60_000, distance: 100 };
-  const b = { at: 120_000, distance: 220 };
-  assert.equal(sampleDistance(90_000, a, b), 160);
-  assert.equal(sampleDistance(90_000, a, { ...b, distance: 300 }), 200);
-  assert.equal(sampleDistance(90_000, { ...a, distance: 20 }, b), 120);
-  assert.equal(sampleDistance(90_000, { ...a, distance: 300 }, b), 260);
-  assert.equal(sampleDistance(0, a, b), 100);
-  assert.equal(sampleDistance(180_000, a, b), 220);
-  assert.equal(sampleDistance(90_000, a, a), 100);
 });

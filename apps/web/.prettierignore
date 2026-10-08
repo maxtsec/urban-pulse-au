@@ -10,3 +10,6 @@ src/assets/southbank-buildings.geojson
 src/assets/southbank-boundary.json
 
 dist-test
+
+# Canonical JSON emitted and hashed by the offline sample builder.
+src/assets/sample/

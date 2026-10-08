@@ -19,7 +19,7 @@ function expectSecurityHeaders(response: {
 
 const area = '/api/v1/areas/au-vic-melbourne-clue-southbank';
 
-test('compiled synthetic explorer reloads from a nested URL without a dev runtime', async ({
+test('compiled schedule sample reloads from a nested URL without a dev runtime', async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -35,10 +35,10 @@ test('compiled synthetic explorer reloads from a nested URL without a dev runtim
   page.on('request', (request) => requests.push(request.url()));
   await page.goto('/city/southbank?scenario=city');
   await expect(
-    page.getByRole('heading', { name: 'Southbank', level: 1 }),
+    page.getByRole('heading', { name: 'CBD + Southbank', level: 1 }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Not assessed' }),
@@ -150,7 +150,7 @@ test('CSP blocks inline scripts without disrupting the compiled map', async ({
 }) => {
   await page.goto('/?scenario=city');
   await expect(
-    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+    page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
   const blocked = page.waitForEvent('console', {
     predicate: (message) => message.text().includes('script-src'),
@@ -195,7 +195,7 @@ test('an external page cannot frame the city', async ({
   await expect(
     page
       .frameLocator('iframe')
-      .getByRole('heading', { name: 'Southbank', level: 1 }),
+      .getByRole('heading', { name: 'CBD + Southbank', level: 1 }),
   ).toHaveCount(0);
 });
 

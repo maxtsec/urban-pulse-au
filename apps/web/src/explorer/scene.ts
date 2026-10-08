@@ -12,6 +12,8 @@ import craneUrl from '../assets/demo-crane.glb?url';
 import plannedUrl from '../assets/demo-planned.glb?url';
 
 export type VisualScene = {
+  buildingsUrl?: string;
+  buildingHash?: string;
   trams: DemoTram[];
   sites: Development[];
   clock: number;
@@ -38,7 +40,8 @@ function modelLayers(scene: VisualScene, drawn: (id: string) => void): Layer[] {
       scenegraph: construction ? craneUrl : plannedUrl,
       data: scene.sites.filter(
         (site) =>
-          (site.status === 'Under construction') === construction &&
+          (site.status.toUpperCase() === 'UNDER CONSTRUCTION') ===
+            construction &&
           site.position &&
           site.applicable,
       ),
@@ -154,7 +157,7 @@ export async function mountScene(
 ) {
   let buildings: Mass[] = [];
   try {
-    buildings = await loadBuildings();
+    buildings = await loadBuildings(initial.buildingsUrl, initial.buildingHash);
     if (!signal.aborted) buildingsReady(true);
   } catch {
     if (!signal.aborted) buildingsReady(false);
@@ -184,9 +187,9 @@ export async function mountScene(
     },
     getTooltip: ({ object }) =>
       object?.label
-        ? `Simulated · ${object.label}`
+        ? `Schedule simulation, not live · ${object.label}`
         : object?.name
-          ? `Illustrative · ${object.name}`
+          ? `DAM status: ${object.status} · ${object.name}`
           : null,
   });
   const update = (scene: VisualScene) => {
@@ -194,11 +197,15 @@ export async function mountScene(
     // continuous Live updates may replace those before onAfterRender runs.
     requiredModels = [
       ...(scene.trams.length ? ['demo-trams'] : []),
-      ...['Under construction', 'Planned'].flatMap((status) =>
+      ...[true, false].flatMap((construction) =>
         scene.sites.some(
-          (site) => site.status === status && site.position && site.applicable,
+          (site) =>
+            (site.status.toUpperCase() === 'UNDER CONSTRUCTION') ===
+              construction &&
+            site.position &&
+            site.applicable,
         )
-          ? [status === 'Under construction' ? 'demo-cranes' : 'demo-planned']
+          ? [construction ? 'demo-cranes' : 'demo-planned']
           : [],
       ),
     ];

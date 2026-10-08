@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client';
 import './style.css';
 
 const Explorer = lazy(() =>
-  import('./explorer/Explorer').then((module) => ({
-    default: module.Explorer,
+  import('./explorer/SampleExplorer').then((module) => ({
+    default: module.SampleExplorer,
   })),
 );
 

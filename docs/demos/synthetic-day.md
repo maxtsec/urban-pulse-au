@@ -1,5 +1,7 @@
 # Synthetic city day
 
+The public sample source design is superseded by [the schedule sample](schedule-sample.md); this page records the earlier synthetic preview.
+
 Open `http://127.0.0.1:5173/` after starting the web development server. This is the only product interface. Its moving content is an independent authored fixture and needs no API or database.
 
 1. The page opens at simulated **Live**, starting at 10:00 on 8 October 2026. A red dot marks the live edge, which advances at 1× even while you browse history. Reload starts a new session.
