@@ -196,3 +196,34 @@ def test_http_failure_and_bounds_do_not_retry_or_claim_complete(tmp_path, monkey
         monkeypatch.setattr(probe, "MAX_SECONDS", 0)
         with pytest.raises(ValueError, match="budget"):
             probe.capture(tmp_path / "deadline", client)
+
+
+@pytest.mark.parametrize("total", [1000, 1001])
+def test_both_areas_can_use_ten_pages_within_global_budget(tmp_path, monkeypatch, total):
+    monkeypatch.setattr(probe.time, "sleep", lambda _: None)
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        if request.url.host == "api.open-meteo.com":
+            return httpx.Response(200, json=weather())
+        if request.url.path.endswith("/records"):
+            area = "Southbank" if "Southbank" in request.url.params["where"] else "Melbourne (CBD)"
+            offset = int(request.url.params["offset"])
+            return httpx.Response(
+                200,
+                json={
+                    "total_count": total,
+                    "results": [row(str(i), area) for i in range(offset, offset + 100)],
+                },
+            )
+        return httpx.Response(200, json={"metas": {"default": {"records_count": total}}})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        probe.capture(tmp_path / "pages", client)
+    result = probe.replay(tmp_path / "pages")
+    assert len(calls) == probe.MAX_REQUESTS == 24
+    for area in probe.AREAS:
+        planning = result["areas"][area]["planning"]
+        assert planning["records"] == 1000
+        assert planning["pages_complete"] is (total == 1000)

@@ -26,7 +26,9 @@ VARIABLES = (
     "wind_speed_10m",
     "is_day",
 )
-MAX_REQUESTS = 16
+MAX_ROWS_PER_AREA = 1000
+PAGE_SIZE = 100
+MAX_REQUESTS = 2 + len(AREAS) * (1 + MAX_ROWS_PER_AREA // PAGE_SIZE)
 MAX_BYTES = 2 * 1024 * 1024
 MAX_SECONDS = 180
 
@@ -207,7 +209,7 @@ def capture(folder: Path, client: httpx.Client) -> None:
                 "forecast_days": "1",
             },
         )
-        for offset in range(0, 1000, 100):
+        for offset in range(0, MAX_ROWS_PER_AREA, PAGE_SIZE):
             page = probe.get(
                 f"dam-{index}-{offset}",
                 DAM + "/records",
@@ -215,7 +217,7 @@ def capture(folder: Path, client: httpx.Client) -> None:
                     "select": "development_key,status,clue_small_area,geopoint,year_completed",
                     "where": f"clue_small_area='{area}'",
                     "order_by": "development_key",
-                    "limit": "100",
+                    "limit": str(PAGE_SIZE),
                     "offset": str(offset),
                 },
             )
@@ -278,7 +280,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     choice = parser.add_mutually_exclusive_group(required=True)
     choice.add_argument(
-        "--capture", type=Path, help="New local output directory; at most 16 public GETs"
+        "--capture", type=Path, help="New local output directory; at most 24 public GETs"
     )
     choice.add_argument(
         "--replay", type=Path, help="Recompute from retained bytes without network access"
