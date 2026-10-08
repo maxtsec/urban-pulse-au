@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CityMap } from '../CityMap';
 import type { Boundary } from '../CityMap';
-import { makeSchedule } from './schedule';
+import { makeSchedule, inArea } from './schedule';
 import type { LoadedSample } from './sample';
 import { useReducedMotion } from '../useReducedMotion';
 import { WINDOW_MS, WEATHER, clockLabel, weatherAt } from './day';
 import type { VisualScene } from './scene';
 import './explorer.css';
 import { useDayPlayback } from './useDayPlayback';
+import { HealthPanel } from './HealthPanel';
+import { assessDemo, AREA_CENTRES, demoTramDelay } from './health-demo';
+import type { DemoArea, DemoReason } from './health-demo';
 
 const emptyWarnings: [] = [];
 const icons = { sunny: '☀', cloudy: '☁', rainy: '☂' };
@@ -25,7 +28,12 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     [sites],
   );
   const localContext = useMemo(
-    () => ({ tracks: schedule.tracks, roads: data.roads, water: data.water }),
+    () => ({
+      tracks: schedule.tracks,
+      roads: data.roads,
+      water: data.water,
+      focusMask: data.focus_mask,
+    }),
     [schedule, data],
   );
   const [credits, setCredits] = useState(false);
@@ -43,6 +51,62 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     chooseWindow,
     togglePlay,
   } = playback;
+  const cbdHealth = assessDemo('cbd', clock);
+  const southbankHealth = assessDemo('southbank', clock);
+  const assessments = { cbd: cbdHealth, southbank: southbankHealth };
+  const healthAreas = useMemo(
+    () => ({
+      ...data.areas,
+      features: data.areas.features.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          status:
+            feature.properties.area_id === 'cbd'
+              ? cbdHealth.status
+              : southbankHealth.status,
+        },
+      })),
+    }),
+    [data, cbdHealth.status, southbankHealth.status],
+  );
+  const [healthArea, setHealthArea] = useState<DemoArea>('southbank');
+  const [locatedReason, setLocatedReason] = useState<DemoReason | null>(null);
+  const [focusRequest, setFocusRequest] = useState<
+    { center: [number, number]; zoom: number; id: number } | undefined
+  >();
+  const focusId = useRef(0);
+  function focusHealthArea(area: DemoArea) {
+    setHealthArea(area);
+    setLocatedReason(null);
+    setFocusRequest({
+      center: AREA_CENTRES[area],
+      zoom: 14.8,
+      id: ++focusId.current,
+    });
+  }
+  function locateReason(reason: DemoReason) {
+    setLocatedReason(reason);
+    setFocusRequest({
+      center: reason.location,
+      zoom: 16,
+      id: ++focusId.current,
+    });
+  }
+  const startDemo = useRef(
+    new URLSearchParams(window.location.search).get('demo') === 'health',
+  );
+  useEffect(() => {
+    if (startDemo.current) {
+      startDemo.current = false;
+      chooseWindow(8 * 3600000, 9.25 * 3600000);
+    }
+  }, [chooseWindow]);
+  const currentReason =
+    locatedReason &&
+    assessments[locatedReason.area].reasons.find(
+      (reason) => reason.id === locatedReason.id,
+    );
   const windowStart = playback.window.start,
     windowEnd = playback.window.end;
   const [threeD, setThreeD] = useState(false);
@@ -57,8 +121,22 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     works: true,
     weather: true,
     tracks: true,
+    streetNames: true,
   });
-  const trams = useMemo(() => schedule.at(clock), [clock, schedule]);
+  const { trams, tramDelays } = useMemo(() => {
+    const delays: Record<string, DemoReason> = {};
+    const items = schedule.at(clock).map((tram) => {
+      const area = data.areas.features.find((feature) =>
+        inArea([tram.longitude, tram.latitude], feature.geometry),
+      )?.properties.area_id;
+      const delay = area
+        ? demoTramDelay(clock, tram.longitude, tram.latitude, area)
+        : undefined;
+      if (delay) delays[tram.id] = delay;
+      return { ...tram, demoDelay: delay?.severity };
+    });
+    return { trams: items, tramDelays: delays };
+  }, [clock, schedule, data]);
   const weather = weatherAt(clock);
   const selectItem = useCallback((id: string) => {
     select(id);
@@ -159,11 +237,15 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           <CityMap
             boundary={boundary}
             localContext={localContext}
+            areaHealth={healthAreas}
+            focusRequest={focusRequest}
+            showStreetNames={layers.streetNames}
+            tramDelays={tramDelays}
             vehicles={trams}
             selected={selectedTram?.id ?? null}
             onSelect={selectItem}
             showVehicles={layers.trams}
-            showBoundary={false}
+            showBoundary={true}
             showTracks={layers.tracks}
             warnings={emptyWarnings}
             showWarnings={false}
@@ -219,11 +301,26 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                       setLayers({ ...layers, [key]: e.target.checked })
                     }
                   />
-                  {key}
+                  {key === 'streetNames' ? 'Main street names' : key}
                 </label>
               ))}
               <p>Models and weather effects appear in 3D.</p>
             </section>
+          )}
+          {currentReason && (
+            <aside
+              className="health-map-callout glass"
+              aria-label="Located demo impact"
+            >
+              <button
+                aria-label="Close impact"
+                onClick={() => setLocatedReason(null)}
+              >
+                ×
+              </button>
+              <strong>{currentReason.title} · Demo</strong>
+              <p>{currentReason.detail}</p>
+            </aside>
           )}
           <div className="explorer-legend glass">
             <span>
@@ -234,7 +331,14 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
               <i className="amber" />
               DAM developments
             </span>
-            {threeD && <span>Historical buildings</span>}
+            <span>
+              <i className="amber" />
+              Demo delay
+            </span>
+            <span>
+              <i className="red" />
+              Severe demo delay
+            </span>
           </div>
           <section className="day-player glass" aria-label="Day playback">
             <div className="player-heading">
@@ -396,29 +500,41 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
             aria-labelledby={`tab-${detail}`}
           >
             {detail === 'health' && (
-              <>
-                <div className="health-status">
-                  <span>AREA HEALTH</span>
-                  <h3>Not assessed</h3>
-                  <p>A sample day cannot assess current conditions.</p>
-                </div>
-                <h4>Data coverage</h4>
-                <ul className="coverage-list">
-                  <li>
-                    <span>Transport</span>
-                    <strong>Schedule simulation</strong>
-                  </li>
-                  <li>
-                    <span>Weather</span>
-                    <strong>Synthetic</strong>
-                  </li>
-                  <li>
-                    <span>Planning</span>
-                    <strong>DAM snapshot</strong>
-                  </li>
-                </ul>
-                <p>No live condition coverage or numerical health score.</p>
-              </>
+              <HealthPanel
+                routes={{
+                  cbd: [
+                    ...new Set(
+                      trams
+                        .filter((t) => tramDelays[t.id]?.area === 'cbd')
+                        .map((t) => t.route_id ?? 'Unknown'),
+                    ),
+                  ].sort(),
+                  southbank: [
+                    ...new Set(
+                      trams
+                        .filter((t) => tramDelays[t.id]?.area === 'southbank')
+                        .map((t) => t.route_id ?? 'Unknown'),
+                    ),
+                  ].sort(),
+                }}
+                assessments={assessments}
+                selected={healthArea}
+                clock={clock}
+                edge={edge}
+                sites={sites}
+                damDate={data.dam_date}
+                select={focusHealthArea}
+                locate={locateReason}
+                jump={(at) => {
+                  setLocatedReason(null);
+                  setHealthArea(
+                    assessDemo('southbank', at).status === 'clear'
+                      ? 'cbd'
+                      : 'southbank',
+                  );
+                  chooseWindow(Math.floor(at / WINDOW_MS) * WINDOW_MS, at);
+                }}
+              />
             )}
             {detail === 'trams' && (
               <>
@@ -426,6 +542,19 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                   Schedule simulation, not live · {trams.length} scheduled trips
                   in view area
                 </p>
+                {selectedTram && tramDelays[selectedTram.id] && (
+                  <div
+                    className={`tram-delay-detail ${selectedTram.demoDelay}`}
+                  >
+                    <strong>
+                      Demo delay · {tramDelays[selectedTram.id].title}
+                    </strong>
+                    <p>{tramDelays[selectedTram.id].detail}</p>
+                    <small>
+                      Authored zone highlight; timetable movement is unchanged.
+                    </small>
+                  </div>
+                )}
                 {trams.map((tram) => (
                   <button
                     className="detail-row"
@@ -433,9 +562,16 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
                     aria-pressed={selected === tram.id}
                     onClick={() => select(tram.id)}
                   >
-                    <span className="glance-dot teal" />
+                    <span
+                      className={`glance-dot ${tram.demoDelay ?? 'teal'}`}
+                    />
                     {tram.label}
-                    <small>Route {tram.route_id}</small>
+                    <small>
+                      {tram.demoDelay
+                        ? `${tram.demoDelay === 'severe' ? 'Severe demo delay' : 'Demo delay'} · `
+                        : ''}
+                      Route {tram.route_id}
+                    </small>
                   </button>
                 ))}
               </>

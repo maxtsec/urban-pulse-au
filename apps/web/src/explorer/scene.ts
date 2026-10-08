@@ -65,10 +65,28 @@ function modelLayers(scene: VisualScene, drawn: (id: string) => void): Layer[] {
       data: scene.trams,
       getPosition: (tram) => [tram.longitude, tram.latitude, 3],
       getOrientation: (tram) => [0, 180 - tram.heading, 90],
-      getColor: [255, 255, 255, 255],
+      getColor: (tram) =>
+        tram.demoDelay === 'severe'
+          ? [255, 65, 75, 255]
+          : tram.demoDelay === 'affected'
+            ? [255, 190, 40, 255]
+            : [255, 255, 255, 255],
       onClick: ({ object }) => {
         if (object) scene.select(object.id);
       },
+    }),
+    new ScatterplotLayer<DemoTram>({
+      id: 'demo-delay-halos',
+      data: scene.trams.filter((t) => t.demoDelay),
+      getPosition: (t) => [t.longitude, t.latitude, 4],
+      getRadius: 20,
+      radiusMinPixels: 10,
+      filled: false,
+      stroked: true,
+      lineWidthMinPixels: 3,
+      parameters: { depthCompare: 'always', depthWriteEnabled: false },
+      getLineColor: (t) =>
+        t.demoDelay === 'severe' ? [220, 55, 70, 255] : [222, 154, 20, 255],
     }),
     siteLayer(true),
     siteLayer(false),
@@ -187,7 +205,7 @@ export async function mountScene(
     },
     getTooltip: ({ object }) =>
       object?.label
-        ? `Schedule simulation, not live · ${object.label}`
+        ? `Schedule simulation, not live · ${object.label}${object.demoDelay ? ` · ${object.demoDelay === 'severe' ? 'Severe demo delay' : 'Demo delay'}` : ''}`
         : object?.name
           ? `DAM status: ${object.status} · ${object.name}`
           : null,

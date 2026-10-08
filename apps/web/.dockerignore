@@ -57,3 +57,9 @@
 !src/assets/sample/city.json
 !src/assets/sample/buildings.geojson
 !src/assets/sample/manifest.json
+
+!src/explorer/health-demo.ts
+!src/explorer/HealthPanel.tsx
+
+!src/assets/construction.svg
+!src/assets/development-plan.svg

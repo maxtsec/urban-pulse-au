@@ -208,7 +208,7 @@ test('sole interface has a fixed health-first panel, keyboard tabs and unobstruc
     'true',
   );
   await expect(
-    page.getByRole('heading', { name: 'Not assessed' }),
+    page.getByRole('heading', { name: 'No known impacts' }),
   ).toBeVisible();
   const panel = page.getByRole('complementary', { name: 'Area information' });
   const before = await panel.boundingBox();

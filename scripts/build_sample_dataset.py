@@ -37,7 +37,8 @@ CREDIT = [
         "url": "https://opendata.transport.vic.gov.au/dataset/gtfs-schedule",
         "changes": (
             "Tram member only; service-calendar selection; full intersecting shapes; "
-            "scheduled dwell and constant speed between stops. Positions are simulated, "
+            "scheduled dwell and constant speed between stops; drawn rails clipped to area "
+            "while motion paths remain whole. Positions are simulated, "
             "not observed."
         ),
     },
@@ -350,6 +351,24 @@ def developments(inputs: dict[str, bytes], boundary) -> tuple[list, str]:
     return result, before["modified"]
 
 
+def display_tracks(schedule: dict, boundary) -> dict:
+    """Clip only drawn rails. Simulation keeps its full shape and distance index."""
+    features = []
+    for shape_id, item in sorted(schedule["shapes"].items()):
+        geometry = shape({"type": "LineString", "coordinates": item["coordinates"]})
+        clipped = geometry.intersection(boundary)
+        parts = (
+            [clipped] if clipped.geom_type == "LineString" else list(getattr(clipped, "geoms", ()))
+        )
+        for part in parts:
+            if part.geom_type != "LineString" or part.is_empty or part.length == 0:
+                continue
+            features.append(
+                {"type": "Feature", "properties": {"shape_id": shape_id}, "geometry": mapping(part)}
+            )
+    return {"type": "FeatureCollection", "features": features}
+
+
 def build(pack: Path, lock: Path, output: Path) -> dict:
     inputs = source_pack(pack, lock)
     boundaries = [json.loads(inputs[n]) for n in ("southbank.geojson", "cbd.geojson")]
@@ -370,6 +389,25 @@ def build(pack: Path, lock: Path, output: Path) -> dict:
             "properties": boundaries[0]["properties"],
         },
         "schedule": schedule,
+        "display_tracks": display_tracks(schedule, boundary),
+        "areas": {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": b["geometry"],
+                    "properties": {"area_id": area_id, "name": name},
+                }
+                for b, area_id, name in zip(
+                    boundaries, ["southbank", "cbd"], ["Southbank", "CBD"], strict=True
+                )
+            ],
+        },
+        "focus_mask": {
+            "type": "Feature",
+            "geometry": mapping(box(*BBOX).difference(boundary)),
+            "properties": {},
+        },
         "developments": sites,
         "dam_date": dam_date,
         "roads": basemap(inputs, "roads"),

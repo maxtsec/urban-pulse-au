@@ -41,7 +41,7 @@ test('compiled schedule sample reloads from a nested URL without a dev runtime',
     page.getByRole('button', { name: /^Select Route .* on map$/ }).first(),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'Not assessed' }),
+    page.getByRole('heading', { name: 'No known impacts' }),
   ).toBeVisible();
   expect(
     await page.evaluate(

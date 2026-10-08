@@ -21,6 +21,12 @@ export type ScheduledTrip = {
   stops: Stop[];
 };
 export type SampleData = {
+  display_tracks: FeatureCollection<LineString>;
+  areas: FeatureCollection<
+    Polygon | MultiPolygon,
+    { area_id: 'cbd' | 'southbank'; name: string }
+  >;
+  focus_mask: Feature<Polygon | MultiPolygon>;
   boundary: Feature<
     Polygon | MultiPolygon,
     { provider: string; licence: string; source_url: string }
@@ -94,14 +100,7 @@ export function makeSchedule(data: SampleData) {
       new TramPath(id, s.coordinates, s.distances),
     ]),
   );
-  const tracks: FeatureCollection<LineString> = {
-    type: 'FeatureCollection',
-    features: Object.entries(data.schedule.shapes).map(([id, s]) => ({
-      type: 'Feature',
-      properties: { shape_id: id },
-      geometry: { type: 'LineString', coordinates: s.coordinates },
-    })),
-  };
+  const tracks = data.display_tracks;
   const at = (clock: number): DemoTram[] =>
     data.schedule.trips.flatMap((trip) => {
       const distance = scheduledDistance(trip.stops, clock);
