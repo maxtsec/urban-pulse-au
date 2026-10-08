@@ -8,6 +8,14 @@ Explore Melbourne CBD and Southbank through transport, weather and development a
 
 The sample combines real buildings, streets, tram schedules and development records with **simulated tram movement, scripted incidents and synthetic weather**. It is not a live service-status map. [Sources and attribution](sample-data/README.md).
 
+## What is real today
+
+- **Continuous real Tram capture:** positions, trip updates and alerts collected on a dedicated encrypted host, with Cloud Monitoring heartbeat, feed-health and capacity alerts. [Activation and notification evidence](docs/evidence/cloud-01-raw-activation.md).
+- **Terraform-managed GCP:** Cloud Run serving and Cloud SQL/PostGIS, with separate runtime identities and bounded database access. [Database deployment](docs/evidence/demo-01-database-bootstrap.md) · [Deployed serving revision](docs/evidence/cd-01-managed-delivery.md#executions).
+- **Protected continuous delivery:** federated GitHub authentication, automatic zero-traffic candidates, operator-approved promotion and retained rollback targets. [CD execution evidence](docs/evidence/cd-01-managed-delivery.md).
+
+These are running collection and deployed demo systems; the public sample remains separate from collected realtime data.
+
 ## Try it locally
 
 With Node.js 24 and npm, run from the repository root:
@@ -19,14 +27,17 @@ npm --prefix apps/web run dev
 
 Open **http://127.0.0.1:5173/**. The sample runs without a backend or API keys. Start with **Day overview**, jump to a busy period, then compare CBD and Southbank.
 
-## Behind the map
+## Architecture
 
-- **Frontend:** React, TypeScript, MapLibre and deck.gl, with reproducible, source-labelled sample data.
-- **Backend:** FastAPI and PostgreSQL/PostGIS, separated into domain rules, application use cases and adapters.
-- **Reliability:** durable event delivery, idempotent processing, recovery tools and integration tests.
-- **Operations:** Terraform, Cloud Run, protected delivery and monitored local Tram capture.
+```mermaid
+flowchart LR
+    Tram[Real Tram feeds] --> Capture[Encrypted local raw capture]
+    Capture --> Monitoring[Cloud Monitoring alerts]
+    CD[GitHub Actions + Terraform] --> Backend[Cloud Run API + Cloud SQL / PostGIS]
+    Sources[Pinned public data + authored scenarios] --> Sample[React / MapLibre static sample]
+```
 
-The real-data warehouse pipeline is in development; the sample does not present its simulated results as measured analytics. [Architecture](docs/architecture/overview.md) · [Tests and evidence](docs/testing-strategy.md) · [Delivery plan](docs/delivery-plan.md)
+The backend serves the protected fixture demo with durable events, idempotent processing and recovery tools. The next data path is **normalize → GCS → BigQuery/dbt → PostGIS**; that warehouse pipeline is still in development. [Architecture](docs/architecture/overview.md) · [Tests and evidence](docs/testing-strategy.md) · [Delivery plan](docs/delivery-plan.md)
 
 ## Repository guide
 

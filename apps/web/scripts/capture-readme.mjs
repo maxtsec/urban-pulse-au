@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
 const browser = await chromium.launch({
@@ -8,7 +8,7 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1600, height: 1000 },
     deviceScaleFactor: 1,
-    reducedMotion: 'reduce',
+    reducedMotion: 'no-preference',
   });
   await page.goto('http://127.0.0.1:5182/urban-pulse-au/?demo=health');
   await page
@@ -36,6 +36,13 @@ try {
   // Allow the map's camera transition and GPU frame to settle before capture.
   await page.waitForTimeout(1000);
   await page.evaluate(() => document.fonts.ready);
+  await expect(
+    page.getByRole('button', { name: 'Play demo', exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByTestId('day-clock')).toHaveText('09:15:00');
+  await expect(
+    page.getByText('Reduced motion · use the time slider', { exact: true }),
+  ).toHaveCount(0);
   await page.screenshot({
     path: fileURLToPath(
       new URL('../../../docs/images/urbanpulse-app.jpg', import.meta.url),
