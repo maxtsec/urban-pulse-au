@@ -1,9 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  build: { assetsInlineLimit: 0 },
+  resolve: {
+    alias: {
+      'meshoptimizer/decoder': fileURLToPath(
+        new URL('./src/explorer/meshopt-disabled.ts', import.meta.url),
+      ),
+    },
+  },
+  build: {
+    assetsInlineLimit: 0,
+    ...(mode === 'test'
+      ? {
+          outDir: 'dist-test',
+          rolldownOptions: { input: ['index.html', 'tests/scenario.html'] },
+        }
+      : {}),
+  },
   server: {
     strictPort: true,
     proxy: {
@@ -11,4 +27,4 @@ export default defineConfig({
       '/health': process.env.VITE_API_PROXY ?? 'http://127.0.0.1:8000',
     },
   },
-});
+}));

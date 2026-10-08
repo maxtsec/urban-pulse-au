@@ -23,7 +23,7 @@ test('map and keyboard list select the same moving tram without external request
     )
       external.push(request.url());
   });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(
     page.getByRole('heading', { name: 'Southbank', level: 1 }),
   ).toBeVisible();
@@ -99,7 +99,7 @@ test('map-first layout keeps the map dominant with data on the map', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
   const map = (await page.locator('.map-area').boundingBox())!;
   expect(map.width).toBe(1440);
@@ -137,7 +137,7 @@ test('map-first layout keeps the map dominant with data on the map', async ({
 });
 
 test('playback keeps the camera and page stationary', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   const site = page.locator('.development-marker').first();
   await expect(site).toBeVisible();
   const before = await site.boundingBox();
@@ -153,7 +153,7 @@ test('playback keeps the camera and page stationary', async ({ page }) => {
 test('visible map labels do not overlap markers or each other', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   await expect(page.locator('.development-marker')).toHaveCount(3);
   for (const seconds of ['0', '150', '300']) {
     await page.getByLabel('Scenario time', { exact: true }).fill(seconds);
@@ -189,7 +189,7 @@ test('visible map labels do not overlap markers or each other', async ({
 test('playback, stale/expired positions and missing domains remain truthful', async ({
   page,
 }) => {
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map' }),
   ).toBeVisible();
@@ -222,7 +222,7 @@ test('playback, stale/expired positions and missing domains remain truthful', as
 });
 
 test('empty, outage and error recovery are distinct', async ({ page }) => {
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await chooseScenario(page, 'Empty transport');
   await openTab(page, 'Trams');
   await expect(
@@ -253,7 +253,7 @@ test('boundary failure preserves the accessible observations', async ({
   await page.route('**/boundaries/*', (route) =>
     route.fulfill({ status: 503, body: '{}' }),
   );
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(page.getByRole('alert')).toContainText('Boundary unavailable');
   await openTab(page, 'Trams');
   await page.getByRole('button', { name: 'Select Tram 01 in list' }).click();
@@ -264,7 +264,7 @@ test('mobile layout fits and keeps the area overview usable', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(
     page.getByRole('button', { name: 'Select Tram 01 on map' }),
   ).toBeVisible();
@@ -285,7 +285,7 @@ test('mobile layout fits and keeps the area overview usable', async ({
 test('service replay reveals only received facts and outage cannot resolve them', async ({
   page,
 }) => {
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await moment(page, '60s · Service interruption').click();
   await expect(condition(page)).toHaveText('Degraded');
   await expect(page.getByTestId('condition')).toContainText('1 active reason');
@@ -321,7 +321,7 @@ test('unknown explanation identifies every missing required input', async ({
     ];
     await route.fulfill({ response, json: data });
   });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(condition(page)).toHaveText('Unknown');
   for (const text of [
     'Transport service unavailable',
@@ -345,7 +345,7 @@ test('playback, markers and slider respect the API clock limit', async ({
     data.clock.end_seconds = 75;
     await route.fulfill({ response, json: data });
   });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   const slider = page.getByLabel('Scenario time', { exact: true });
   await expect(slider).toHaveAttribute('max', '75');
   // Moments after the API clock are not offered.
@@ -394,7 +394,7 @@ for (const state of ['current', 'stale', 'error', 'unsupported']) {
       data.assessment.condition = state === 'current' ? 'normal' : 'unknown';
       await route.fulfill({ response, json: data });
     });
-    await page.goto('/?scenario=journey');
+    await page.goto('/tests/scenario.html?scenario=journey');
     const weather = page.locator('.domain-row').filter({
       has: page.getByRole('heading', { name: 'Weather & hazards' }),
     });
@@ -415,7 +415,7 @@ test('slider keyboard movement requests 15-second increments', async ({
     )
       requested.push(Number(url.searchParams.get('seconds')));
   });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   const slider = page.getByLabel('Scenario time', { exact: true });
   await expect(slider).toHaveAttribute('step', '15');
@@ -426,7 +426,7 @@ test('slider keyboard movement requests 15-second increments', async ({
 });
 
 test('detail tabs support arrow-key navigation', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/tests/scenario.html');
   await detailsTab(page, 'Overview').focus();
   await page.keyboard.press('ArrowRight');
   await expect(detailsTab(page, 'Trams')).toBeFocused();
@@ -451,7 +451,7 @@ for (const width of [320, 390]) {
       page,
     }) => {
       await page.setViewportSize({ width, height: 740 });
-      await page.goto('/?scenario=' + scenario);
+      await page.goto('/tests/scenario.html?scenario=' + scenario);
       await expect(page.getByTestId('clock')).toHaveText('11:00:00');
       const checkbox = await layer(page, 'Tram positions');
       await expect(checkbox).toBeInViewport();

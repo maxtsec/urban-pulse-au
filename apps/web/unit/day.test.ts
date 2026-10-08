@@ -1,8 +1,12 @@
+import { MeshoptDecoder } from '../src/explorer/meshopt-disabled.ts';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DAY_MS,
+  liveEdgeAt,
+  historyClock,
+  availableWindow,
   WINDOW_MS,
   clockLabel,
   tramsAt,
@@ -74,4 +78,35 @@ test('preview boundary preserves the retained source geometry and credit', () =>
     ),
   );
   assert.deepEqual(preview, original);
+});
+
+test('live edge bounds both window selection and seeking, while retaining a full-day scale', () => {
+  assert.equal(liveEdgeAt(0), 36000000);
+  assert.equal(liveEdgeAt(1500), 36001500);
+  assert.equal(liveEdgeAt(DAY_MS), DAY_MS);
+  assert.equal(historyClock(DAY_MS, 36001500), 36001500);
+  assert.deepEqual(availableWindow(36000000, 36001500), {
+    start: 36000000,
+    end: 36001500,
+  });
+  assert.deepEqual(availableWindow(28800000, 36001500), {
+    start: 28800000,
+    end: 36000000,
+  });
+});
+
+test('original models need no compressed decoder and unsupported compression fails explicitly', async () => {
+  await MeshoptDecoder.ready;
+  assert.equal(MeshoptDecoder.supported, false);
+  assert.throws(() => MeshoptDecoder.decodeGltfBuffer(), /not supported/);
+  for (const name of ['tram', 'crane', 'planned']) {
+    const bytes = readFileSync(
+      new URL(`../src/assets/demo-${name}.glb`, import.meta.url),
+    );
+    const json = JSON.parse(
+      bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString('utf8'),
+    );
+    assert.deepEqual(json.extensionsRequired ?? [], []);
+    assert.deepEqual(json.extensionsUsed ?? [], []);
+  }
 });

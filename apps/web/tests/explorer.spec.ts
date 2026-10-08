@@ -8,8 +8,10 @@ test('full day keeps evenly spaced two-hour controls, weather and accessible sel
   page.on('request', (r) => {
     if (r.url().includes('/api/')) apis.push(r.url());
   });
-  await page.goto('/?experience=day');
-  await expect(page.getByRole('heading', { name: 'Southbank' })).toBeVisible();
+  await page.goto('/');
+  await expect(
+    page.getByRole('heading', { name: 'Southbank', level: 1 }),
+  ).toBeVisible();
   await expect(
     page
       .getByRole('group', { name: 'Choose two-hour window' })
@@ -20,12 +22,12 @@ test('full day keeps evenly spaced two-hour controls, weather and accessible sel
   );
   await page.getByLabel('History time').fill(String(9 * 3600000));
   await expect(page.getByTestId('day-clock')).toHaveText('09:00:00');
-  await expect(page.locator('.city-glance')).toContainText('rainy');
-  await page.getByRole('button', { name: '22:00 to 24:00' }).click();
-  await expect(page.getByTestId('day-clock')).toHaveText('22:00:00');
-  await page
-    .getByRole('button', { name: '6 trams Simulated movement' })
-    .click();
+  await page.getByRole('tab', { name: 'Weather', exact: true }).click();
+  await expect(page.getByRole('tabpanel')).toContainText('rainy');
+  await expect(
+    page.getByRole('button', { name: '22:00 to 24:00' }),
+  ).toBeDisabled();
+  await page.getByRole('tab', { name: 'Trams', exact: true }).click();
   const row = page.getByRole('button', { name: 'Tram 1 Track A', exact: true });
   await row.focus();
   await page.keyboard.press('Enter');
@@ -43,7 +45,7 @@ test('3D local models and rain load, layers toggle and fallback keeps selection'
     if (/^https?:/.test(r.url()) && new URL(r.url()).hostname !== '127.0.0.1')
       external.push(r.url());
   });
-  await page.goto('/?experience=day');
+  await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
   await expect(
@@ -65,7 +67,8 @@ test('history pause, seek, speed and simulated live work without affecting fixtu
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.goto('/?experience=day');
+  await page.goto('/');
+  await page.getByRole('button', { name: '08:00 to 10:00' }).click();
   await page
     .getByRole('combobox', { name: 'Playback speed' })
     .selectOption('300');
@@ -75,14 +78,14 @@ test('history pause, seek, speed and simulated live work without affecting fixtu
   const stopped = await page.getByTestId('day-clock').innerText();
   await page.waitForTimeout(200);
   await expect(page.getByTestId('day-clock')).toHaveText(stopped);
-  await page.getByRole('button', { name: 'Live', exact: true }).click();
+  await page.getByRole('button', { name: 'Go live', exact: true }).click();
   await expect(page.locator('.player-context')).toHaveText(
     'Simulated live · 1×',
   );
   await expect(
     page.getByRole('combobox', { name: 'Playback speed' }),
   ).toBeDisabled();
-  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await page.getByRole('button', { name: 'Pause demo', exact: true }).click();
   await expect(
     page.getByRole('combobox', { name: 'Playback speed' }),
   ).toBeEnabled();
@@ -91,18 +94,18 @@ test('mobile opens with a compact static 2D summary and usable day controls', as
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?experience=day');
+  await page.goto('/');
   await expect(page.getByTestId('map')).toHaveAttribute('data-view', '2d');
   await expect(
-    page.getByRole('region', { name: 'City summary' }),
+    page.getByRole('complementary', { name: 'Area information' }),
   ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await page.getByRole('button', { name: '12:00 to 14:00' }).click();
-  await expect(page.getByTestId('day-clock')).toHaveText('12:00:00');
+  await page.getByRole('button', { name: '06:00 to 08:00' }).click();
+  await expect(page.getByTestId('day-clock')).toHaveText('06:00:00');
 });
 
 test('model loading obeys the deployed CSP and failed assets retain usable markers', async ({
@@ -125,7 +128,7 @@ test('model loading obeys the deployed CSP and failed assets retain usable marke
       headers: { ...response.headers(), 'content-security-policy': policy },
     });
   });
-  await page.goto('/?experience=day');
+  await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
   expect(violations).toEqual([]);
@@ -147,7 +150,7 @@ test('missing buildings do not prevent models and WebGL recovery uses the select
   await page.route('**/southbank-buildings*.geojson', (route) =>
     route.fulfill({ status: 503, body: 'unavailable' }),
   );
-  await page.goto('/?experience=day');
+  await page.goto('/');
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
   await expect(
@@ -175,4 +178,166 @@ test('missing buildings do not prevent models and WebGL recovery uses the select
     page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
   ).toBeVisible();
   await extension.dispose();
+});
+
+test('sole interface has a fixed health-first panel, keyboard tabs and unobstructed zoom controls', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=weather');
+  await expect(
+    page.getByRole('combobox', { name: 'Scenario', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Area health' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'Not assessed' }),
+  ).toBeVisible();
+  const panel = page.getByRole('complementary', { name: 'Area information' });
+  const before = await panel.boundingBox();
+  for (const tab of ['Weather', 'Trams', 'Works', 'Area health']) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
+    expect(await panel.boundingBox()).toEqual(before);
+  }
+  await page.getByRole('tab', { name: 'Area health' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(
+    page.getByRole('tab', { name: 'Weather', exact: true }),
+  ).toBeFocused();
+  const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+  const bounds = await zoom.boundingBox();
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(before!.x);
+  await zoom.click();
+});
+
+test('history never exposes future time or weather and go live follows the advancing edge', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Go live' })).toHaveClass(
+    /at-live/,
+  );
+  await page.getByRole('button', { name: '08:00 to 10:00' }).click();
+  await page.getByRole('tab', { name: 'Weather', exact: true }).click();
+  await expect(page.getByRole('tabpanel')).not.toContainText('09:00');
+  await expect(
+    page.getByRole('button', { name: '12:00 to 14:00' }),
+  ).toBeDisabled();
+  await page.waitForTimeout(1100);
+  await page.getByRole('button', { name: 'Go live' }).click();
+  await expect(page.getByTestId('day-clock')).not.toHaveText('10:00:00');
+  const max = Number(await page.getByLabel('History time').getAttribute('max'));
+  expect(max).toBeGreaterThan(36000000);
+  expect(max).toBeLessThan(36060000);
+});
+
+test('tram and construction geometry grow on zoom instead of shrinking to a pixel cap', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '08:00 to 10:00' }).click();
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await page.getByRole('button', { name: 'Layers', exact: true }).click();
+  for (const name of ['weather', 'buildings'])
+    await page.getByRole('checkbox', { name, exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Layers', exact: true }).click();
+  async function modelAreas() {
+    const png = await page.getByTestId('map').locator('canvas').screenshot();
+    return page.evaluate(async (bytes) => {
+      const image = await createImageBitmap(
+        new Blob([new Uint8Array(bytes)], { type: 'image/png' }),
+      );
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(image, 0, 0);
+      const { data, width, height } = ctx.getImageData(
+        0,
+        0,
+        image.width,
+        image.height,
+      );
+      return ['tram', 'crane'].map((kind) => {
+        const mask = new Uint8Array(width * height);
+        for (let i = 0; i < mask.length; i++) {
+          // Exclude fixed UI highlights: measure only model geometry on the map.
+          if (
+            i % width > width - 80 ||
+            Math.floor(i / width) < 160 ||
+            Math.floor(i / width) > height - 280
+          )
+            continue;
+          const [r, g, b] = data.slice(i * 4, i * 4 + 3);
+          mask[i] = Number(
+            kind === 'tram'
+              ? r < g * 0.65 && g > b * 1.02 && g > 60
+              : r > g * 1.15 && g > b * 1.8 && g > 65,
+          );
+        }
+        let biggest = 0;
+        for (let i = 0; i < mask.length; i++) {
+          if (!mask[i]) continue;
+          const queue = [i];
+          mask[i] = 0;
+          let size = 0;
+          while (queue.length) {
+            const j = queue.pop()!;
+            size++;
+            for (const n of [
+              j - width,
+              j + width,
+              ...(j % width ? [j - 1] : []),
+              ...(j % width < width - 1 ? [j + 1] : []),
+            ]) {
+              if (n >= 0 && n < mask.length && mask[n]) {
+                mask[n] = 0;
+                queue.push(n);
+              }
+            }
+          }
+          biggest = Math.max(biggest, size);
+        }
+        return biggest;
+      });
+    }, Array.from(png));
+  }
+  const before = await modelAreas();
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await page.waitForTimeout(500);
+  const after = await modelAreas();
+  for (let i = 0; i < 2; i++) {
+    expect(before[i]).toBeGreaterThan(5);
+    expect(after[i]).toBeGreaterThan(before[i] * 1.3);
+  }
+});
+
+test('3D models reach ready while Live continuously advances and after restoring context', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  const clock = await page.getByTestId('day-clock').innerText();
+  await expect(page.getByTestId('day-clock')).not.toHaveText(clock);
+  await expect(
+    page.getByRole('button', { name: 'Select Tram 1 on map', exact: true }),
+  ).toHaveCount(0);
+  const ext = await page
+    .getByTestId('map')
+    .locator('canvas')
+    .evaluateHandle((canvas: HTMLCanvasElement) =>
+      canvas.getContext('webgl2')!.getExtension('WEBGL_lose_context')!,
+    );
+  await ext.evaluate((e) => e.loseContext());
+  await expect(
+    page.getByText('Map unavailable.', { exact: false }),
+  ).toBeVisible();
+  await ext.evaluate((e) => e.restoreContext());
+  await expect(page.getByTestId('map')).toHaveAttribute('data-models', 'ready');
+  await expect(
+    page.getByText('Map unavailable.', { exact: false }),
+  ).toHaveCount(0);
+  await ext.dispose();
 });

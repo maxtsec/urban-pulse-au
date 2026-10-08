@@ -32,7 +32,7 @@ for (const profile of ['desktop', 'mobile'] as const) {
       )!.value;
     };
     try {
-      await page.goto('/?scenario=city');
+      await page.goto('/tests/scenario.html?scenario=city');
       await expect(
         page.getByRole('button', {
           name: 'Select Tram 01 on map',

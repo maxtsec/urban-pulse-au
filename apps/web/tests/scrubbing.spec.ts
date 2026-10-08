@@ -5,7 +5,7 @@ import { chooseScenario, moment } from './helpers';
 async function setup(page: Page) {
   const start = new Date('2026-01-01T00:00:00Z');
   await page.clock.install({ time: start });
-  await page.goto('/?scenario=journey');
+  await page.goto('/tests/scenario.html?scenario=journey');
   await expect(page.getByTestId('clock')).toHaveText('11:00:00');
   // Freeze elapsed time: CI/browser work must not consume the debounce window.
   await page.clock.pauseAt(new Date(start.getTime() + 60_000));

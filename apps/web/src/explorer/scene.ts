@@ -21,20 +21,20 @@ export type VisualScene = {
   selected: string | null;
   select: (id: string) => void;
 };
-function modelLayers(scene: VisualScene): Layer[] {
+function modelLayers(scene: VisualScene, drawn: (id: string) => void): Layer[] {
   const common = {
     pickable: true,
     _lighting: 'pbr' as const,
     parameters: { depthCompare: 'always' as const, depthWriteEnabled: false },
-    sizeMinPixels: 2.5,
-    sizeMaxPixels: 4,
+    // Model coordinates are metres: zoom changes projected size naturally.
+    sizeScale: 3,
   };
   const siteLayer = (construction: boolean) =>
     new ScenegraphLayer<Development>({
       ...common,
-      sizeMinPixels: 1,
-      sizeMaxPixels: 2,
+      sizeScale: 1.5,
       id: construction ? 'demo-cranes' : 'demo-planned',
+      onFirstDraw: () => drawn(construction ? 'demo-cranes' : 'demo-planned'),
       scenegraph: construction ? craneUrl : plannedUrl,
       data: scene.sites.filter(
         (site) =>
@@ -57,6 +57,7 @@ function modelLayers(scene: VisualScene): Layer[] {
     new ScenegraphLayer<DemoTram>({
       ...common,
       id: 'demo-trams',
+      onFirstDraw: () => drawn('demo-trams'),
       scenegraph: tramUrl,
       data: scene.trams,
       getPosition: (tram) => [tram.longitude, tram.latitude, 3],
@@ -161,6 +162,11 @@ export async function mountScene(
   if (signal.aborted) return null;
   let layers: Layer[] = [],
     announced = false;
+  const drawnModels = new Set<string>();
+  let requiredModels: string[] = [];
+  const drawn = (id: string) => {
+    drawnModels.add(id);
+  };
   const overlay = new MapLibreOverlay({
     interleaved: true,
     onError: () => {
@@ -169,7 +175,7 @@ export async function mountScene(
     onAfterRender: () => {
       if (
         !announced &&
-        layers.every((layer) => layer.isLoaded) &&
+        requiredModels.every((id) => drawnModels.has(id)) &&
         !signal.aborted
       ) {
         announced = true;
@@ -184,6 +190,18 @@ export async function mountScene(
           : null,
   });
   const update = (scene: VisualScene) => {
+    // Track rendered model identities, not the latest queued layer objects:
+    // continuous Live updates may replace those before onAfterRender runs.
+    requiredModels = [
+      ...(scene.trams.length ? ['demo-trams'] : []),
+      ...['Under construction', 'Planned'].flatMap((status) =>
+        scene.sites.some(
+          (site) => site.status === status && site.position && site.applicable,
+        )
+          ? [status === 'Under construction' ? 'demo-cranes' : 'demo-planned']
+          : [],
+      ),
+    ];
     layers = [
       ...(scene.buildingsVisible
         ? [
@@ -199,7 +217,7 @@ export async function mountScene(
             }),
           ]
         : []),
-      ...modelLayers(scene),
+      ...modelLayers(scene, drawn),
       ...weatherLayers(scene),
     ];
     overlay.setProps({ layers });

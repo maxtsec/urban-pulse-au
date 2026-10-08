@@ -38,3 +38,5 @@ infra/demo-serving/backend.tf
 
 # CLOUD-01 backend configuration is supplied privately.
 infra/capture/backend.tf
+
+apps/web/dist-test/
