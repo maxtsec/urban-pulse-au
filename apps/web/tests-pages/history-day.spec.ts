@@ -79,3 +79,82 @@ test('previous day ends in history instead of silently changing to Live', async 
     'previous',
   );
 });
+
+test('previous-day schedule loads only on selection, caches success and cannot override Go live', async ({
+  page,
+}) => {
+  let downloads = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/previous-schedule-*.json', async (route) => {
+    downloads += 1;
+    await gate;
+    await route.continue();
+  });
+  await page.goto('./');
+  await expect(page.getByTestId('map')).toBeVisible();
+  expect(downloads).toBe(0);
+  await page
+    .getByRole('combobox', { name: 'Sample date' })
+    .selectOption('previous');
+  await expect(
+    page.locator('.sample-load-notice[role="status"]'),
+  ).toContainText('Loading and verifying 7 October');
+  await expect.poll(() => downloads).toBe(1);
+  await page.getByRole('button', { name: 'Go live' }).click();
+  const response = page.waitForResponse(/previous-schedule-.*json/);
+  release();
+  await response;
+  await expect(page.getByRole('combobox', { name: 'Sample date' })).toHaveValue(
+    'today',
+  );
+  await expect(
+    page.getByRole('button', { name: '22:00 to 24:00' }),
+  ).toBeDisabled();
+  await page
+    .getByRole('combobox', { name: 'Sample date' })
+    .selectOption('previous');
+  await expect(
+    page.getByRole('button', { name: '22:00 to 24:00' }),
+  ).toBeEnabled();
+  await page.getByRole('button', { name: 'Go live' }).click();
+  await page
+    .getByRole('combobox', { name: 'Sample date' })
+    .selectOption('previous');
+  await expect(
+    page.getByRole('button', { name: '22:00 to 24:00' }),
+  ).toBeEnabled();
+  expect(downloads).toBe(1);
+});
+
+test('a corrupt previous-day schedule preserves the current map and can be retried', async ({
+  page,
+}) => {
+  let attempts = 0;
+  await page.route('**/previous-schedule-*.json', async (route) => {
+    attempts += 1;
+    if (attempts === 1) await route.fulfill({ status: 200, body: '{}' });
+    else await route.continue();
+  });
+  await page.goto('./?demo=health');
+  await expect(page.getByTestId('day-clock')).toHaveText('09:15:00');
+  await page
+    .getByRole('combobox', { name: 'Sample date' })
+    .selectOption('previous');
+  await expect(page.getByRole('alert')).toContainText(
+    '7 October could not be verified',
+  );
+  await expect(page.getByTestId('day-clock')).toHaveText('09:15:00');
+  await expect(page.getByRole('combobox', { name: 'Sample date' })).toHaveValue(
+    'today',
+  );
+  await expect(page.getByTestId('map')).toBeVisible();
+  await page.getByRole('button', { name: 'Retry previous day' }).click();
+  await expect(
+    page.getByRole('button', { name: '22:00 to 24:00' }),
+  ).toBeEnabled();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(attempts).toBe(2);
+});

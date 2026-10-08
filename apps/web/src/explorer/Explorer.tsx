@@ -3,6 +3,8 @@ import { CityMap } from '../CityMap';
 import type { Boundary } from '../CityMap';
 import { makeSchedule, inArea } from './schedule';
 import type { LoadedSample } from './sample';
+import type { SampleData } from './schedule';
+import type { SampleDay } from './day';
 import { useReducedMotion } from '../useReducedMotion';
 import {
   WINDOW_MS,
@@ -52,13 +54,52 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
   const reduced = useReducedMotion();
   const playback = useDayPlayback(reduced);
   const { day, selectDay } = playback;
+  const [previousSchedule, setPreviousSchedule] = useState<
+    SampleData['schedule'] | null
+  >(null);
+  const [previousLoading, setPreviousLoading] = useState(false);
+  const [previousError, setPreviousError] = useState(false);
+  const dayRequest = useRef(0);
+  useEffect(
+    () => () => {
+      dayRequest.current += 1;
+    },
+    [],
+  );
+  async function requestDay(next: SampleDay) {
+    const request = ++dayRequest.current;
+    setPreviousError(false);
+    setPreviousLoading(false);
+    if (next === 'previous' && !previousSchedule) {
+      setPreviousLoading(true);
+      try {
+        const loaded = await sample.loadPreviousSchedule();
+        if (dayRequest.current !== request) return;
+        setPreviousSchedule(loaded);
+      } catch {
+        if (dayRequest.current === request) setPreviousError(true);
+        return;
+      } finally {
+        if (dayRequest.current === request) setPreviousLoading(false);
+      }
+    }
+    selectDay(next);
+    select(null);
+    setLocatedReason(null);
+  }
+  function goLive() {
+    dayRequest.current += 1;
+    setPreviousLoading(false);
+    setPreviousError(false);
+    playback.goLive();
+  }
   const schedule = useMemo(
     () =>
       makeSchedule({
         ...data,
-        schedule: day === 'previous' ? sample.previousSchedule : data.schedule,
+        schedule: day === 'previous' ? previousSchedule! : data.schedule,
       }),
-    [data, sample.previousSchedule, day],
+    [data, previousSchedule, day],
   );
   const {
     clock,
@@ -68,7 +109,6 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
     speed,
     setSpeed,
     seek,
-    goLive,
     chooseWindow,
     togglePlay,
   } = playback;
@@ -226,11 +266,9 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           Sample date
           <select
             aria-label="Sample date"
-            value={day}
+            value={previousLoading ? 'previous' : day}
             onChange={(e) => {
-              selectDay(e.target.value as 'today' | 'previous');
-              select(null);
-              setLocatedReason(null);
+              void requestDay(e.target.value as SampleDay);
             }}
           >
             <option value="today">8 Oct 2026 · Simulated today</option>
@@ -238,6 +276,26 @@ export function Explorer({ sample }: { sample: LoadedSample }) {
           </select>
         </label>
       </header>
+      <div className="demo-scenario-banner">
+        Demo scenario — scripted incidents, not real service status
+      </div>
+      {previousLoading && (
+        <div className="sample-load-notice" role="status">
+          Loading and verifying 7 October… Current map stays on 8 October.
+        </div>
+      )}
+      {previousError && (
+        <div className="sample-load-notice" role="alert">
+          7 October could not be verified. Current map is unchanged.{' '}
+          <button
+            onClick={() => {
+              void requestDay('previous');
+            }}
+          >
+            Retry previous day
+          </button>
+        </div>
+      )}
       <button className="sample-credit-button" onClick={() => setCredits(true)}>
         Sources & attribution
       </button>

@@ -44,13 +44,13 @@ test('street-name toggle and 2D/3D delay overlays work on the static site', asyn
 }) => {
   await page.goto('./?demo=health');
   await expect(
-    page.locator('.sample-map-label').filter({ hasText: 'Collins Street' }),
+    page.locator('.sample-street-label').filter({ visible: true }).first(),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Layers', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Main street names' }).uncheck();
   await expect(
-    page.locator('.sample-map-label').filter({ hasText: 'Collins Street' }),
-  ).toBeHidden();
+    page.locator('.sample-street-label').filter({ visible: true }),
+  ).toHaveCount(0);
   await page.getByRole('checkbox', { name: 'Main street names' }).check();
   await page.getByRole('button', { name: 'Layers', exact: true }).click();
   await expect(
@@ -87,7 +87,7 @@ test('street-name toggle and 2D/3D delay overlays work on the static site', asyn
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await expect(page.locator('.demo-delay-severe').first()).toBeVisible();
   await expect(
-    page.locator('.sample-map-label').filter({ hasText: 'Collins Street' }),
+    page.locator('.sample-street-label').filter({ visible: true }).first(),
   ).toBeVisible();
   await page.screenshot({ path: 'test-results/health-2d.png' });
 });
@@ -112,4 +112,71 @@ test('ordinary tram labels stay quiet until focus, selection or close zoom', asy
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await expect(page.locator('.tram-marker.label-quiet')).toHaveCount(0);
+});
+
+test('scripted status is explicit and street labels never overlap markers or route labels', async ({
+  page,
+}) => {
+  await page.goto('./?demo=health');
+  await expect(page.locator('.demo-scenario-banner')).toBeVisible();
+  await expect(page.locator('.demo-scenario-banner')).toHaveText(
+    'Demo scenario — scripted incidents, not real service status',
+  );
+  await expect(
+    page.locator('.condition-card .scripted-status-notice'),
+  ).toHaveText('Demo scenario — scripted incidents, not real service status');
+  await expect(
+    page.locator('.sample-street-label').filter({ visible: true }).first(),
+  ).toBeVisible();
+  const overlappingNames = () =>
+    page.evaluate(() => {
+      const visible = (el: Element) =>
+        getComputedStyle(el).visibility !== 'hidden' &&
+        getComputedStyle(el).display !== 'none' &&
+        getComputedStyle(el).opacity !== '0';
+      const streets = [
+        ...document.querySelectorAll('.sample-street-label'),
+      ].filter(visible);
+      const obstacles = [
+        ...document.querySelectorAll(
+          '.tram-marker, .development-marker, .tram-marker .marker-label',
+        ),
+      ].filter(visible);
+      const overlap = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right - 1 &&
+        a.right > b.left + 1 &&
+        a.top < b.bottom - 1 &&
+        a.bottom > b.top + 1;
+      return streets
+        .filter((street, index) =>
+          [...obstacles, ...streets.slice(index + 1)].some((other) =>
+            overlap(
+              street.getBoundingClientRect(),
+              other.getBoundingClientRect(),
+            ),
+          ),
+        )
+        .map((el) => el.textContent);
+    });
+  await expect.poll(overlappingNames).toEqual([]);
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await expect.poll(overlappingNames).toEqual([]);
+});
+
+test('mobile keeps the demo banner visible while credits and status remain usable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./?demo=health');
+  await page.getByRole('button', { name: 'Sources & attribution' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Sources and attribution' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close sources' }).click();
+  await page.locator('.condition-card').scrollIntoViewIfNeeded();
+  await expect(page.locator('.demo-scenario-banner')).toBeInViewport();
+  await expect(
+    page.locator('.condition-card .scripted-status-notice'),
+  ).toBeInViewport();
 });
