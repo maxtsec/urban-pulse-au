@@ -21,3 +21,8 @@ Proposed finite profile: one task, one CPU, 2 GiB, no task retries, 900-second p
 Scheduler is initially paused and both alert policies disabled. Daily UTC scheduling avoids a 25-hour daylight-saving gap. The initial last-success candidate is a **24-hour 30-minute positive-success window**, not an absence policy: log-based/custom metrics only support the most recent 25 hours even though some system metrics support longer PromQL lookbacks. The earlier 26-hour suggestion is unsuitable for this log metric. Thresholds and notification channels are not enrolled by accepting this ADR. See the [deployment runbook](../runbooks/gtfs-archive-deployment.md) for sparse-series, never-success and recovery checks.
 
 No apply, temporary IAM grant, upload or unattended collection is authorized by merging implementation. Retained seed and daily archive acceptance still precede the Phase 1a export.
+
+
+## Regional correction proposed after initialization
+
+The first live apply confirmed that Cloud Scheduler does not support Melbourne; its project ListLocations response includes Sydney only within Australia. Propose `australia-southeast1` for the scheduling control plane, targeting the existing `australia-southeast2` Cloud Run Job. The source download, temporary data and archive bucket remain in Melbourne. This does not add cross-region data replication or a new identity. The replacement saved plan adds only the paused Scheduler; region correction and apply await architect approval. See [provider locations](https://docs.cloud.google.com/scheduler/docs/locations).

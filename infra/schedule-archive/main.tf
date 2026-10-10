@@ -74,8 +74,9 @@ resource "google_cloud_run_v2_job_iam_member" "invoke" {
   member   = google_service_account.scheduler.member
 }
 resource "google_cloud_scheduler_job" "archive" {
-  name   = "urbanpulse-gtfs-archive-daily"
-  region = "australia-southeast2"
+  name = "urbanpulse-gtfs-archive-daily"
+  # Scheduler is available in Sydney; the target Job and archive stay in Melbourne.
+  region = "australia-southeast1"
   # UTC avoids the 25-hour gap on the Melbourne daylight-saving fallback day.
   schedule         = "0 18 * * *"
   time_zone        = "Etc/UTC"

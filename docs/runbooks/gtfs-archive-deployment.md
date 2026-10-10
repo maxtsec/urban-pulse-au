@@ -4,7 +4,7 @@ Implements [ADR 0023](../adr/0023-gtfs-archive-deployment.md). The [worker runbo
 
 ## Prepare a reviewable plan
 
-1. Confirm the existing Run, Storage, IAM Credentials, Logging and Monitoring APIs and deployer permissions. This root enables only Scheduler, with `disable_on_destroy=false`; do not take ownership of APIs managed by other roots. Confirm the Cloud Scheduler service agent has its provider-managed role before dispatch acceptance. Do not grant it archive data access.
+1. Check [Cloud Scheduler locations](https://docs.cloud.google.com/scheduler/docs/locations) and the project ListLocations response. Melbourne is not supported: the correction proposes Scheduler in Sydney (`australia-southeast1`), with the target Job and bucket retained in Melbourne. Review this region split in the saved plan before creating Scheduler. Confirm the existing Run, Storage, IAM Credentials, Logging and Monitoring APIs and deployer permissions. This root enables only Scheduler, with `disable_on_destroy=false`; do not take ownership of APIs managed by other roots. Confirm the Cloud Scheduler service agent has its provider-managed role before dispatch acceptance. Do not grant it archive data access.
 2. Build/publish the tested API runtime image using the existing protected image workflow. Read back its source label and immutable manifest digest. Do not use a mutable tag or an image predating this worker.
 3. Copy `infra/schedule-archive/terraform.tfvars.example` to ignored `terraform.tfvars`, supply the reviewed project, **new bucket**, image digest and commit. Keep schedule/alerts disabled. Proposed task resources: 1 CPU, 2 GiB, 900 seconds including startup; runner 540 seconds. The outer ZIP can occupy 512 MiB and tram ZIP 128 MiB of memory-backed storage; the offline memory measurement excludes a cloud outer download.
 4. Use the accepted versioned GCS state bucket with a dedicated `schedule-archive/` prefix. Create ignored `infra/schedule-archive/backend.tf` with the actual bucket, not the collector's `capture/` or serving prefix. Back up any existing state before/after changes, verify hashes and retain the previous copy. Never migrate another root's state into this one.
@@ -88,3 +88,10 @@ Before setting `alerts_enrolled=true`, query the **actual** metric/labels using 
 Validate actual DELTA-to-PromQL behavior, metric existence and sample timestamps: mocked Terraform and ordinary Prometheus cannot establish Google's backend semantics. If the query/window fails any case, keep enrollment off and return a revised design; do not add a resident monitor or widen runtime IAM. DAM requires its own source-specific acceptance.
 
 Review a second saved plan with explicit grace, verified existing notification channels and alert enrollment; run the notification drill. Only then set `acceptance_complete=true` and `schedule_enabled=true` in another reviewed plan. Preserve UTC source timing and original archive provenance. The retained seed plus daily checks/denial tests/notifications close the static-archive gate before Phase 1a export.
+
+
+## Resume a partial initialization
+
+If apply fails after creating resources, preserve its log and immediately pull/hash a new state backup. Do not reuse the original saved plan: it describes the previous state. Read back existing resources, confirm zero executions, disabled alerts and absent/paused schedule, fix the configuration, then generate a new saved plan for separate review. Never destroy successful resources merely to restart initialization.
+
+The first initialization on 10 October 2026 created 11 resources, then Scheduler rejected `australia-southeast2`. Live ListLocations and the official catalogue identify Sydney as the available Australian Scheduler region. The correction must add **only the paused Scheduler**; changes or replacements to the Melbourne Job, bucket, IAM or alerts require investigation before apply.
