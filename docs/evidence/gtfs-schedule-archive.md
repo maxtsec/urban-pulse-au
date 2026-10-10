@@ -38,3 +38,21 @@ The true CLI entry point runs a synthetic offline inspection. The archive tests 
 Cloud Run execution, metadata identity readback, live GCS writes/denials, historical seed staging, Scheduler and Monitoring alerts are **not** verified by these offline/HTTP-double tests. They require the separately reviewed Terraform plan and finite cloud acceptance. No cloud resources, source permissions, collector service, realtime raw or expiry configuration were changed.
 
 Checksum confirmation follows [GCS server-side validation](https://docs.cloud.google.com/storage/docs/data-validation): MD5 is checked by the service for these non-composite media uploads, and the adapter verifies the returned server metadata instead of trusting custom SHA metadata. SHA-256 remains the archive address and source-provenance identifier. The [official source catalogue](https://opendata.transport.vic.gov.au/dataset/gtfs-schedule) still identifies mode 3 as metropolitan tram; a daily check does not imply the provider publishes daily.
+
+
+## Deployment preparation and seed authentication
+
+The follow-up deployment checks on 10 October 2026 cover the isolated Terraform root and seed-only impersonation. Nine mocked plans pass: protected prefix-only storage, separate scheduler/runtime identities, bounded non-executing Job, default-off activation, enrollment/grace requirements, digest/source identity and same-project notification validation. Reproduce with readonly init, `terraform validate` and `terraform test` in `infra/schedule-archive`; no cloud credentials/backend or apply are used by these tests.
+
+Archive and authentication regressions pass on Windows (73 tests) and an isolated no-network, read-only, unprivileged Linux container (73 tests, 6.14 seconds). Windows archive/auth plus shared observation/initialization-request regressions pass together (106 tests). Tests reject impersonation for check/inspect, invalid user or target identities, auth timeout/error output disclosure and metadata identity mismatch; a successful local seed requests the explicit target and short token lifetime. Ruff lint/format and strict mypy (92 source files) pass.
+
+These tests use authentication/storage doubles. At that pre-apply stage, no actual temporary grant, local impersonated upload, new image publication, cloud plan/apply, scheduler dispatch or daily Monitoring query had been executed by the follow-up. The subsequent initialization and readbacks are recorded below. Real acceptance follows the [deployment runbook](../runbooks/gtfs-archive-deployment.md), including the log-metric 25-hour lookback constraint and notification cases.
+
+
+## Initial infrastructure apply and region correction
+
+The separately approved initialization plan created 11 resources on 10 October 2026. Cloud Scheduler then rejected Melbourne as unsupported; the run ended with a partial apply, not deployment completion. The saved state was backed up before and after. Direct API readbacks confirm the Melbourne bucket, exact prefix-scoped archive grant, separate Job invoker, zero executions and both alerts disabled. This establishes configuration readback, not live data-access denial tests or collection acceptance.
+
+The live Scheduler ListLocations response and [official catalogue](https://docs.cloud.google.com/scheduler/docs/locations) list Sydney as the available Australian region. The correction keeps storage and the target Job in Melbourne. The architect separately approved the replacement plan (one creation, zero updates and zero deletions), which successfully created only the paused Sydney Scheduler. All nine mocked deployment tests pass, including the Sydney scheduler/Melbourne target invariant. Historical seed and unattended capture have not started.
+
+Final API readback confirmed `PAUSED`, the exact Melbourne Job target and invoker identity, zero executions, both alerts disabled and the provider-managed Scheduler service-agent role. State backups before and after the correction were hashed and retained privately. A fresh post-apply Terraform plan returned no changes. No seed upload, temporary Token Creator grant, live storage-denial test, daily notification enrollment or schedule activation was performed.

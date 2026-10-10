@@ -36,7 +36,7 @@ The separately reviewed deployment provides the dedicated archive identity and p
 /app/.venv/bin/python -m workers.schedule_archive.main check --bucket APPROVED_BUCKET --expected-service-account ARCHIVE_SA_EMAIL --code-version SOURCE_COMMIT
 ```
 
-`check` makes one bounded download from the fixed official HTTPS URL, with no redirects or automatic source retries. A historical `seed` uses the same arguments plus `--source-zip` and `--provenance` pointing at operator-staged read-only inputs. The mechanism to stage that retained input into the keyless Job is part of the separate deployment review; this implementation grants no extra read scope or key. Do not grant the home uploader archive access to bypass staging.
+`check` makes one bounded download from the fixed official HTTPS URL, with no redirects or automatic source retries. A historical `seed` adds `--source-zip` and `--provenance` for retained read-only inputs. The accepted local path adds `--seed-user-account` for short-lived impersonation of the explicit archive SA; it is forbidden for `check` and `inspect`. Follow the [deployment and temporary-grant runbook](gtfs-archive-deployment.md). The statewide ZIP stays local; no home-uploader permission is added.
 
 ```text
 static/gtfs-tram/

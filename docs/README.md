@@ -53,6 +53,8 @@ For the public mixed-source view: [schedule sample walkthrough](demos/schedule-s
 | [Schedule sample](demos/schedule-sample.md) | Offline builder and Pages deployment | Sample build or verification changes |
 | [ADR 0020](adr/0020-synthetic-day-explorer.md) | Sole synthetic day UI, live-bounded history, fixed health/coverage panel and presentation boundaries | Preview time or data ownership changes |
 | [GTFS archive Job](runbooks/gtfs-schedule-archive.md) | Bounded static download, retained-source inspection and immutable cloud publication | Job or deployment procedure changes |
+| [GTFS archive deployment](runbooks/gtfs-archive-deployment.md) | Isolated Terraform, short-lived historical seed and daily alert acceptance | Deployment, IAM or enrollment changes |
+| [ADR 0023](adr/0023-gtfs-archive-deployment.md) | Accepted local seed impersonation and archive deployment boundaries | Architect-reviewed identity changes |
 | [GTFS archive evidence](evidence/gtfs-schedule-archive.md) | Integrity, change detection and offline retained-source verification | Validation or operational evidence changes |
 | [Tram field audit](runbooks/tram-field-audit.md) | Read-only source-field census, bounds and schema-freeze evidence | Audit behavior or source field review changes |
 | [Normalized Tram contract](architecture/normalized-tram-contract.md) | Accepted export isolation, stable keys and field-audit gate; range pins and alerts in 1c | Normalized schema or export semantics change |

@@ -1,0 +1,11 @@
+project_id = "example-project"
+archive_bucket = "example-project-static-archive"
+api_image = "australia-southeast2-docker.pkg.dev/example-project/urbanpulse/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+source_sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+# Leave all activation gates false until separately reviewed cloud acceptance.
+schedule_enabled = false
+acceptance_complete = false
+alerts_enabled = false
+alerts_enrolled = false
+notification_channels = []
+alert_not_before = 0

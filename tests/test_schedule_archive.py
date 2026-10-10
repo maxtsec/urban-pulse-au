@@ -363,7 +363,7 @@ def test_readonly_inspection_unknown_original_timestamp(tmp_path, monkeypatch):
     def no_auth(*args, **kwargs):
         pytest.fail("offline inspection attempted cloud authentication")
 
-    monkeypatch.setattr("workers.schedule_archive.main.compute_engine.Credentials", no_auth)
+    monkeypatch.setattr("urbanpulse.adapters.gtfs_archive_auth.compute_engine.Credentials", no_auth)
     request = ArchiveRequest(
         "inspect", None, None, "test", str(outer), str(record), str(tmp_path / "report")
     )
@@ -390,7 +390,9 @@ def test_wrong_runtime_identity_before_any_writes(tmp_path, monkeypatch):
         def refresh(self, request):
             pass
 
-    monkeypatch.setattr("workers.schedule_archive.main.compute_engine.Credentials", Credentials)
+    monkeypatch.setattr(
+        "urbanpulse.adapters.gtfs_archive_auth.compute_engine.Credentials", Credentials
+    )
     request = ArchiveRequest(
         "check", "archive-test", "archive@project.iam.gserviceaccount.com", "test"
     )
