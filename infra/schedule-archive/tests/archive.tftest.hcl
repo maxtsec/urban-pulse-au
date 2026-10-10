@@ -65,7 +65,7 @@ run "isolated_and_dormant" {
       google_cloud_run_v2_job.archive.location == "australia-southeast2" &&
       google_cloud_scheduler_job.archive.http_target[0].uri == "https://run.googleapis.com/v2/projects/example-project/locations/australia-southeast2/jobs/urbanpulse-gtfs-archive:run" &&
       google_cloud_scheduler_job.archive.schedule == "0 18 * * *" && google_cloud_scheduler_job.archive.time_zone == "Etc/UTC" &&
-      google_cloud_scheduler_job.archive.retry_config[0].retry_count == 0 &&
+      length(google_cloud_scheduler_job.archive.retry_config) == 0 &&
       google_cloud_run_v2_job_iam_member.invoke.role == "roles/run.invoker" &&
       google_cloud_run_v2_job_iam_member.invoke.member == google_service_account.scheduler.member &&
       google_cloud_run_v2_job_iam_member.invoke.name == google_cloud_run_v2_job.archive.name &&

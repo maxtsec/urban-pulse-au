@@ -82,7 +82,8 @@ resource "google_cloud_scheduler_job" "archive" {
   time_zone        = "Etc/UTC"
   paused           = !var.schedule_enabled
   attempt_deadline = "60s"
-  retry_config { retry_count = 0 }
+  # Omitted retryCount and maxRetryDuration both default to zero (no retries).
+  # The API drops an all-zero block; declaring one creates perpetual plan drift.
   http_target {
     uri         = "https://run.googleapis.com/v2/projects/${var.project_id}/locations/australia-southeast2/jobs/${google_cloud_run_v2_job.archive.name}:run"
     http_method = "POST"

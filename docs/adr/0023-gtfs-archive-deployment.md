@@ -23,6 +23,6 @@ Scheduler is initially paused and both alert policies disabled. Daily UTC schedu
 No apply, temporary IAM grant, upload or unattended collection is authorized by merging implementation. Retained seed and daily archive acceptance still precede the Phase 1a export.
 
 
-## Regional correction proposed after initialization
+## Regional correction accepted after initialization
 
-The first live apply confirmed that Cloud Scheduler does not support Melbourne; its project ListLocations response includes Sydney only within Australia. Propose `australia-southeast1` for the scheduling control plane, targeting the existing `australia-southeast2` Cloud Run Job. The source download, temporary data and archive bucket remain in Melbourne. This does not add cross-region data replication or a new identity. The replacement saved plan adds only the paused Scheduler; region correction and apply await architect approval. See [provider locations](https://docs.cloud.google.com/scheduler/docs/locations).
+The first live apply confirmed that Cloud Scheduler does not support Melbourne; its project ListLocations response includes Sydney only within Australia. The project architect accepted `australia-southeast1` for the scheduling control plane on 2026-10-10, targeting the existing `australia-southeast2` Cloud Run Job. The source download, temporary data and archive bucket remain in Melbourne. This does not add cross-region data replication or a new identity. The separately approved replacement plan added only the paused Scheduler. API readback confirmed its Sydney location and Melbourne target; Job execution and alert enrollment remain separate. See [provider locations](https://docs.cloud.google.com/scheduler/docs/locations).
