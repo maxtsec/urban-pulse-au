@@ -41,3 +41,5 @@ Source: [DTP GTFS Schedule](https://opendata.transport.vic.gov.au/dataset/gtfs-s
 ## Implementation and operational evidence
 
 The bounded Job is implemented in `workers/schedule_archive`, with independent source validation and GCS adapters. See the [runbook](../runbooks/gtfs-schedule-archive.md) for limits and immutable layout, and [verification evidence](../evidence/gtfs-schedule-archive.md). Current progress is maintained in the [delivery plan](../delivery-plan.md); deployment is not implied by the offline checks.
+
+The retained-source seed identity is recorded in [ADR 0023](../adr/0023-gtfs-archive-deployment.md): local short-lived impersonation, conditional Token Creator on the archive SA only, explicit removal/readback and no key. The [deployment runbook](../runbooks/gtfs-archive-deployment.md) covers the isolated Terraform root and daily alert limits.

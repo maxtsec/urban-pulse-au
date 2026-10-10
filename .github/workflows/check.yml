@@ -90,6 +90,9 @@ jobs:
       - run: terraform -chdir=infra/capture init -backend=false -input=false -lockfile=readonly
       - run: terraform -chdir=infra/capture validate
       - run: terraform -chdir=infra/capture test
+      - run: terraform -chdir=infra/schedule-archive init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=infra/schedule-archive validate
+      - run: terraform -chdir=infra/schedule-archive test
 
   compose:
     runs-on: ubuntu-latest

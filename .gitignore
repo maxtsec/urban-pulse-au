@@ -40,3 +40,5 @@ infra/demo-serving/backend.tf
 infra/capture/backend.tf
 
 apps/web/dist-test/
+
+infra/schedule-archive/backend.tf

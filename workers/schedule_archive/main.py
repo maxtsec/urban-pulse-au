@@ -10,13 +10,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from multiprocessing.connection import Connection
 from pathlib import Path
-from typing import Any
 
 import httpx
-from google.auth import compute_engine
-from google.auth.transport.requests import Request
 
 from urbanpulse.adapters.gtfs_archive import SOURCE_URL, Limits, download, prepare
+from urbanpulse.adapters.gtfs_archive_auth import access_token, seed_user_valid
 from urbanpulse.adapters.gtfs_archive_gcs import GcsArchive
 from urbanpulse.application.schedule_archive import ArchiveError, publish, timestamp
 from workers.job_runtime import supervise
@@ -32,8 +30,13 @@ class ArchiveRequest:
     provenance: str | None = None
     output: str | None = None
     timeout_seconds: int = 540
+    seed_user_account: str | None = None
 
     def __post_init__(self) -> None:
+        if self.seed_user_account is not None and (
+            self.operation != "seed" or not seed_user_valid(self.seed_user_account)
+        ):
+            raise ValueError("local user impersonation is only allowed for seed")
         if self.operation not in ("inspect", "seed", "check"):
             raise ValueError("unknown operation")
         if not re.fullmatch(r"[a-zA-Z0-9._-]{1,128}", self.code_version):
@@ -97,13 +100,9 @@ def retained_provenance(path: Path) -> dict[str, object]:
 
 
 def execute(request: ArchiveRequest, deadline: float) -> dict[str, str]:
-    # A caller explicitly selects the dedicated metadata identity, never a local SA key.
-    credentials: Any = None
+    token = ""
     if request.operation != "inspect":
-        credentials = compute_engine.Credentials()  # type: ignore[no-untyped-call]
-        credentials.refresh(Request())
-        if credentials.service_account_email != request.expected_service_account:
-            raise ValueError("unexpected runtime identity")
+        token = access_token(str(request.expected_service_account), request.seed_user_account)
     with tempfile.TemporaryDirectory(prefix="gtfs-archive-") as directory:
         workspace = Path(directory)
         with httpx.Client(timeout=30, follow_redirects=False, trust_env=False) as client:
@@ -150,9 +149,7 @@ def execute(request: ArchiveRequest, deadline: float) -> dict[str, str]:
                     "kind": "gtfs_archive_inspection",
                     "output": str(destination),
                 }
-            objects = GcsArchive(
-                str(request.bucket), lambda: str(credentials.token), deadline, client
-            )
+            objects = GcsArchive(str(request.bucket), lambda: token, deadline, client)
             return publish(
                 objects,
                 workspace,
@@ -180,6 +177,7 @@ def child(request: ArchiveRequest, deadline: float, output: Connection) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=("inspect", "seed", "check"))
+    parser.add_argument("--seed-user-account")
     parser.add_argument("--bucket")
     parser.add_argument("--expected-service-account")
     parser.add_argument("--code-version", required=True)
