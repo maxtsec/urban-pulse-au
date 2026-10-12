@@ -10,13 +10,15 @@ Explore Melbourne CBD and Southbank through transport, weather and development a
 
 The sample combines real buildings, streets, tram schedules and development records with **simulated tram movement, scripted incidents and synthetic weather**. It is not a live service-status map. [Sources and attribution](sample-data/README.md).
 
-## What is real today
+## Engineering evidence
 
-- **Continuous real Tram capture:** positions, trip updates and alerts collected on a dedicated encrypted host, with Cloud Monitoring heartbeat, feed-health and capacity alerts. [Activation and notification evidence](docs/evidence/cloud-01-raw-activation.md).
+- **Real Tram capture:** positions, trip updates and alerts collected on a dedicated encrypted host, with Cloud Monitoring heartbeat, feed-health and capacity alerts. [Activation and notification evidence](docs/evidence/cloud-01-raw-activation.md).
 - **Terraform-managed GCP:** Cloud Run serving and Cloud SQL/PostGIS, with separate runtime identities and bounded database access. [Database deployment](docs/evidence/demo-01-database-bootstrap.md) · [Deployed serving revision](docs/evidence/cd-01-managed-delivery.md#executions).
 - **Protected continuous delivery:** federated GitHub authentication, automatic zero-traffic candidates, operator-approved promotion and retained rollback targets. [CD execution evidence](docs/evidence/cd-01-managed-delivery.md).
 
-These are running collection and deployed demo systems; the public sample remains separate from collected realtime data.
+These records document completed operational exercises. Cloud resources have been removed and collection is paused; the public sample remains separate from collected realtime data.
+
+**Local data engineering:** retained captures, Parquet, DuckDB/dbt and tested 15-minute area summaries. [Run it locally](docs/runbooks/local-tram-analytics.md).
 
 ## Try it locally
 

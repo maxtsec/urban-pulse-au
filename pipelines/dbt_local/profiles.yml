@@ -1,0 +1,13 @@
+urbanpulse_local:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('URBANPULSE_DUCKDB_PATH') }}"
+      schema: analytics
+      threads: 1
+      settings:
+        TimeZone: UTC
+        memory_limit: 512MB
+        autoinstall_known_extensions: false
+        autoload_known_extensions: false
