@@ -175,3 +175,11 @@ For the public mixed-source view: [schedule sample walkthrough](demos/schedule-s
 Use issues for scheduled work, ADRs for consequential technical choices, OpenAPI for implemented HTTP fields and dbt documentation for implemented models. Add runbooks alongside operational features. Keep technical documents focused on responsibilities and procedures; link to delivery status rather than repeating feature inventories.
 
 Label fixture/live inputs and preserve the scope of dated evidence. The project brief uses revision numbers; software releases use version tags such as `v1.0.0`.
+
+## Local analytics
+
+| Document | Responsibility |
+| --- | --- |
+| [ADR 0024](adr/0024-local-duckdb-analytics.md) | Accepted local engine, receipt-window metrics, conflict isolation and limits |
+| [Local Tram runbook](runbooks/local-tram-analytics.md) | Prepare private Parquet, run dbt and query/rebuild the DuckDB marts |
+| [Local analytics evidence](evidence/local-tram-analytics.md) | Real build and retained-probe results, reproducibility and unverified scope |

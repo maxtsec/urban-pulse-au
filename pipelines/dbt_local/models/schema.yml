@@ -1,0 +1,34 @@
+version: 2
+models:
+  - name: stg_captures
+    description: All source outcomes retained; successful means captured and decodable full-dataset protobuf.
+    columns:
+      - name: record_key
+        data_tests: [not_null, unique]
+      - name: feed
+        data_tests: [not_null]
+  - name: stg_positions
+    description: Position-only exploratory projection; not full normalized-history v1 or expiry evidence.
+    columns:
+      - name: record_key
+        data_tests: [not_null, unique]
+  - name: int_observations
+    description: Earliest receipt per store, vehicle and source timestamp within each 15-minute receipt window.
+    columns:
+      - name: record_key
+        data_tests: [not_null, unique]
+  - name: mart_area_tram_15m
+    description: Observed distinct vehicles and median receipt minus observation age; never an in-service count or delay rate.
+    columns:
+      - name: area_id
+        data_tests: [not_null]
+      - name: window_start
+        data_tests: [not_null]
+  - name: mart_capture_15m
+    description: Feed-wide successful capture counts and maximum silence inside each window, including both edges. No invented outage threshold.
+
+  - name: int_observation_conflicts
+    description: Conflicting coordinates or trip instance for the same source observation; staging preserved, metrics exclude the group.
+    columns:
+      - name: vehicle_id
+        data_tests: [not_null]

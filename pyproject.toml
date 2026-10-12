@@ -11,6 +11,13 @@ dependencies = [
 ]
 
 [dependency-groups]
+analytics = [
+    "dbt-duckdb>=1.9,<2",
+    "duckdb>=1.4,<2",
+    "gtfs-realtime-bindings>=2.2.0",
+    "polars>=1.44.2",
+    "shapely>=2.1,<3",
+]
 capture = ["httpx", "pydantic", "google-auth"]
 capture-test = [{include-group = "capture"}, "pytest", "cryptography"]
 dev = [
@@ -36,7 +43,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["apps/api", "workers/ingestion", "workers/events", "workers/city", "workers/initialization", "workers/schedule_archive", "workers/capture", "urbanpulse", "scripts/image_publication.py", "scripts/demo_database.py", "scripts/demo_delivery.py", "scripts/demo_delivery_runner.py", "scripts/demo_delivery_seed.py", "scripts/gtfs_probe.py", "scripts/transport_probe.py", "scripts/source_probe.py", "scripts/tram_field_audit.py"]
+files = ["apps/api", "workers/ingestion", "workers/events", "workers/city", "workers/initialization", "workers/schedule_archive", "workers/capture", "urbanpulse", "scripts/image_publication.py", "scripts/demo_database.py", "scripts/demo_delivery.py", "scripts/demo_delivery_runner.py", "scripts/demo_delivery_seed.py", "scripts/gtfs_probe.py", "scripts/transport_probe.py", "scripts/source_probe.py", "scripts/tram_field_audit.py", "scripts/local_tram.py", "pipelines/local_tram.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

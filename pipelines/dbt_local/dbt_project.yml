@@ -1,0 +1,12 @@
+name: urbanpulse_local
+version: '0.1.0'
+config-version: 2
+profile: urbanpulse_local
+model-paths: [models]
+test-paths: [tests]
+macro-paths: [macros]
+flags:
+  send_anonymous_usage_stats: false
+models:
+  urbanpulse_local:
+    +materialized: table

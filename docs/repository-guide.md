@@ -14,7 +14,9 @@ Start with the [README](../README.md) to run the sample, or the [development gui
 | `apps/web/tests/`, `apps/web/unit/` | API-backed browser scenarios and frontend unit tests |
 | `urbanpulse/` | Transport, weather, planning and location rules, contracts, application coordination and adapters |
 | `workers/` | Independently runnable capture, ingestion and event work |
-| `pipelines/` | Pipeline workspace; see the delivery plan for implemented versus planned work |
+| `pipelines/local_tram.py` | Position-only analytical Parquet preparation and spatial membership |
+| `pipelines/dbt_local/` | Local DuckDB staging, conflict isolation, deduplication and tested area/capture marts |
+| `pipelines/dbt/` | Separate BigQuery scaffold for the future cloud pipeline |
 | `migrations/` | Ordered database schema changes |
 | `infra/`, `ops/` | Cloud resources and host/service definitions |
 | `scripts/`, `tests/` | Reproducible builders, operator checks and Python tests |
